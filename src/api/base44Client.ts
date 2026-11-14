@@ -4,58 +4,254 @@ import { supabase, supabaseAdmin } from "@/lib/supabase";
  * Design build with real authentication.
  *
  * Keeps the app's `base44.*` call surface. Sign-in is real (self-hosted
- * Supabase); auction data has no backend yet:
+ * Supabase):
  *   - auth: customer accounts (Supabase Auth + public.profiles)
  *   - adminAuth: separate staff session for /admin; requires a row in
  *     public.user_roles (admin / super_admin)
- *   - entity reads return empty results, writes are accepted and discarded
- *   - functions.invoke: only myAdminCapabilities is backed
+ *   - entities: read/write the Supabase tables (row-level security decides
+ *     who may write; /admin pages use the staff session)
+ *   - functions.invoke: only myAdminCapabilities is backed so far; bidding,
+ *     wallet and other server actions are not ported yet
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
 
-const ENTITY_NAMES = [
-  "ActivityLog", "ApiKey", "Auction", "AuctionCostItem", "AuctionFinanceOverride", "AuctionFinanceChange",
-  "AuctionMessage", "Bid", "BidCredit", "BidEvent", "Brand", "Category", "Content", "Coupon", "Fulfilment",
-  "Notification", "Page", "ParticipantNote", "PaymentMethod", "PaymentMethodCredential", "RefundRequest",
-  "Report", "Role", "ShippingMethod", "SiteSettings", "SupportTicket", "Template", "Theme", "User",
-  "WalletTransaction", "WinnerPayment",
-];
+/* ------------------------------- entities ------------------------------- */
 
-const newId = () => `design-${Math.random().toString(36).slice(2, 10)}`;
-const now = () => new Date().toISOString();
+const TABLES: Record<string, string> = {
+  ActivityLog: "activity_logs",
+  ApiKey: "api_keys",
+  Auction: "auctions",
+  AuctionCostItem: "auction_cost_items",
+  AuctionFinanceOverride: "auction_finance_overrides",
+  AuctionFinanceChange: "auction_finance_changes",
+  AuctionMessage: "auction_messages",
+  Bid: "bids",
+  BidCredit: "bid_credits",
+  BidEvent: "bid_events",
+  Brand: "brands",
+  Category: "categories",
+  Content: "contents",
+  Coupon: "coupons",
+  Fulfilment: "fulfilments",
+  Notification: "notifications",
+  Page: "pages",
+  ParticipantNote: "participant_notes",
+  PaymentMethod: "payment_methods",
+  PaymentMethodCredential: "payment_method_credentials",
+  RefundRequest: "refund_requests",
+  Report: "reports",
+  Role: "roles",
+  ShippingMethod: "shipping_methods",
+  SiteSettings: "site_settings",
+  SupportTicket: "support_tickets",
+  Template: "templates",
+  Theme: "themes",
+  User: "profiles",
+  WalletTransaction: "wallet_transactions",
+  WinnerPayment: "winner_payments",
+};
+
+/**
+ * Data calls use the session of the area the visitor is in: the staff session
+ * on /admin, the customer session everywhere else.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = (): any =>
+  typeof window !== "undefined" && window.location.pathname.startsWith("/admin") ? supabaseAdmin : supabase;
+
+/** "-created_date" -> desc, "display_order" -> asc, "" -> no ordering */
+function applySort(query: any, sort?: string | number, limit?: number) {
+  // list(sort, limit) but some call sites do list(limit)
+  if (typeof sort === "number") {
+    limit = sort;
+    sort = undefined;
+  }
+  if (sort && typeof sort === "string") {
+    const desc = sort.startsWith("-");
+    query = query.order(desc ? sort.slice(1) : sort, { ascending: !desc });
+  }
+  if (limit) query = query.limit(limit);
+  return query;
+}
+
+function applyWhere(query: any, where: Row) {
+  for (const [key, value] of Object.entries(where || {})) {
+    if (value === undefined) continue;
+    query = Array.isArray(value) ? query.in(key, value) : query.eq(key, value);
+  }
+  return query;
+}
+
+/** Attach the role from user_roles so `user.role === "admin"` keeps working. */
+async function withRoles(rows: Row[]): Promise<Row[]> {
+  if (!rows.length) return rows;
+  const ids = rows.map((r) => r["id"]).filter(Boolean);
+  const { data } = await db().from("user_roles").select("user_id, role").in("user_id", ids);
+  const byUser = new Map<string, string>();
+  for (const r of data || []) {
+    if (r.role === "admin") byUser.set(r.user_id, "admin");
+    else if (!byUser.has(r.user_id)) byUser.set(r.user_id, r.role);
+  }
+  return rows.map((r) => ({
+    ...r,
+    role: byUser.get(r["id"]) || "user",
+    is_verified: r["verification_status"] === "verified",
+  }));
+}
+
+/**
+ * Global config tables are read by several providers on every page load
+ * (settings, currency, theme, i18n copy). They change rarely, so identical
+ * reads within a short window share one in-flight request instead of each
+ * component paying its own round-trip. Any write to the table clears it.
+ */
+const CACHEABLE = new Set(["site_settings", "themes", "categories", "brands", "pages", "contents", "shipping_methods", "payment_methods"]);
+const READ_TTL = 60_000;
+const readCache = new Map<string, { at: number; promise: Promise<Row[]> }>();
+
+function clearReadCache(table?: string) {
+  if (!table) return readCache.clear();
+  for (const key of readCache.keys()) if (key.startsWith(`${table}|`)) readCache.delete(key);
+}
+
+function cachedRead(table: string, key: string, run: () => Promise<Row[]>) {
+  if (!CACHEABLE.has(table)) return run();
+  const cacheKey = `${table}|${key}`;
+  const hit = readCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < READ_TTL) return hit.promise;
+  const promise = run().catch((err) => {
+    readCache.delete(cacheKey);
+    throw err;
+  });
+  readCache.set(cacheKey, { at: Date.now(), promise });
+  return promise;
+}
 
 function makeEntity(name: string) {
+  const table = TABLES[name];
+  if (!table) throw new Error(`Unknown entity: ${name}`);
+  const isUser = name === "User";
+  const isAuction = table === "auctions";
+  // Bid history is only readable by signed-in users. Signed-out visitors get
+  // empty results instead of a permission error that would break the page.
+  const isBid = table === "bids";
+
+  /**
+   * Signed-out visitors read auctions through a public view that omits internal
+   * cost figures and participant identifiers. Signed-in users read the table.
+   */
+  async function source() {
+    if (!isAuction) return table;
+    const { data } = await db().auth.getSession();
+    return data?.session ? "auctions" : "auctions_public";
+  }
+
+  /** True when the table needs a session the visitor does not have. */
+  async function readBlocked() {
+    if (!isBid) return false;
+    const { data } = await db().auth.getSession();
+    return !data?.session;
+  }
+
+  const finish = async (rows: Row[]) => {
+    if (isAuction) {
+      rows = rows.map((r) =>
+        r && r["subscriber_count"] !== undefined && r["subscriber_ids"] === undefined
+          ? { ...r, subscriber_ids: Array.from({ length: Number(r["subscriber_count"]) || 0 }, () => "") }
+          : r,
+      );
+    }
+    return isUser ? withRoles(rows) : rows;
+  };
+
   return {
-    table: name,
-    async list(_sort?: string | number, _limit?: number): Promise<Row[]> {
-      return [];
+    table,
+    async list(sort?: string | number, limit?: number) {
+      if (await readBlocked()) return [] as Row[];
+      return cachedRead(table, `list:${sort}:${limit}`, async () => {
+        const { data, error } = await applySort(db().from(await source()).select("*"), sort, limit);
+        if (error) throw error;
+        return finish(data || []);
+      });
     },
-    async listFields(_fields: string, _sort?: string | number, _limit?: number): Promise<Row[]> {
-      return [];
+    /** Same as list() but transfers only the named columns. */
+    async listFields(fields: string, sort?: string | number, limit?: number) {
+      if (await readBlocked()) return [] as Row[];
+      const { data, error } = await applySort(db().from(await source()).select(fields), sort, limit);
+      if (error) throw error;
+      return (data || []) as Row[];
     },
+
+    /**
+     * Server-side pagination: only one page of rows crosses the wire and the
+     * total row count comes from Postgres, so admin tables stay fast as the
+     * dataset grows.
+     *   page({ page: 1, pageSize: 25, where, sort, fields, search: { columns, term } })
+     *   -> { rows, total, page, pageSize, pageCount }
+     */
     async page(opts: Row = {}) {
-      const page = Math.max(1, Number(opts.page) || 1);
+      const pageNum = Math.max(1, Number(opts.page) || 1);
       const pageSize = Math.max(1, Number(opts.pageSize) || 25);
-      return { rows: [] as Row[], total: 0, page, pageSize, pageCount: 1 };
+      if (await readBlocked()) return { rows: [] as Row[], total: 0, page: pageNum, pageSize, pageCount: 1 };
+      let query = db().from(await source()).select(opts.fields || "*", { count: "exact" });
+      query = applyWhere(query, opts.where || {});
+      const term = String(opts.search?.term || "").trim();
+      const columns: string[] = opts.search?.columns || [];
+      if (term && columns.length) {
+        const safe = term.replace(/[%,()]/g, " ");
+        query = query.or(columns.map((c) => `${c}.ilike.%${safe}%`).join(","));
+      }
+      if (opts.sort) {
+        const desc = String(opts.sort).startsWith("-");
+        query = query.order(desc ? String(opts.sort).slice(1) : String(opts.sort), { ascending: !desc });
+      }
+      const from = (pageNum - 1) * pageSize;
+      const { data, error, count } = await query.range(from, from + pageSize - 1);
+      if (error) throw error;
+      const rows = await finish(data || []);
+      const total = Number(count || 0);
+      return { rows, total, page: pageNum, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
     },
-    async filter(_where: Row = {}, _sort?: string | number, _limit?: number): Promise<Row[]> {
-      return [];
+
+
+    async filter(where: Row = {}, sort?: string | number, limit?: number) {
+      if (await readBlocked()) return [] as Row[];
+      return cachedRead(table, `filter:${JSON.stringify(where)}:${sort}:${limit}`, async () => {
+        const query = applyWhere(db().from(await source()).select("*"), where);
+        const { data, error } = await applySort(query, sort, limit);
+        if (error) throw error;
+        return finish(data || []);
+      });
     },
-    async get(_id: string): Promise<Row> {
-      throw new Error("not_found");
+
+    async get(id: string) {
+      const { data, error } = await db().from(await source()).select("*").eq("id", id).maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("not_found");
+      return (await finish([data]))[0];
     },
     async create(values: Row) {
-      return { id: newId(), created_date: now(), updated_date: now(), ...values };
+      const { data, error } = await db().from(table).insert(values).select().single();
+      if (error) throw error;
+      clearReadCache(table);
+      return data;
     },
     async update(id: string, values: Row) {
-      return { id, updated_date: now(), ...values };
+      const { data, error } = await db().from(table).update(values).eq("id", id).select().single();
+      if (error) throw error;
+      clearReadCache(table);
+      if (table === "profiles" || table === "user_roles") invalidateProfileCache();
+      return data;
     },
-    async delete(_id: string) {
+    async delete(id: string) {
+      const { error } = await db().from(table).delete().eq("id", id);
+      if (error) throw error;
+      clearReadCache(table);
       return { ok: true };
     },
-    /** No realtime source: returns a no-op unsubscribe. */
+    /** Live updates are not enabled yet: returns a no-op unsubscribe. */
     subscribe(_cb: (event: { id?: string; data: Row; event: string; type: string }) => void) {
       return () => {};
     },
@@ -69,10 +265,10 @@ const entities = new Proxy({} as Record<string, ReturnType<typeof makeEntity>>, 
     return entityCache[prop];
   },
   has(_t, prop: string) {
-    return ENTITY_NAMES.includes(prop);
+    return prop in TABLES;
   },
   ownKeys() {
-    return ENTITY_NAMES;
+    return Object.keys(TABLES);
   },
   getOwnPropertyDescriptor() {
     return { enumerable: true, configurable: true };
@@ -95,8 +291,8 @@ async function loadProfile(client: AuthClient) {
     client.from("profiles").select("*").eq("id", authUser.id).maybeSingle(),
     client.from("user_roles").select("role").eq("user_id", authUser.id),
   ]);
-  const roleNames = (roles || []).map((r: Row) => r.role as string);
-  const staffRole = roleNames.includes("super_admin") ? "super_admin" : roleNames.includes("admin") ? "admin" : null;
+  const isStaff = (roles || []).some((r: Row) => r.role === "admin");
+  const staffRole = isStaff ? profile?.staff_role || (profile?.is_super ? "super_admin" : "admin") : null;
   const meta = (authUser.user_metadata || {}) as Row;
 
   return {
@@ -107,15 +303,15 @@ async function loadProfile(client: AuthClient) {
     last_name: profile?.last_name ?? meta.last_name ?? "",
     full_name: profile?.full_name || meta.full_name || "",
     country: profile?.country ?? meta.country ?? "",
-    role: staffRole ? "admin" : "user",
-    is_super: staffRole === "super_admin",
+    role: isStaff ? "admin" : "user",
+    is_super: isStaff && !!profile?.is_super,
     staff_role: staffRole,
     verification_status: profile?.verification_status || "unverified",
     is_verified: profile?.verification_status === "verified",
-    paused: false,
-    permissions: {},
-    watched_auction_ids: [],
-    created_date: profile?.created_at || authUser.created_at,
+    paused: !!profile?.paused,
+    permissions: profile?.permissions || {},
+    watched_auction_ids: profile?.watched_auction_ids || [],
+    created_date: profile?.created_date || authUser.created_at,
   } as Row;
 }
 
@@ -229,13 +425,13 @@ const auth = {
   async loginWithProvider(_provider: string, _returnTo?: string): Promise<{ redirected: boolean }> {
     throw new Error("Social sign-in is not set up yet. Please use email and password.");
   },
-  /** Only the editable profile columns are sent. */
+  /** Staff-only columns are ignored by the database (protect_profile_columns). */
   async updateMe(patch: Row) {
     const { data: sessionData } = await supabase.auth.getSession();
     const id = sessionData?.session?.user?.id;
     if (!id) throw unauthorized();
-    const allowed = ["first_name", "last_name", "full_name", "country"];
-    const values = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowed.includes(k)));
+    const blocked = ["id", "email", "role", "created_date", "updated_date", "is_verified"];
+    const values = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => !blocked.includes(k)));
     if (Object.keys(values).length) {
       const { error } = await supabase.from("profiles").update(values).eq("id", id);
       if (error) throw error;
@@ -306,18 +502,24 @@ async function myAdminCapabilities() {
   const none = { is_admin: false, is_super: false, capabilities: [], staff_role: null };
   const { data: sess } = await supabaseAdmin.auth.getSession();
   if (!sess.session) return none;
-  const { data: role, error } = await supabaseAdmin.rpc("my_staff_role");
-  if (error || !role) return none;
-  return { is_admin: true, is_super: role === "super_admin", capabilities: [], staff_role: role };
+  const { data, error } = await supabaseAdmin.rpc("my_staff_access");
+  if (error || !data?.is_admin) return none;
+  return data;
 }
 
 /* ------------------------------- functions ------------------------------ */
 
 const functions = {
-  /** Only staff capabilities are backed; everything else has no backend yet. */
+  /**
+   * Server actions. Only staff capabilities exist so far; the rest (bidding,
+   * wallet, closing auctions, ...) are not ported yet and say so instead of
+   * pretending to succeed.
+   */
   async invoke(name: string, _payload: Row = {}) {
     if (name === "myAdminCapabilities") return { data: await myAdminCapabilities(), status: 200 };
-    return { data: { ok: true }, status: 200 };
+    // Background refreshes: nothing to do without the server actions.
+    if (name === "syncAuctions" || name === "syncAuction") return { data: { ok: true }, status: 200 };
+    return { data: { error: "This action is not available yet." }, status: 501 };
   },
 };
 
