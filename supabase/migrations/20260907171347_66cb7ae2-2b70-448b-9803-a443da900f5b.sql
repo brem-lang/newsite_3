@@ -1,0 +1,1 @@
+revoke select (subscriber_ids) on public.auctions from anon;

@@ -1,0 +1,1 @@
+revoke execute on function public.can_manage_media(uuid) from anon, authenticated, public;
