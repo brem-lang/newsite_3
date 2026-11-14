@@ -10,8 +10,8 @@ import { supabase, supabaseAdmin } from "@/lib/supabase";
  *     public.user_roles (admin / super_admin)
  *   - entities: read/write the Supabase tables (row-level security decides
  *     who may write; /admin pages use the staff session)
- *   - functions.invoke: only myAdminCapabilities is backed so far; bidding,
- *     wallet and other server actions are not ported yet
+ *   - functions.invoke: server actions in the "api" Edge Function
+ *   - subscribe: live row changes over Supabase Realtime
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -251,9 +251,22 @@ function makeEntity(name: string) {
       clearReadCache(table);
       return { ok: true };
     },
-    /** Live updates are not enabled yet: returns a no-op unsubscribe. */
-    subscribe(_cb: (event: { id?: string; data: Row; event: string; type: string }) => void) {
-      return () => {};
+    /** Realtime: cb({ id, data, event, type }) — returns an unsubscribe function. */
+    subscribe(cb: (event: { id?: string; data: Row; event: string; type: string }) => void) {
+      const TYPES: Record<string, string> = { INSERT: "create", UPDATE: "update", DELETE: "delete" };
+      const client = db();
+      const channel = client
+        .channel(`rt-${table}-${Math.random().toString(36).slice(2)}`)
+        .on("postgres_changes", { event: "*", schema: "public", table }, (payload: Row) => {
+          const row = payload.new && Object.keys(payload.new).length ? payload.new : payload.old;
+          const evt = String(payload.eventType || payload.type || "");
+          clearReadCache(table);
+          cb({ id: row?.id, data: row || {}, event: evt, type: TYPES[evt] || evt.toLowerCase() });
+        })
+        .subscribe();
+      return () => {
+        client.removeChannel(channel);
+      };
     },
   };
 }
@@ -511,15 +524,15 @@ async function myAdminCapabilities() {
 
 const functions = {
   /**
-   * Server actions. Only staff capabilities exist so far; the rest (bidding,
-   * wallet, closing auctions, ...) are not ported yet and say so instead of
-   * pretending to succeed.
+   * Server actions run in the "api" Edge Function (supabase/functions/api).
+   * Calls carry the session of the current area (staff on /admin).
+   * Mirrors the old response shape: { data, status }.
    */
-  async invoke(name: string, _payload: Row = {}) {
+  async invoke(name: string, payload: Row = {}) {
     if (name === "myAdminCapabilities") return { data: await myAdminCapabilities(), status: 200 };
-    // Background refreshes: nothing to do without the server actions.
-    if (name === "syncAuctions" || name === "syncAuction") return { data: { ok: true }, status: 200 };
-    return { data: { error: "This action is not available yet." }, status: 501 };
+    const { data, error } = await db().functions.invoke("api", { body: { name, payload } });
+    if (error) return { data: { error: error.message || "Request failed" }, status: 500 };
+    return { data: data?.data ?? {}, status: data?.status ?? 200 };
   },
 };
 
@@ -529,14 +542,18 @@ export const base44 = {
   adminAuth,
   functions,
   users: {
-    async inviteUser(_email: string, _role?: string) {
-      return { ok: true };
+    async inviteUser(email: string, role?: string) {
+      const res = await functions.invoke("inviteUser", { email, role });
+      if (res.data?.["error"]) throw new Error(res.data["error"]);
+      return res.data;
     },
   },
   integrations: {
     Core: {
-      async SendEmail(_args: { to: string; subject: string; body: string }) {
-        return { ok: true };
+      async SendEmail(args: { to: string; subject: string; body: string }) {
+        const res = await functions.invoke("sendEmail", args);
+        if (res.data?.["error"]) throw new Error(res.data["error"]);
+        return res.data;
       },
     },
   },
