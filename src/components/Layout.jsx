@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Gavel, Wallet as WalletIcon, LogOut, Shield, CircleUserRound, Home as HomeIcon } from "lucide-react";
+import { Gavel, Wallet as WalletIcon, LogOut, CircleUserRound, Home as HomeIcon } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
@@ -33,8 +33,7 @@ export default function Layout() {
     { to: "/home", label: t.nav.home, icon: HomeIcon },
     { to: "/auctions", label: t.nav.auctions, icon: Gavel },
     { to: "/account", label: t.nav.account, icon: CircleUserRound },
-    { to: "/wallet", label: t.nav.wallet, icon: WalletIcon },
-    ...(user?.role === "admin" ? [{ to: "/admin", label: t.nav.admin, icon: Shield }] : [])
+    { to: "/wallet", label: t.nav.wallet, icon: WalletIcon }
   ];
 
   // The home screen ships its own native app bar on phones (screen 04).

@@ -1,5 +1,5 @@
 import React from "react";
-import { BadgeCheck, ShieldAlert, Clock3, Crown, Mail, Globe } from "lucide-react";
+import { BadgeCheck, ShieldAlert, Clock3, Mail, Globe } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { countryName } from "@/lib/countries";
 import { cn } from "@/lib/utils";
@@ -47,11 +47,6 @@ export default function ProfileHeaderCard({ user }) {
             <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border", status.cls)}>
               <StatusIcon className="w-3 h-3" /> {p[status.key]}
             </span>
-            {user?.is_super && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border bg-primary/15 text-primary border-primary/30">
-                <Crown className="w-3 h-3" /> {p.superAdmin}
-              </span>
-            )}
             {country && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-border bg-background text-muted-foreground">
                 <Globe className="w-3 h-3" /> {country}

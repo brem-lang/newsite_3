@@ -516,7 +516,6 @@ const translations = {
       deleted: "Auction deleted",
       accessDenied: "Admin access required.",
       accessDeniedDesc: "You need an admin account to access this page.",
-      backToSite: "Back to site",
       panelTitle: "Admin",
       loginTitle: "Admin sign-in",
       loginSubtitle: "This area is restricted to staff accounts.",

@@ -46,7 +46,7 @@ export default function AuctionFinancePanel({ auction, row, costItems, override,
   }, [override]);
 
   useEffect(() => {
-    base44.auth.me().then(setMe).catch(() => {});
+    base44.adminAuth.me().then(setMe).catch(() => {});
   }, []);
 
   const loadHistory = async () => {

@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Settings as SettingsIcon, Clock, Mail, Wrench, UserRound, ShieldCheck, Crown, BadgeCheck, CalendarDays, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
-import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +19,12 @@ const TIMEZONES = [
 
 export default function AdminSettings() {
   const { t } = useI18n();
-  const { user, checkUserAuth } = useAuth();
+  // The signed-in staff member (admin session, separate from customers).
+  const [user, setUser] = useState(null);
+  const loadAdmin = useCallback(() => {
+    base44.adminAuth.me().then(setUser).catch(() => setUser(null));
+  }, []);
+  useEffect(() => { loadAdmin(); }, [loadAdmin]);
   const [row, setRow] = useState(null);
   const [caps, setCaps] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -136,7 +140,7 @@ export default function AdminSettings() {
 
         <TabsContent value="profile" className="mt-0">
           <div className="native-panel rounded-xl p-1 sm:p-2 [&>div]:border-accent/20 [&>div]:bg-transparent [&>div]:shadow-none">
-            <PersonalDetailsCard user={user} onSaved={() => checkUserAuth({ silent: true })} />
+            <PersonalDetailsCard user={user} onSaved={loadAdmin} />
           </div>
         </TabsContent>
 

@@ -5,6 +5,7 @@ export const Route = createFileRoute("/admin")({
   ssr: false,
   head: () => ({
     meta: [
+      { name: "robots", content: "noindex, nofollow" },
       { title: "Admin overview | Mazady" },
       { name: "description", content: "Manage Mazady auctions, revenue, participants, and operations." },
       { property: "og:title", content: "Admin overview | Mazady" },

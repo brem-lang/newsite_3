@@ -5,8 +5,10 @@
  * but there is no backend, no database and no storage behind it:
  *   - entity reads return empty results, writes are accepted and discarded
  *   - functions.invoke returns an empty success payload
- *   - auth holds a placeholder signed-in user in memory so every screen,
- *     including the admin area, can be opened for design review
+ *   - auth holds a placeholder signed-in member in memory so every customer
+ *     screen can be opened for design review
+ *   - adminAuth is a separate staff session for /admin only; it starts signed
+ *     out, accepts any credentials, and never touches the customer session
  *
  * To connect a real backend later, re-implement this file against it.
  */
@@ -87,9 +89,9 @@ const PLACEHOLDER_USER: Row = {
   last_name: "User",
   full_name: "Demo User",
   country: "",
-  role: "admin",
-  is_super: true,
-  staff_role: "super_admin",
+  role: "user",
+  is_super: false,
+  staff_role: null,
   verification_status: "verified",
   is_verified: true,
   paused: false,
@@ -182,13 +184,57 @@ function safePath(value?: string) {
   }
 }
 
+/* ------------------------------ admin auth ------------------------------ */
+
+const ADMIN_USER: Row = {
+  id: "design-admin",
+  email: "admin@example.com",
+  first_name: "Demo",
+  last_name: "Admin",
+  full_name: "Demo Admin",
+  role: "admin",
+  is_super: true,
+  staff_role: "super_admin",
+  verification_status: "verified",
+  is_verified: true,
+  paused: false,
+  permissions: {},
+  created_date: now(),
+};
+
+// Staff session for /admin, separate from the customer session above.
+// In memory only: a reload shows the staff sign-in screen again.
+let adminSignedIn = false;
+
+const adminAuth = {
+  async me() {
+    if (!adminSignedIn) throw Object.assign(new Error("Unauthorized"), { status: 401 });
+    return { ...ADMIN_USER };
+  },
+  isAuthenticated() {
+    return adminSignedIn;
+  },
+  async login(email: string, _password: string) {
+    adminSignedIn = true;
+    if (email) ADMIN_USER.email = email;
+    return { ...ADMIN_USER };
+  },
+  async logout() {
+    adminSignedIn = false;
+    return { ok: true };
+  },
+};
+
 /* ------------------------------- functions ------------------------------ */
 
 const functions = {
   /** No backend: every call succeeds with an empty payload. */
   async invoke(name: string, _payload: Row = {}) {
     if (name === "myAdminCapabilities") {
-      return { data: { is_admin: true, is_super: true, capabilities: [], staff_role: "super_admin" }, status: 200 };
+      const data = adminSignedIn
+        ? { is_admin: true, is_super: true, capabilities: [], staff_role: "super_admin" }
+        : { is_admin: false, is_super: false, capabilities: [], staff_role: null };
+      return { data, status: 200 };
     }
     return { data: { ok: true }, status: 200 };
   },
@@ -197,6 +243,7 @@ const functions = {
 export const base44 = {
   entities,
   auth,
+  adminAuth,
   functions,
   users: {
     async inviteUser(_email: string, _role?: string) {

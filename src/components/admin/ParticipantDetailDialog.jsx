@@ -45,7 +45,7 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
   const [busyAdj, setBusyAdj] = useState(false);
   const [busyReset, setBusyReset] = useState(false);
 
-  useEffect(() => { base44.auth.me().then(setMe).catch(() => {}); }, []);
+  useEffect(() => { base44.adminAuth.me().then(setMe).catch(() => {}); }, []);
 
   const load = useCallback(async () => {
     if (!participant?.id) return;

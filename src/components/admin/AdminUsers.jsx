@@ -63,7 +63,7 @@ export default function AdminUsers() {
   }, [roles]);
 
   useEffect(() => {
-    base44.auth.me().then((u) => setMe(u)).catch(() => {});
+    base44.adminAuth.me().then((u) => setMe(u)).catch(() => {});
     load();
   }, [load]);
 

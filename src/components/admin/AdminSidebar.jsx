@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Shield, LogOut, ArrowLeft, X, ChevronDown, Search } from "lucide-react";
+import { Shield, LogOut, X, ChevronDown, Search } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { sectionLabel, SECTIONS } from "@/lib/adminNav";
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 
 export default function AdminSidebar({ groups, basePath, active, activeGroup, onLogout, onClose, onSearch, className }) {
   const { t } = useI18n();
-  const backRotate = "";
   const [open, setOpen] = useState(() => ({ [activeGroup]: true }));
 
   useEffect(() => { setOpen((s) => ({ ...s, [activeGroup]: true })); }, [activeGroup]);
@@ -94,10 +93,6 @@ export default function AdminSidebar({ groups, basePath, active, activeGroup, on
       </nav>
 
       <div className="p-3 border-t border-border space-y-1 shrink-0">
-        <Link to="/" className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60">
-          <ArrowLeft className={cn("w-4 h-4", backRotate)} />
-          {t.admin.backToSite}
-        </Link>
         <Button variant="ghost" onClick={onLogout} className="w-full justify-start gap-2.5 px-3 text-sm font-medium hover:bg-destructive/10 hover:text-destructive">
           <LogOut className="w-4 h-4" />
           {t.common.logout}

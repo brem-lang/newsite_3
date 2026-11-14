@@ -7,9 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 /**
- * Dedicated staff sign-in. A normal member session is never enough to reach the
- * admin shell: after signing in, the server re-checks the account's admin role
- * and any non-staff session is signed straight back out.
+ * Dedicated staff sign-in for /admin. It uses the separate admin session, so
+ * signing in here never signs anyone into the customer site (and vice versa).
  */
 export default function AdminLogin({ onVerified }) {
   const { t, dir } = useI18n();
@@ -24,18 +23,18 @@ export default function AdminLogin({ onVerified }) {
     setBusy(true);
     setError("");
     try {
-      await base44.auth.loginViaEmailPassword(email.trim(), password);
+      await base44.adminAuth.login(email.trim(), password);
       const res = await base44.functions.invoke("myAdminCapabilities", {});
       const caps = res?.data && !res.data.error ? res.data : null;
       if (!caps?.is_admin) {
-        await base44.auth.logout();
+        await base44.adminAuth.logout();
         setError(t.admin.notAdmin);
         return;
       }
       if (onVerified) onVerified(caps);
       else window.location.href = "/admin";
     } catch (err) {
-      setError(err?.message || t.auth.invalidCreds);
+      setError(err?.message || t.authp.invalidCreds);
     } finally {
       setBusy(false);
     }
@@ -58,7 +57,7 @@ export default function AdminLogin({ onVerified }) {
 
         <form onSubmit={submit} className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="admin-email">{t.auth.email}</Label>
+            <Label htmlFor="admin-email">{t.authp.email}</Label>
             <Input
               id="admin-email"
               type="email"
@@ -66,11 +65,11 @@ export default function AdminLogin({ onVerified }) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={t.auth.emailPlaceholder}
+              placeholder={t.authp.emailPlaceholder}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="admin-password">{t.auth.password}</Label>
+            <Label htmlFor="admin-password">{t.authp.password}</Label>
             <Input
               id="admin-password"
               type="password"
@@ -93,9 +92,6 @@ export default function AdminLogin({ onVerified }) {
           </Button>
         </form>
 
-        <a href="/" className="block text-center text-sm text-muted-foreground hover:text-foreground">
-          {t.admin.backToSite}
-        </a>
       </div>
     </div>
   );

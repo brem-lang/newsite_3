@@ -102,7 +102,7 @@ const SECTION_CAPABILITY = {
   activitylog: "system.manage",
 };
 
-export default function Admin({ caps: capsProp = null }) {
+export default function Admin({ caps: capsProp = null, onSignedOut }) {
   const { t, dir } = useI18n();
   const { section } = useParams();
   const navigate = useNavigate();
@@ -142,9 +142,11 @@ export default function Admin({ caps: capsProp = null }) {
   }, [allowed]);
 
 
+  // Signs out of the staff session only; the customer site is unaffected.
   const logout = async () => {
-    await base44.auth.logout();
-    navigate("/");
+    await base44.adminAuth.logout();
+    navigate("/admin");
+    onSignedOut?.();
   };
 
   if (!caps) {
@@ -206,7 +208,6 @@ export default function Admin({ caps: capsProp = null }) {
               <Button variant="ghost" size="icon" onClick={() => setPalette(true)} aria-label={t.admin.searchPlaceholder || "Search"}>
                 <Search className="w-4 h-4" />
               </Button>
-              <Link to="/" className="hidden sm:block"><Button variant="outline" size="sm">{t.admin.backToSite}</Button></Link>
               <Button variant="ghost" size="icon" onClick={logout} title={t.common.logout}><LogOut className="w-4 h-4" /></Button>
             </div>
           </div>
