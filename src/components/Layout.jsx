@@ -8,7 +8,6 @@ import { useWallet } from "@/lib/useWallet";
 import { useSignupGeo } from "@/lib/useSignupGeo";
 import { useBidAlerts } from "@/lib/useBidAlerts";
 
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import NotificationBell from "@/components/NotificationBell";
 import BottomNav from "@/components/BottomNav";
 import { cn } from "@/lib/utils";
@@ -78,7 +77,6 @@ export default function Layout() {
               <span className="text-sm font-semibold">{t.common.currency}{balance.toFixed(2)}</span>
             </div>
             <NotificationBell />
-            <LanguageSwitcher />
             <Button variant="ghost" size="icon" className="hidden sm:inline-flex" onClick={handleLogout} title={t.common.logout}>
               <LogOut className="w-4 h-4" />
             </Button>

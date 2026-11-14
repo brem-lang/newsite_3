@@ -53,12 +53,12 @@ export default function AuctionFilters({ tabs, activeTab, onTab, sorts, activeSo
         </div>
       </div>
       <div className="relative">
-        <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => onSearch(e.target.value)}
           placeholder={h.filters.search}
-          className="ltr:pl-10 rtl:pr-10 h-10 bg-card border-border"
+          className="pl-10 h-10 bg-card border-border"
         />
       </div>
     </div>

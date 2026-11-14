@@ -14,22 +14,7 @@ export default function BidConfirm({
   auction, amount, balance, bidState, loading, placed, onConfirm, onCancel, onClose,
 }) {
   const { lang } = useI18n();
-  const copy = lang === "ar"
-    ? {
-        review: "تأكيد المزايدة",
-        yourBid: "مزايدتك",
-        fee: "رسوم المزايدة",
-        free: "مجاناً",
-        balance: "رصيد المحفظة",
-        left: "المزايدات المتبقية",
-        confirm: "تأكيد المزايدة",
-        cancel: "رجوع",
-        saving: "جارٍ الحفظ...",
-        done: "تم حفظ مزايدتك",
-        doneHint: "ستظهر مزايدتك في المزاد فوراً.",
-        close: "إغلاق",
-      }
-    : {
+  const copy = {
         review: "Confirm your bid",
         yourBid: "Your bid",
         fee: "Bid fee",

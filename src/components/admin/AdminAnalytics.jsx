@@ -21,7 +21,6 @@ export default function AdminAnalytics() {
   const { lang } = useI18n();
   const { format } = useCurrency();
   const navigate = useNavigate();
-  const L = (en, ar) => (lang === "ar" ? ar : en);
 
   const [days, setDays] = useState(30);
   const [data, setData] = useState(null);
@@ -54,10 +53,10 @@ export default function AdminAnalytics() {
   }), [data]);
 
   const mix = useMemo(() => ([
-    { label: L("Entry fees", "رسوم الدخول"), value: Number(data?.entry_fees || 0) },
-    { label: L("Bid fees", "رسوم المزايدة"), value: Number(data?.bid_fees || 0) },
-    { label: L("Extra bids", "مزايدات إضافية"), value: Number(data?.extra_bids || 0) },
-    { label: L("Winner payments", "مدفوعات الفائزين"), value: Number(data?.winner_payment || 0) },
+    { label: "Entry fees", value: Number(data?.entry_fees || 0) },
+    { label: "Bid fees", value: Number(data?.bid_fees || 0) },
+    { label: "Extra bids", value: Number(data?.extra_bids || 0) },
+    { label: "Winner payments", value: Number(data?.winner_payment || 0) },
   ]), [data, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
@@ -67,21 +66,21 @@ export default function AdminAnalytics() {
   const net = Number(data?.net || 0);
 
   const kpis = [
-    { icon: DollarSign, label: L("Gross income", "إجمالي الإيرادات"), value: format(Number(data?.income || 0)), hint: L("Entry + bid fees, extra bids, winner payments", "رسوم الدخول والمزايدة والمزايدات الإضافية ومدفوعات الفائزين") },
-    { icon: TrendingDown, label: L("Total cost", "إجمالي التكاليف"), value: format(Number(data?.costs || 0)), hint: L("Products, extras and refunds", "المنتجات والمصاريف والاستردادات") },
-    { icon: BarChart3, label: L("Net profit", "الربح الصافي"), value: format(net), tone: net >= 0 ? "good" : "bad" },
-    { icon: Percent, label: L("Gross margin", "هامش الربح"), value: `${Number(data?.margin || 0).toFixed(1)}%`, hint: L(`Income per seat ${format(Number(data?.arpu || 0))}`, `الإيراد لكل مقعد ${format(Number(data?.arpu || 0))}`) },
+    { icon: DollarSign, label: "Gross income", value: format(Number(data?.income || 0)), hint: "Entry + bid fees, extra bids, winner payments" },
+    { icon: TrendingDown, label: "Total cost", value: format(Number(data?.costs || 0)), hint: "Products, extras and refunds" },
+    { icon: BarChart3, label: "Net profit", value: format(net), tone: net >= 0 ? "good" : "bad" },
+    { icon: Percent, label: "Gross margin", value: `${Number(data?.margin || 0).toFixed(1)}%`, hint: `Income per seat ${format(Number(data?.arpu || 0))}` },
   ];
 
   const ops = [
-    { icon: Radio, label: L("Live auctions", "مزادات مباشرة"), value: data?.live_auctions || 0, to: "/admin/live" },
-    { icon: Gavel, label: L("Open auctions", "مزادات مفتوحة"), value: data?.open_auctions || 0, to: "/admin/auctions" },
-    { icon: Trophy, label: L("Unpaid wins", "مكاسب غير مدفوعة"), value: data?.unpaid_wins || 0, sub: format(Number(data?.unpaid_amount || 0)), to: "/admin/winnerpayments", alert: (data?.unpaid_wins || 0) > 0 },
-    { icon: ShieldCheck, label: L("Pending verifications", "توثيقات معلقة"), value: data?.pending_verifications || 0, to: "/admin/verification", alert: (data?.pending_verifications || 0) > 0 },
-    { icon: Wallet, label: L("Deposits to approve", "إيداعات للموافقة"), value: data?.pending_topups || 0, to: "/admin/payments", alert: (data?.pending_topups || 0) > 0 },
-    { icon: LifeBuoy, label: L("Open tickets", "تذاكر مفتوحة"), value: data?.open_tickets || 0, to: "/admin/support", alert: (data?.open_tickets || 0) > 0 },
-    { icon: RefreshCw, label: L("Refund requests", "طلبات استرداد"), value: data?.pending_refunds || 0, to: "/admin/refunds", alert: (data?.pending_refunds || 0) > 0 },
-    { icon: UsersIcon, label: L("New participants", "مشاركون جدد"), value: data?.new_users || 0, sub: L(`${data?.bids || 0} bids`, `${data?.bids || 0} مزايدة`), to: "/admin/participants" },
+    { icon: Radio, label: "Live auctions", value: data?.live_auctions || 0, to: "/admin/live" },
+    { icon: Gavel, label: "Open auctions", value: data?.open_auctions || 0, to: "/admin/auctions" },
+    { icon: Trophy, label: "Unpaid wins", value: data?.unpaid_wins || 0, sub: format(Number(data?.unpaid_amount || 0)), to: "/admin/winnerpayments", alert: (data?.unpaid_wins || 0) > 0 },
+    { icon: ShieldCheck, label: "Pending verifications", value: data?.pending_verifications || 0, to: "/admin/verification", alert: (data?.pending_verifications || 0) > 0 },
+    { icon: Wallet, label: "Deposits to approve", value: data?.pending_topups || 0, to: "/admin/payments", alert: (data?.pending_topups || 0) > 0 },
+    { icon: LifeBuoy, label: "Open tickets", value: data?.open_tickets || 0, to: "/admin/support", alert: (data?.open_tickets || 0) > 0 },
+    { icon: RefreshCw, label: "Refund requests", value: data?.pending_refunds || 0, to: "/admin/refunds", alert: (data?.pending_refunds || 0) > 0 },
+    { icon: UsersIcon, label: "New participants", value: data?.new_users || 0, sub: `${data?.bids || 0} bids`, to: "/admin/participants" },
   ];
 
   const tip = {
@@ -95,18 +94,18 @@ export default function AdminAnalytics() {
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight flex items-center gap-2">
             <BarChart3 className="w-6 h-6" />
-            {L("Business overview", "نظرة عامة على الأعمال")}
+            {"Business overview"}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            {L("Revenue, profit and what needs your attention.", "الإيرادات والأرباح وما يحتاج إلى انتباهك.")}
+            {"Revenue, profit and what needs your attention."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button className="gold-button" onClick={() => navigate("/admin/auctions")}>
-            <Plus className="w-4 h-4" />{L("New auction", "مزاد جديد")}
+            <Plus className="w-4 h-4" />{"New auction"}
           </Button>
           <Button variant="outline" className="border-accent/35 text-accent" onClick={() => navigate("/admin/live")}>
-            <RadioTower className="w-4 h-4" />{L("Manage live", "إدارة المباشر")}
+            <RadioTower className="w-4 h-4" />{"Manage live"}
           </Button>
           <div className="inline-flex rounded-lg border border-border overflow-hidden">
             {RANGES.map((d) => (
@@ -118,11 +117,11 @@ export default function AdminAnalytics() {
                   days === d ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-secondary"
                 )}
               >
-                {d === 365 ? L("1 year", "سنة") : L(`${d}d`, `${d} يوم`)}
+                {d === 365 ? "1 year" : `${d}d`}
               </button>
             ))}
           </div>
-          <Button variant="outline" size="icon" onClick={() => load(days)} disabled={refreshing} aria-label={L("Refresh", "تحديث")}>
+          <Button variant="outline" size="icon" onClick={() => load(days)} disabled={refreshing} aria-label={"Refresh"}>
             <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
           </Button>
         </div>
@@ -156,7 +155,7 @@ export default function AdminAnalytics() {
           >
             <div className="flex items-center justify-between gap-2 text-muted-foreground text-xs font-medium">
               <span className="flex items-center gap-2 truncate"><o.icon className="w-4 h-4" />{o.label}</span>
-              <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180 opacity-60" />
+              <ArrowRight className="w-3.5 h-3.5 opacity-60" />
             </div>
             <p className={cn("mt-2 text-2xl font-semibold tabular-nums", o.alert && "text-warning")}>{o.value}</p>
             {o.sub && <p className="text-[11px] text-muted-foreground">{o.sub}</p>}
@@ -169,7 +168,7 @@ export default function AdminAnalytics() {
       <div className="grid lg:grid-cols-2 gap-5">
 
         <div className="native-panel rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">{L("Income vs refunds", "الإيرادات مقابل الاستردادات")}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{"Income vs refunds"}</h3>
           <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={series} margin={{ left: -12, right: 8, top: 4, bottom: 0 }}>
@@ -189,7 +188,7 @@ export default function AdminAnalytics() {
         </div>
 
         <div className="native-panel rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">{L("Revenue mix", "مصادر الإيرادات")}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{"Revenue mix"}</h3>
           <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={mix} margin={{ left: -12, right: 8, top: 4, bottom: 0 }}>
@@ -204,7 +203,7 @@ export default function AdminAnalytics() {
         </div>
 
         <div className="native-panel rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">{L("Wallet deposits", "إيداعات المحفظة")}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{"Wallet deposits"}</h3>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={series} margin={{ left: -12, right: 8, top: 4, bottom: 0 }}>
@@ -222,7 +221,7 @@ export default function AdminAnalytics() {
         </div>
 
         <div className="native-panel rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">{L("Bids and new participants", "المزايدات والمشاركون الجدد")}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{"Bids and new participants"}</h3>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={series} margin={{ left: -12, right: 8, top: 4, bottom: 0 }}>

@@ -5,7 +5,6 @@ import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 /**
  * Dedicated staff sign-in. A normal member session is never enough to reach the
@@ -55,7 +54,6 @@ export default function AdminLogin({ onVerified }) {
               <p className="text-xs text-muted-foreground truncate">{t.admin.loginSubtitle}</p>
             </div>
           </div>
-          <LanguageSwitcher />
         </div>
 
         <form onSubmit={submit} className="rounded-2xl border border-border bg-card p-5 space-y-4">

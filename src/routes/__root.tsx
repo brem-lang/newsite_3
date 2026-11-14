@@ -110,11 +110,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
-        // Only Inter (latin UI) and Cairo (Arabic RTL) are referenced by the
-        // design tokens. Sora/Tajawal/Almarai were downloaded on every visit
-        // and never used, so they are gone along with the unused weights.
+        // Inter is the only web font referenced by the design tokens.
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Cairo:wght@400;700;800&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap",
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },

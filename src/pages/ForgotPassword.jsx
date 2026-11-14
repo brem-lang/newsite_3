@@ -47,7 +47,7 @@ export default function ForgotPassword() {
           <div className="space-y-2">
             <Label htmlFor="email">{t.authp.email}</Label>
             <div className="relative">
-              <Mail className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="email"
                 type="email"
@@ -56,7 +56,7 @@ export default function ForgotPassword() {
                 placeholder={t.authp.emailPlaceholder}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="ltr:pl-10 rtl:pr-10 h-12"
+                className="pl-10 h-12"
                 required
               />
             </div>

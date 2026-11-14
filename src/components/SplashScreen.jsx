@@ -41,7 +41,7 @@ export default function SplashScreen() {
 
   if (!show) return null;
 
-  const tagline = dir === "rtl" ? "كل قصة تستحق مزاداً" : "Every story deserves an auction";
+  const tagline = "Every story deserves an auction";
 
   return (
     <div

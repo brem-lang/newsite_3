@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Plus, Pencil, Trash2, ShieldCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,13 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { toast } from "sonner";
 
 const CATEGORY_LABELS = {
-  overview: { en: "Overview", ar: "نظرة عامة" },
-  auctions: { en: "Auctions", ar: "المزادات" },
-  users: { en: "Users", ar: "المستخدمون" },
-  finance: { en: "Finance", ar: "المالية" },
-  ops: { en: "Operations", ar: "العمليات" },
-  system: { en: "System", ar: "النظام" },
-  general: { en: "General", ar: "عام" },
+  overview: { en: "Overview" },
+  auctions: { en: "Auctions" },
+  users: { en: "Users" },
+  finance: { en: "Finance" },
+  ops: { en: "Operations" },
+  system: { en: "System" },
+  general: { en: "General" },
 };
 
 /**
@@ -26,8 +25,8 @@ const CATEGORY_LABELS = {
  * on every admin action, so the UI here only edits the rules.
  */
 export default function AdminRoles() {
-  const { lang } = useI18n();
-  const L = (o) => (o ? o[lang] || o.en || "" : "");
+  
+  const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
 
   const [caps, setCaps] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -115,7 +114,7 @@ export default function AdminRoles() {
   };
 
   const save = async () => {
-    if (!form.name.trim()) { toast.error(L({ en: "Name is required", ar: "الاسم مطلوب" })); return; }
+    if (!form.name.trim()) { toast.error("Name is required"); return; }
     setSaving(true);
     try {
       let roleId = editing?.id;
@@ -137,18 +136,18 @@ export default function AdminRoles() {
         if (res?.data?.error) throw new Error(res.data.error);
       }
       setOpen(false);
-      toast.success(editing ? L({ en: "Saved", ar: "تم الحفظ" }) : L({ en: "Added", ar: "تمت الإضافة" }));
+      toast.success(editing ? "Saved" : "Added");
       load();
     } catch (e) { toast.error(e.message); }
     setSaving(false);
   };
 
   const remove = async (row) => {
-    if (row.is_system) { toast.error(L({ en: "Built-in roles cannot be deleted", ar: "لا يمكن حذف الأدوار النظامية" })); return; }
-    if (!window.confirm(L({ en: "Delete this role?", ar: "حذف هذا الدور؟" }))) return;
+    if (row.is_system) { toast.error("Built-in roles cannot be deleted"); return; }
+    if (!window.confirm("Delete this role?")) return;
     try {
       await base44.entities.Role.delete(row.id);
-      toast.success(L({ en: "Deleted", ar: "تم الحذف" }));
+      toast.success("Deleted");
       load();
     } catch (e) { toast.error(e.message); }
   };
@@ -159,31 +158,28 @@ export default function AdminRoles() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-semibold">{L({ en: "Roles & access", ar: "الأدوار والصلاحيات" })}</h2>
+          <h2 className="font-display text-xl font-semibold">{"Roles & access"}</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {L({
-              en: "Each role has a rank and an explicit list of admin actions. The server enforces it on every request.",
-              ar: "لكل دور مستوى وقائمة صريحة بالإجراءات الإدارية. يتم فرضها على الخادم في كل طلب.",
-            })}
+            {"Each role has a rank and an explicit list of admin actions. The server enforces it on every request."}
           </p>
         </div>
-        <Button onClick={openNew}><Plus className="w-4 h-4" /> {L({ en: "Add role", ar: "إضافة دور" })}</Button>
+        <Button onClick={openNew}><Plus className="w-4 h-4" /> {"Add role"}</Button>
       </div>
 
       {loading ? (
-        <div className="py-10 text-center text-sm text-muted-foreground">{L({ en: "Loading…", ar: "جارٍ التحميل…" })}</div>
+        <div className="py-10 text-center text-sm text-muted-foreground">{"Loading…"}</div>
       ) : roles.length === 0 ? (
-        <div className="py-10 text-center text-sm text-muted-foreground border border-dashed rounded-xl">{L({ en: "No roles defined yet.", ar: "لا أدوار بعد." })}</div>
+        <div className="py-10 text-center text-sm text-muted-foreground border border-dashed rounded-xl">{"No roles defined yet."}</div>
       ) : (
         <div className="overflow-x-auto rounded-xl border">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
-                <th className="text-start font-medium px-3 py-2 whitespace-nowrap">{L({ en: "Role", ar: "الدور" })}</th>
-                <th className="text-start font-medium px-3 py-2 whitespace-nowrap">{L({ en: "Rank", ar: "المستوى" })}</th>
-                <th className="text-start font-medium px-3 py-2">{L({ en: "Description", ar: "الوصف" })}</th>
-                <th className="text-start font-medium px-3 py-2 whitespace-nowrap">{L({ en: "Actions allowed", ar: "الإجراءات المسموحة" })}</th>
-                <th className="text-start font-medium px-3 py-2 whitespace-nowrap">{L({ en: "Built-in", ar: "نظامي" })}</th>
+                <th className="text-start font-medium px-3 py-2 whitespace-nowrap">{"Role"}</th>
+                <th className="text-start font-medium px-3 py-2 whitespace-nowrap">{"Rank"}</th>
+                <th className="text-start font-medium px-3 py-2">{"Description"}</th>
+                <th className="text-start font-medium px-3 py-2 whitespace-nowrap">{"Actions allowed"}</th>
+                <th className="text-start font-medium px-3 py-2 whitespace-nowrap">{"Built-in"}</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -209,7 +205,7 @@ export default function AdminRoles() {
                     </span>
                   </td>
                   <td className="px-3 py-2">
-                    <span className={r.is_system ? "text-success" : "text-muted-foreground"}>{r.is_system ? L({ en: "Yes", ar: "نعم" }) : L({ en: "No", ar: "لا" })}</span>
+                    <span className={r.is_system ? "text-success" : "text-muted-foreground"}>{r.is_system ? "Yes" : "No"}</span>
                   </td>
                   <td className="px-3 py-2 text-end whitespace-nowrap">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
@@ -225,16 +221,16 @@ export default function AdminRoles() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? L({ en: "Edit role", ar: "تعديل الدور" }) : L({ en: "Add role", ar: "إضافة دور" })}</DialogTitle>
+            <DialogTitle>{editing ? "Edit role" : "Add role"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 max-h-[64vh] overflow-y-auto py-2">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>{L({ en: "Name", ar: "الاسم" })} *</Label>
+                <Label>{"Name"} *</Label>
                 <Input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label>{L({ en: "Rank (0–100)", ar: "المستوى (0–100)" })}</Label>
+                <Label>{"Rank (0–100)"}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -243,24 +239,24 @@ export default function AdminRoles() {
                   onChange={(e) => setForm((s) => ({ ...s, level: e.target.value }))}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {L({ en: "Higher rank = more senior. Rank alone grants any action at or below it.", ar: "مستوى أعلى = صلاحيات أوسع. المستوى وحده يمنح أي إجراء بمستوى أقل أو مساوٍ." })}
+                  {"Higher rank = more senior. Rank alone grants any action at or below it."}
                 </p>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>{L({ en: "Description", ar: "الوصف" })}</Label>
+              <Label>{"Description"}</Label>
               <Textarea rows={2} value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} />
             </div>
             <div className="flex items-center justify-between gap-3 rounded-md border p-2.5">
-              <span className="text-sm font-medium">{L({ en: "Built-in role", ar: "دور نظامي" })}</span>
+              <span className="text-sm font-medium">{"Built-in role"}</span>
               <Switch checked={form.is_system} onCheckedChange={(v) => setForm((s) => ({ ...s, is_system: v }))} />
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label>{L({ en: "Admin actions", ar: "الإجراءات الإدارية" })}</Label>
+                <Label>{"Admin actions"}</Label>
                 <div className="flex gap-1">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setAll(true)}>{L({ en: "Select all", ar: "تحديد الكل" })}</Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setAll(false)}>{L({ en: "Clear", ar: "مسح" })}</Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setAll(true)}>{"Select all"}</Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setAll(false)}>{"Clear"}</Button>
                 </div>
               </div>
               <div className="space-y-3 rounded-md border p-2.5">
@@ -281,7 +277,7 @@ export default function AdminRoles() {
                           <span className="text-sm leading-tight">
                             {c.label}
                             <span className="block text-xs text-muted-foreground">
-                              {L({ en: "min rank", ar: "أدنى مستوى" })} {c.min_level}
+                              {"min rank"} {c.min_level}
                             </span>
                           </span>
                         </label>
@@ -293,8 +289,8 @@ export default function AdminRoles() {
             </div>
           </div>
           <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{L({ en: "Cancel", ar: "إلغاء" })}</Button></DialogClose>
-            <Button onClick={save} disabled={saving}>{saving ? L({ en: "Saving…", ar: "جارٍ الحفظ…" }) : L({ en: "Save", ar: "حفظ" })}</Button>
+            <DialogClose asChild><Button variant="outline">{"Cancel"}</Button></DialogClose>
+            <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

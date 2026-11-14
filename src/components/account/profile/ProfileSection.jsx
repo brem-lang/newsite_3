@@ -9,7 +9,7 @@ import ChangePassword from "@/components/account/ChangePassword";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function ProfileSection({ user, compact = false }) {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const p = t.account.profile;
   const [pwOpen, setPwOpen] = useState(false);
 
@@ -35,7 +35,7 @@ export default function ProfileSection({ user, compact = false }) {
               <span className="block font-heading text-sm font-semibold">{p.security}</span>
               <span className="block text-xs text-muted-foreground truncate">{p.securitySubtitle}</span>
             </span>
-            <ChevronRight className={`w-4 h-4 text-muted-foreground shrink-0 ${dir === "rtl" ? "rotate-180" : ""}`} />
+            <ChevronRight className={`w-4 h-4 text-muted-foreground shrink-0 ${""}`} />
           </button>
         </div>
       </div>

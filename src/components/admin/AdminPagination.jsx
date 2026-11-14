@@ -11,7 +11,6 @@ const SIZES = [25, 50, 100];
  */
 export default function AdminPagination({ page, pageSize, total, onPage, onPageSize, className = "" }) {
   const { lang } = useI18n();
-  const L = (en, ar) => (lang === "ar" ? ar : en);
   const pageCount = Math.max(1, Math.ceil((total || 0) / (pageSize || 25)));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
@@ -19,7 +18,7 @@ export default function AdminPagination({ page, pageSize, total, onPage, onPageS
   return (
     <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-border ${className}`}>
       <p className="text-xs text-muted-foreground tabular-nums">
-        {L(`${from}–${to} of ${total}`, `${from}–${to} من ${total}`)}
+        {`${from}–${to} of ${total}`}
       </p>
 
       <div className="flex items-center gap-3">
@@ -28,10 +27,10 @@ export default function AdminPagination({ page, pageSize, total, onPage, onPageS
             value={pageSize}
             onChange={(e) => onPageSize(Number(e.target.value))}
             className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-            aria-label={L("Rows per page", "صفوف لكل صفحة")}
+            aria-label={"Rows per page"}
           >
             {SIZES.map((s) => (
-              <option key={s} value={s}>{L(`${s} / page`, `${s} / صفحة`)}</option>
+              <option key={s} value={s}>{`${s} / page`}</option>
             ))}
           </select>
         )}
@@ -39,19 +38,19 @@ export default function AdminPagination({ page, pageSize, total, onPage, onPageS
           <Button
             size="icon" variant="outline" className="h-8 w-8"
             disabled={page <= 1} onClick={() => onPage(page - 1)}
-            aria-label={L("Previous page", "الصفحة السابقة")}
+            aria-label={"Previous page"}
           >
-            <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
+            <ChevronLeft className="w-4 h-4" />
           </Button>
           <span className="text-xs text-muted-foreground tabular-nums px-1">
-            {L(`Page ${page} / ${pageCount}`, `صفحة ${page} / ${pageCount}`)}
+            {`Page ${page} / ${pageCount}`}
           </span>
           <Button
             size="icon" variant="outline" className="h-8 w-8"
             disabled={page >= pageCount} onClick={() => onPage(page + 1)}
-            aria-label={L("Next page", "الصفحة التالية")}
+            aria-label={"Next page"}
           >
-            <ChevronRight className="w-4 h-4 rtl:rotate-180" />
+            <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       </div>

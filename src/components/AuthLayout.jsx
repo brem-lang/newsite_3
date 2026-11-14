@@ -2,7 +2,6 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useIsMobileView } from "@/lib/useIsMobileView";
 import { cn } from "@/lib/utils";
 
@@ -48,11 +47,8 @@ export default function AuthLayout({ icon: Icon, title, subtitle, footer, childr
             aria-label={t.nav.home}
             className="w-10 h-10 rounded-xl grid place-items-center text-muted-foreground transition-colors hover:bg-secondary hover:text-accent"
           >
-            <ChevronLeft className={cn("w-5 h-5", dir === "rtl" && "rotate-180")} />
+            <ChevronLeft className={cn("w-5 h-5")} />
           </Link>
-          <div className="ms-auto pe-1">
-            <LanguageSwitcher />
-          </div>
         </header>
         <div className="relative flex-1 px-5 pt-2 pb-[calc(24px+env(safe-area-inset-bottom))] overflow-y-auto">
           <div className="mx-auto max-w-md">
@@ -82,9 +78,6 @@ export default function AuthLayout({ icon: Icon, title, subtitle, footer, childr
       dir={dir}
     >
       <Glow />
-      <div className="absolute top-4 ltr:right-4 rtl:left-4 z-10">
-        <LanguageSwitcher />
-      </div>
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8 flex flex-col items-center">
           <Emblem icon={Icon} />

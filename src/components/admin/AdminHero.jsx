@@ -9,14 +9,12 @@ import { toast } from "sonner";
 const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none";
 
 export default function AdminHero() {
-  const { t, lang, dir } = useI18n();
+  const { t } = useI18n();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [titleEn, setTitleEn] = useState("");
-  const [titleAr, setTitleAr] = useState("");
   const [subEn, setSubEn] = useState("");
-  const [subAr, setSubAr] = useState("");
 
   const load = useCallback(() => {
     base44.entities.Content.list(50)
@@ -24,16 +22,14 @@ export default function AdminHero() {
         setItems(list);
         const get = (key) => list.find((c) => c.key === key);
         setTitleEn(get("hero_title")?.value_en || "");
-        setTitleAr(get("hero_title")?.value_ar || "");
         setSubEn(get("hero_subtitle")?.value_en || "");
-        setSubAr(get("hero_subtitle")?.value_ar || "");
       })
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const upsert = (key, label, valueEn, valueAr, existing) => {
-    const payload = { key, label, value_en: valueEn, value_ar: valueAr || valueEn };
+  const upsert = (key, label, valueEn, existing) => {
+    const payload = { key, label, value_en: valueEn };
     if (existing) return base44.entities.Content.update(existing.id, payload);
     return base44.entities.Content.create(payload);
   };
@@ -44,8 +40,8 @@ export default function AdminHero() {
       const titleItem = items.find((c) => c.key === "hero_title");
       const subItem = items.find((c) => c.key === "hero_subtitle");
       await Promise.all([
-        upsert("hero_title", "Hero title", titleEn, titleAr, titleItem),
-        upsert("hero_subtitle", "Hero subtitle", subEn, subAr, subItem)
+        upsert("hero_title", "Hero title", titleEn, titleItem),
+        upsert("hero_subtitle", "Hero subtitle", subEn, subItem)
       ]);
       toast.success(t.admin.hero.saved);
       load();
@@ -56,8 +52,8 @@ export default function AdminHero() {
     }
   };
 
-  const previewTitle = lang === "ar" ? (titleAr || titleEn) : (titleEn || titleAr);
-  const previewSub = lang === "ar" ? (subAr || subEn) : (subEn || subAr);
+  const previewTitle = titleEn;
+  const previewSub = subEn;
 
   if (loading) {
     return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
@@ -73,7 +69,7 @@ export default function AdminHero() {
       {/* Live preview */}
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" /> {t.admin.hero.previewLabel}</p>
-        <div className="native-panel relative overflow-hidden rounded-xl p-6 sm:p-9" dir={dir}>
+        <div className="native-panel relative overflow-hidden rounded-xl p-6 sm:p-9">
           <div className="relative space-y-4 max-w-lg">
             <div className="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-muted border border-border">
               <Sparkles className="w-3.5 h-3.5 text-warning" />
@@ -99,30 +95,22 @@ export default function AdminHero() {
         <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <h3 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-warning" /> {t.admin.hero.titleLabel}</h3>
           <div className="space-y-1.5">
-            <Label>{t.admin.content.valueEn}</Label>
+            <Label>{t.admin.content.value}</Label>
             <textarea rows={2} className={inputCls} value={titleEn} onChange={(e) => setTitleEn(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t.admin.content.valueAr}</Label>
-            <textarea rows={2} dir="rtl" className={inputCls} value={titleAr} onChange={(e) => setTitleAr(e.target.value)} />
           </div>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <h3 className="font-semibold">{t.admin.hero.subtitleLabel}</h3>
           <div className="space-y-1.5">
-            <Label>{t.admin.content.valueEn}</Label>
+            <Label>{t.admin.content.value}</Label>
             <textarea rows={3} className={inputCls} value={subEn} onChange={(e) => setSubEn(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t.admin.content.valueAr}</Label>
-            <textarea rows={3} dir="rtl" className={inputCls} value={subAr} onChange={(e) => setSubAr(e.target.value)} />
           </div>
         </div>
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving || (!titleEn && !titleAr)} className="gap-2">
+        <Button onClick={handleSave} disabled={saving || !titleEn} className="gap-2">
           <Save className="w-4 h-4" />
           {saving ? t.admin.saving : t.admin.save}
         </Button>

@@ -3,36 +3,26 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, CircleHelp, Mail, MessageCircle, Wallet, Gavel, Trophy } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function SupportPage() {
-  const { lang, dir } = useI18n();
-  const L = (copy) => (dir === "rtl" ? copy.ar : copy.en);
+  const { dir } = useI18n();
+  const L = (copy) => (copy.en);
 
   const items = [
     {
       icon: Wallet,
-      q: L({ en: "How do I add money to my wallet?", ar: "كيف أضيف رصيداً إلى محفظتي؟" }),
-      a: L({
-        en: "Go to Wallet → Deposit, choose an amount, and complete the payment. Your balance updates automatically.",
-        ar: "انتقل إلى المحفظة → إيداع، اختر المبلغ، وأكمل الدفع. يتم تحديث رصيدك تلقائياً.",
-      }),
+      q: "How do I add money to my wallet?",
+      a: "Go to Wallet → Deposit, choose an amount, and complete the payment. Your balance updates automatically.",
     },
     {
       icon: Gavel,
-      q: L({ en: "How does bidding work?", ar: "كيف تعمل المزايدة؟" }),
-      a: L({
-        en: "Each auction shows its entry fee and bid increment. Joining gives you a quota of bids based on those values. Place bids until the auction closes.",
-        ar: "يظهر لكل مزاد رسوم الدخول ومقدار الزيادة. عند الانضمام تحصل على حصة من المزايدات بناءً عليهما. ضع مزايداتك حتى إغلاق المزاد.",
-      }),
+      q: "How does bidding work?",
+      a: "Each auction shows its entry fee and bid increment. Joining gives you a quota of bids based on those values. Place bids until the auction closes.",
     },
     {
       icon: Trophy,
-      q: L({ en: "I won an auction. What is next?", ar: "لقد فزت بمزاد. ما الخطوة التالية؟" }),
-      a: L({
-        en: "Open the closed auction, view the winner details, and follow the payment instructions to claim your item.",
-        ar: "افتح المزاد المغلق، اعرض تفاصيل الفائز، واتبع تعليمات الدفع لاستلام السلعة.",
-      }),
+      q: "I won an auction. What is next?",
+      a: "Open the closed auction, view the winner details, and follow the payment instructions to claim your item.",
     },
   ];
 
@@ -42,17 +32,15 @@ export default function SupportPage() {
         <div className="h-14 px-2 flex items-center gap-1">
           <Link
             to="/account"
-            aria-label={lang === "ar" ? "رجوع" : "Back"}
+            aria-label={"Back"}
             className="w-10 h-10 rounded-xl grid place-items-center text-foreground active:scale-95 transition"
           >
-            <ChevronLeft className={cn("w-5 h-5", dir === "rtl" && "rotate-180")} />
+            <ChevronLeft className={cn("w-5 h-5")} />
           </Link>
           <h1 className="flex-1 text-center font-display font-extrabold text-[15px] text-foreground truncate px-1">
-            {L({ en: "Help & support", ar: "مركز المساعدة" })}
+            {"Help & support"}
           </h1>
-          <div className="w-10 grid place-items-center">
-            <LanguageSwitcher />
-          </div>
+          <div className="w-10" aria-hidden="true" />
         </div>
       </header>
 
@@ -62,10 +50,7 @@ export default function SupportPage() {
             <CircleHelp className="w-5 h-5" aria-hidden="true" />
           </div>
           <p className="text-[13px] text-muted-foreground leading-relaxed">
-            {L({
-              en: "Find answers below or reach out to our team. We usually reply within one business day.",
-              ar: "ابحث عن إجابات أدناه أو تواصل مع فريقنا. نرد عادةً خلال يوم عمل واحد.",
-            })}
+            {"Find answers below or reach out to our team. We usually reply within one business day."}
           </p>
         </div>
 
@@ -78,10 +63,10 @@ export default function SupportPage() {
               <Mail className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-bold text-foreground truncate">{L({ en: "Email support", ar: "الدعم عبر البريد" })}</p>
+              <p className="text-[13px] font-bold text-foreground truncate">{"Email support"}</p>
               <p className="text-[11px] text-muted-foreground truncate">support@ascendauction.example</p>
             </div>
-            <ChevronLeft className={cn("h-4 w-4 shrink-0 text-muted-foreground/55", dir === "rtl" && "rotate-180")} />
+            <ChevronLeft className={cn("h-4 w-4 shrink-0 text-muted-foreground/55")} />
           </a>
           <a
             href="https://wa.me/000000000000"
@@ -93,10 +78,10 @@ export default function SupportPage() {
               <MessageCircle className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-bold text-foreground truncate">{L({ en: "WhatsApp", ar: "واتساب" })}</p>
-              <p className="text-[11px] text-muted-foreground truncate">{L({ en: "Chat with us", ar: "دردش معنا" })}</p>
+              <p className="text-[13px] font-bold text-foreground truncate">{"WhatsApp"}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{"Chat with us"}</p>
             </div>
-            <ChevronLeft className={cn("h-4 w-4 shrink-0 text-muted-foreground/55", dir === "rtl" && "rotate-180")} />
+            <ChevronLeft className={cn("h-4 w-4 shrink-0 text-muted-foreground/55")} />
           </a>
         </div>
 
@@ -121,13 +106,13 @@ export default function SupportPage() {
             to="/terms"
             className="h-12 rounded-lg bg-card border border-border grid place-items-center text-[13px] font-bold text-foreground active:scale-95 transition"
           >
-            {L({ en: "Terms", ar: "الشروط" })}
+            {"Terms"}
           </Link>
           <Link
             to="/privacy"
             className="h-12 rounded-lg bg-card border border-border grid place-items-center text-[13px] font-bold text-foreground active:scale-95 transition"
           >
-            {L({ en: "Privacy", ar: "الخصوصية" })}
+            {"Privacy"}
           </Link>
         </div>
       </main>

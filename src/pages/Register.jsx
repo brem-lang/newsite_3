@@ -207,7 +207,7 @@ export default function Register() {
           <div className="space-y-2">
             <Label htmlFor="firstName">{t.authp.firstName}</Label>
             <div className="relative">
-              <User className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="firstName"
                 autoComplete="given-name"
@@ -215,7 +215,7 @@ export default function Register() {
                 placeholder={t.authp.firstNamePlaceholder}
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="ltr:pl-10 rtl:pr-10 h-12"
+                className="pl-10 h-12"
                 required
               />
             </div>
@@ -237,7 +237,7 @@ export default function Register() {
         <div className="space-y-2">
           <Label htmlFor="country">{t.authp.country}</Label>
           <div className="relative">
-            <Globe className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
+            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
             <select
               id="country"
               value={countryCode}
@@ -248,7 +248,7 @@ export default function Register() {
               }}
               autoComplete="country"
               required
-              className="w-full h-12 rounded-md border border-input bg-background ltr:pl-10 rtl:pr-10 ltr:pr-3 rtl:pl-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full h-12 rounded-md border border-input bg-background pl-10 pr-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="" disabled>
                 {detecting ? t.authp.detecting : t.authp.selectCountry}
@@ -288,7 +288,7 @@ export default function Register() {
               ))}
             </select>
             <div className="relative flex-1">
-              <Phone className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="phone"
                 type="tel"
@@ -297,7 +297,7 @@ export default function Register() {
                 placeholder="790000000"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="ltr:pl-10 rtl:pr-10 h-12"
+                className="pl-10 h-12"
                 required
               />
             </div>
@@ -309,7 +309,7 @@ export default function Register() {
 
           <Label htmlFor="email">{t.authp.email}</Label>
           <div className="relative">
-            <Mail className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="email"
               type="email"
@@ -317,7 +317,7 @@ export default function Register() {
               placeholder={t.authp.emailPlaceholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="ltr:pl-10 rtl:pr-10 h-12"
+              className="pl-10 h-12"
               required
             />
           </div>
@@ -325,7 +325,7 @@ export default function Register() {
         <div className="space-y-2">
           <Label htmlFor="password">{t.authp.password}</Label>
           <div className="relative">
-            <Lock className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="password"
               type="password"
@@ -333,7 +333,7 @@ export default function Register() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="ltr:pl-10 rtl:pr-10 h-12"
+              className="pl-10 h-12"
               required
             />
           </div>
@@ -341,7 +341,7 @@ export default function Register() {
         <div className="space-y-2">
           <Label htmlFor="confirm">{t.authp.confirmPassword}</Label>
           <div className="relative">
-            <Lock className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="confirm"
               type="password"
@@ -349,7 +349,7 @@ export default function Register() {
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="ltr:pl-10 rtl:pr-10 h-12"
+              className="pl-10 h-12"
               required
             />
           </div>

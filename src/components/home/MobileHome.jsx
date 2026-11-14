@@ -20,18 +20,17 @@ import { useI18n } from "@/lib/i18n";
 import { effectiveStatus, formatCountdownRing, timeRemaining } from "@/lib/auction";
 import { selectHomeAuctions } from "@/lib/homeShowcase";
 import { Image } from "@/components/ui/image";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import BottomNav from "@/components/BottomNav";
 import { cn } from "@/lib/utils";
 
 export default function MobileHome({ auctions, loading, authed, userName, withNav = true }) {
-  const { t, lang, dir } = useI18n();
+  const { t, dir } = useI18n();
   const [, tick] = useState(0);
   const [dbCategories, setDbCategories] = useState([]);
   const list = selectHomeAuctions(auctions);
   const featured = list[0];
   const trending = list.slice(1, 3);
-  const ArrowIcon = dir === "rtl" ? ChevronLeft : ChevronRight;
+  const ArrowIcon = ChevronRight;
 
   useEffect(() => {
     const id = window.setInterval(() => tick((value) => value + 1), 1000);
@@ -46,21 +45,7 @@ export default function MobileHome({ auctions, loading, authed, userName, withNa
     return () => { active = false; };
   }, []);
 
-  const copy = lang === "ar"
-    ? {
-        greeting: userName ? `مرحباً ${userName}` : "مرحباً بك في مزاد",
-        subtitle: "فرصتك تبدأ من هنا",
-        search: "ابحث عن أي منتج في مزاد...",
-        categories: ["سيارات", "ساعات", "عقارات", "إلكترونيات"],
-        live: "مزادات مباشرة",
-        liveSub: "عروض حية · نافس بأفضل سعر",
-        cta: "استعرض الآن",
-        viewAll: "عرض الكل",
-        subscribe: "اشترك الآن",
-        trending: "المزادات الرائجة",
-        current: "السعر الحالي",
-      }
-    : {
+  const copy = {
         greeting: userName ? `Welcome ${userName}` : "Welcome to MIZAD",
         subtitle: "Your opportunity starts here",
         search: "Search for anything in MIZAD...",
@@ -128,7 +113,6 @@ export default function MobileHome({ auctions, loading, authed, userName, withNa
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <LanguageSwitcher />
             <Link
               to={authed ? "/account" : "/login"}
               aria-label={t.notifications.title}

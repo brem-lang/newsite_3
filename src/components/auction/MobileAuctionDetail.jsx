@@ -215,8 +215,8 @@ export default function MobileAuctionDetail({
 
   // Swipe from the leading edge goes back, like a native detail screen.
   const swipeRef = useSwipe({
-    onSwipeLeft: () => dir === "rtl" && navigate(backTo),
-    onSwipeRight: () => dir !== "rtl" && navigate(backTo),
+    onSwipeLeft: () => false,
+    onSwipeRight: () => navigate(backTo),
     threshold: 80
   });
 
@@ -286,7 +286,7 @@ export default function MobileAuctionDetail({
               )}
             </div>
             <span className="mt-1 shrink-0 text-muted-foreground">
-              <ArrowLeft className={cn("h-4 w-4", dir === "rtl" ? "" : "rotate-180")} />
+              <ArrowLeft className={cn("h-4 w-4", "rotate-180")} />
             </span>
           </div>
 

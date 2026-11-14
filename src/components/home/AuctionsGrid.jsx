@@ -7,8 +7,8 @@ import HomeAuctionCard from "@/components/home/HomeAuctionCard";
 import { selectHomeAuctions } from "@/lib/homeShowcase";
 
 export default function AuctionsGrid({ auctions, loading }) {
-  const { t, dir } = useI18n();
-  const arrowCls = dir === "rtl" ? "rotate-180" : "";
+  const { t } = useI18n();
+  const arrowCls = "";
   const shown = selectHomeAuctions(auctions);
   return (
     <section id="auctions" className="max-w-6xl mx-auto px-4 sm:px-6 pb-8 sm:pb-12 scroll-mt-20">

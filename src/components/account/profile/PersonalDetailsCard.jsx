@@ -25,9 +25,9 @@ const splitPhone = (raw) => {
 };
 
 export default function PersonalDetailsCard({ user, onSaved, compact = false }) {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const p = t.account.profile;
-  const locale = dir === "rtl" ? "ar" : "en";
+  const locale = "en";
   const countries = useMemo(() => countryList(locale), [locale]);
   const dials = useMemo(() => dialCodeList(locale), [locale]);
 

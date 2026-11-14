@@ -524,12 +524,12 @@ function EndedAuctions({ items, users, t, onEdit, onDelete, onReload }) {
       <div className="native-panel rounded-2xl p-4 space-y-3 print:hidden">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={labels.search}
-              className="w-full h-9 rounded-xl border border-border bg-background ltr:pl-9 rtl:pr-9 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full h-9 rounded-xl border border-border bg-background pl-9 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground">

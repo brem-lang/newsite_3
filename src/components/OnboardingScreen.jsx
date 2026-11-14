@@ -9,27 +9,6 @@ const KEY = "mizad_onboarding_seen";
 const SPLASH_KEY = "mizad_splash_seen";
 
 const COPY = {
-  ar: {
-    skip: "تخطي",
-    next: "التالي",
-    start: "ابدأ الآن",
-    signin: "لدي حساب",
-    browse: "تصفح المزادات",
-    slides: [
-      {
-        title: "مزادات مباشرة",
-        body: "انضم بمقعد واحد وشاهد المزاد يعمل أمامك لحظة بلحظة.",
-      },
-      {
-        title: "محفظتك تحت سيطرتك",
-        body: "أضف رصيداً، تابع كل عملية، وزايد بدون أي مبالغ محجوزة.",
-      },
-      {
-        title: "اقترب من السعر واربح",
-        body: "أقرب رقم فريد للسعر المطلوب هو الفائز. بسيطة وعادلة.",
-      },
-    ],
-  },
   en: {
     skip: "Skip",
     next: "Next",
@@ -60,9 +39,8 @@ const ICONS = [Gavel, Wallet, Trophy];
  * right after the splash screen.
  */
 export default function OnboardingScreen() {
-  const { lang, dir } = useI18n();
-  const rtl = dir === "rtl";
-  const copy = COPY[lang] || COPY.en;
+  const { dir } = useI18n();
+  const copy = COPY.en;
   const [show, setShow] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [step, setStep] = useState(0);
@@ -104,7 +82,7 @@ export default function OnboardingScreen() {
   const slides = copy.slides;
   const last = step === slides.length - 1;
   const Icon = useMemo(() => ICONS[step] || Gavel, [step]);
-  const NextIcon = rtl ? ChevronLeft : ChevronRight;
+  const NextIcon = ChevronRight;
 
   if (!show) return null;
 

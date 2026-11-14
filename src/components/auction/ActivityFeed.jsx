@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 
 function dirX() {
-  return document.documentElement.dir === "rtl" ? -20 : 20;
+  return 20;
 }
 
 export default function ActivityFeed({ bids, currentUserId, names = {} }) {

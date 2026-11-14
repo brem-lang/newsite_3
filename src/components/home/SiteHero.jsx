@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function SiteHero({ auctions, loading, authed, content }) {
-  const { t, lang, dir } = useI18n();
+  const { t, lang } = useI18n();
   const heroTitle = contentValue(content, "hero_title", lang, t.home.heroTitle);
   const heroSubtitle = contentValue(content, "hero_subtitle", lang, t.home.heroSubtitle);
-  const arrowCls = dir === "rtl" ? "rotate-180" : "";
+  const arrowCls = "";
   const curated = auctions
     .filter((a) => a.featured && effectiveStatus(a) !== "ended")
     .sort((a, b) => (a.featured_order || 0) - (b.featured_order || 0));
@@ -52,14 +52,14 @@ export default function SiteHero({ auctions, loading, authed, content }) {
               <div className="native-panel rounded-xl p-3">
                 <div className="relative rounded-lg overflow-hidden aspect-[16/10] bg-muted">
                   <Image src={featured.image_url} alt={featured.title} className="w-full h-full" fittingType="fill" />
-                  <span className={cn("absolute top-3 ltr:left-3 rtl:right-3 text-[11px] font-bold px-2.5 py-1 rounded-lg border", live ? "bg-destructive text-destructive-foreground border-destructive animate-pulse" : "bg-card/90 text-foreground border-border")}>{live ? t.auction.statusLive : t.site.hero.notLive}</span>
-                  <span className="absolute top-3 ltr:right-3 rtl:left-3 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-primary text-primary-foreground border border-primary">{t.site.hero.featured}</span>
+                  <span className={cn("absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-lg border", live ? "bg-destructive text-destructive-foreground border-destructive animate-pulse" : "bg-card/90 text-foreground border-border")}>{live ? t.auction.statusLive : t.site.hero.notLive}</span>
+                  <span className="absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-primary text-primary-foreground border border-primary">{t.site.hero.featured}</span>
                 </div>
                 <div className="p-4 space-y-3">
                   <h3 className="font-display font-extrabold text-base text-foreground line-clamp-1">{featured.title}</h3>
                   <div className="flex items-end justify-between">
                     <div><p className="text-[11px] text-muted-foreground">{t.auction.currentPrice}</p><p className="font-display text-2xl font-extrabold text-primary">{t.common.currency}{featured.current_price?.toFixed(2) || "0.00"}</p></div>
-                    <div className="text-end rtl:text-start"><p className="text-[11px] text-muted-foreground">{t.auction.seats}</p><p className="font-bold text-foreground">{featured.subscriber_ids?.length || 0}/{featured.max_subscribers}</p></div>
+                    <div className="text-end"><p className="text-[11px] text-muted-foreground">{t.auction.seats}</p><p className="font-bold text-foreground">{featured.subscriber_ids?.length || 0}/{featured.max_subscribers}</p></div>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, ((featured.subscriber_ids?.length || 0) / Math.max(1, featured.max_subscribers)) * 100)}%` }} /></div>
                   <Link to={`/auction/${featured.id}`}><Button className="w-full h-11 font-bold gap-2"><Flame className="w-4 h-4" /> {t.site.hero.bidNow}</Button></Link>

@@ -7,8 +7,8 @@ import { sectionLabel, SECTIONS } from "@/lib/adminNav";
 import { Button } from "@/components/ui/button";
 
 export default function AdminSidebar({ groups, basePath, active, activeGroup, onLogout, onClose, onSearch, className }) {
-  const { t, dir } = useI18n();
-  const backRotate = dir === "rtl" ? "rotate-180" : "";
+  const { t } = useI18n();
+  const backRotate = "";
   const [open, setOpen] = useState(() => ({ [activeGroup]: true }));
 
   useEffect(() => { setOpen((s) => ({ ...s, [activeGroup]: true })); }, [activeGroup]);

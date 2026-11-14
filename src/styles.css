@@ -152,13 +152,6 @@
   color-scheme: dark;
 }
 
-/* Arabic-first display font whenever the document language is Arabic */
-[lang="ar"] {
-  --font-heading: "Cairo", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Cairo", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Cairo", ui-sans-serif, system-ui, sans-serif;
-}
-
 @layer base {
   * {
     border-color: hsl(var(--border));
@@ -299,8 +292,8 @@
   }
 }
 
-/* System font stack for a native feel (Arabic keeps Cairo via [lang=ar]) */
-html:not([lang="ar"]) {
+/* System font stack for a native feel */
+html {
   --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, "Helvetica Neue",
     system-ui, sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, "Helvetica Neue",
@@ -430,10 +423,6 @@ html:not([lang="ar"]) {
 
 @utility page-transition {
   animation: page-slide-in 0.26s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-[dir="rtl"] .page-transition {
-  --page-slide-from: -16px;
 }
 
 .animate-sheet-up {

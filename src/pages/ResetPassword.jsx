@@ -101,7 +101,7 @@ export default function ResetPassword() {
         <div className="space-y-2">
           <Label htmlFor="password">{t.authp.newPassword}</Label>
           <div className="relative">
-            <Lock className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="password"
               type="password"
@@ -110,7 +110,7 @@ export default function ResetPassword() {
               placeholder="••••••••"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="ltr:pl-10 rtl:pr-10 h-12"
+              className="pl-10 h-12"
               required
             />
           </div>
@@ -118,7 +118,7 @@ export default function ResetPassword() {
         <div className="space-y-2">
           <Label htmlFor="confirm">{t.authp.confirmPassword}</Label>
           <div className="relative">
-            <Lock className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="confirm"
               type="password"
@@ -126,7 +126,7 @@ export default function ResetPassword() {
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="ltr:pl-10 rtl:pr-10 h-12"
+              className="pl-10 h-12"
               required
             />
           </div>

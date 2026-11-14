@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /** Compact wallet activity feed, newest first. */
 export default function ActivityList({ transactions = [], loading, limit = 6 }) {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const rows = (transactions || []).slice(0, limit);
 
   if (loading) {
@@ -63,8 +63,7 @@ export default function ActivityList({ transactions = [], loading, limit = 6 }) 
             <span
               className={cn(
                 "shrink-0 text-sm font-extrabold tabular-nums",
-                credit ? "text-emerald-600" : "text-rose-600",
-                dir === "rtl" && "text-start"
+                credit ? "text-emerald-600" : "text-rose-600"
               )}
             >
               {credit ? "+" : "−"}{t.common.currency}{Math.abs(amount).toFixed(2)}

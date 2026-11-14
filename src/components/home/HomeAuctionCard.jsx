@@ -9,13 +9,13 @@ import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
 
 export default function HomeAuctionCard({ auction, yourBid }) {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const { symbol } = useCurrency();
   const { status, remaining, durationMinutes } = useAuctionCountdown(auction);
   const filled = auction.subscriber_ids?.length || 0;
   const pct = auction.max_subscribers ? Math.min(100, (filled / auction.max_subscribers) * 100) : 0;
   const statusLabel = { open: t.auction.statusOpen, live: t.auction.statusLive, ended: t.auction.statusEnded }[status];
-  const arrowCls = dir === "rtl" ? "rotate-180" : "";
+  const arrowCls = "";
 
   const badgeCls = status === "live"
     ? "bg-destructive/15 text-destructive border-destructive/30"
@@ -30,10 +30,10 @@ export default function HomeAuctionCard({ auction, yourBid }) {
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <Image src={auction.image_url} alt={auction.title} className="w-full h-full transition-transform duration-500 group-hover:scale-105" fittingType="fill" />
-        <span className={cn("absolute top-3 ltr:left-3 rtl:right-3 text-[11px] font-bold px-2.5 py-1 rounded-md border", badgeCls)}>
+        <span className={cn("absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-md border", badgeCls)}>
           {statusLabel}
         </span>
-        <span className="absolute top-3 ltr:right-3 rtl:left-3 text-[11px] font-bold px-2.5 py-1 rounded-md bg-card/90 text-foreground border border-border backdrop-blur">
+        <span className="absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-md bg-card/90 text-foreground border border-border backdrop-blur">
           {symbol}{auction.entry_fee}
         </span>
       </div>

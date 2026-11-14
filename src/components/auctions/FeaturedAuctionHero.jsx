@@ -37,10 +37,10 @@ export default function FeaturedAuctionHero({ auction }) {
     >
       <div className="relative w-full aspect-[16/10] lg:aspect-auto lg:h-full lg:min-h-[320px] lg:max-h-[380px] bg-muted overflow-hidden">
         <Image src={auction.image_url} alt={auction.title} fittingType="fill" className="w-full h-full transition-transform duration-500 group-hover:scale-105" />
-        <span className="absolute top-3 ltr:right-3 rtl:left-3 text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-destructive text-destructive-foreground">
+        <span className="absolute top-3 right-3 text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-destructive text-destructive-foreground">
           {isLive ? t.street.live : t.auction.statusOpen}
         </span>
-        <span className="absolute top-3 ltr:left-3 rtl:right-3 text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-primary text-primary-foreground">
+        <span className="absolute top-3 left-3 text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-primary text-primary-foreground">
           {symbol}{auction.entry_fee}
         </span>
       </div>

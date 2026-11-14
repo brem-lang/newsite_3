@@ -21,11 +21,8 @@ export function useContent() {
   return { content, loading };
 }
 
-// Resolve a content key for the active language, falling back to the other
-// language and then to the provided default.
-export function contentValue(content, key, lang, fallback) {
+// Resolve a content key, falling back to the provided default.
+export function contentValue(content, key, _lang, fallback) {
   const item = content.find((c) => c.key === key);
-  if (!item) return fallback;
-  if (lang === "ar") return item.value_ar || item.value_en || fallback;
-  return item.value_en || item.value_ar || fallback;
+  return item?.value_en || fallback;
 }

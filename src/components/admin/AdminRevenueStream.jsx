@@ -22,7 +22,6 @@ const abs = (n) => Math.abs(Number(n) || 0);
 export default function AdminRevenueStream() {
   const { lang } = useI18n();
   const { format } = useCurrency();
-  const L = (en, ar) => (lang === "ar" ? ar : en);
 
   const [txns, setTxns] = useState([]);
   const [auctions, setAuctions] = useState([]);
@@ -120,13 +119,13 @@ export default function AdminRevenueStream() {
   const feed = useMemo(() => (txns || []).slice(0, 12), [txns]);
 
   const LABELS = {
-    subscription: [L("Entry fee", "رسوم دخول"), Ticket, "text-info"],
-    bid_fee: [L("Bid fee", "رسوم مزايدة"), Gavel, "text-info"],
-    bid_credits: [L("Extra bids", "مزايدات إضافية"), Gavel, "text-primary"],
-    winning_bid: [L("Winner payment", "دفعة فائز"), Trophy, "text-success"],
-    refund: [L("Refund", "استرداد"), ArrowUpRight, "text-destructive"],
-    topup: [L("Deposit", "إيداع"), Wallet, "text-info"],
-    deposit: [L("Deposit", "إيداع"), Wallet, "text-info"],
+    subscription: ["Entry fee", Ticket, "text-info"],
+    bid_fee: ["Bid fee", Gavel, "text-info"],
+    bid_credits: ["Extra bids", Gavel, "text-primary"],
+    winning_bid: ["Winner payment", Trophy, "text-success"],
+    refund: ["Refund", ArrowUpRight, "text-destructive"],
+    topup: ["Deposit", Wallet, "text-info"],
+    deposit: ["Deposit", Wallet, "text-info"],
   };
 
   const time = (d) => {
@@ -151,32 +150,32 @@ export default function AdminRevenueStream() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium flex items-center gap-2">
           <Activity className="w-4 h-4" />
-          {L("Live revenue stream", "تدفق الإيرادات المباشر")}
+          {"Live revenue stream"}
           <span className="relative inline-flex w-2 h-2">
             <span className="absolute inset-0 rounded-full bg-success animate-ping" />
             <span className="absolute inset-0 rounded-full bg-success" />
           </span>
         </h3>
         <p className="text-[11px] text-muted-foreground">
-          {L(`Last 400 movements · ${pulse} live updates`, `آخر 400 حركة · ${pulse} تحديث مباشر`)}
+          {`Last 400 movements · ${pulse} live updates`}
         </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat icon={Wallet} label={L("Deposits", "الإيداعات")} value={format(totals.deposits)} hint={L("Money into wallets", "أموال داخلة للمحافظ")} />
-        <Stat icon={Gavel} label={L("Auction income", "إيرادات المزادات")} value={format(totals.income)} tone="text-success" hint={L("Entry, bid fees, extra bids, wins", "دخول، رسوم مزايدة، مزايدات إضافية، مكاسب")} />
-        <Stat icon={Clock} label={L("Awaiting winner payment", "بانتظار دفع الفائز")} value={format(totals.awaiting)} tone="text-warning" hint={L("Invoiced, not settled yet", "تم إصدار الفاتورة ولم تُسدد")} />
-        <Stat icon={ArrowUpRight} label={L("Refunds", "الاستردادات")} value={format(totals.refunds)} tone="text-destructive" />
+        <Stat icon={Wallet} label={"Deposits"} value={format(totals.deposits)} hint={"Money into wallets"} />
+        <Stat icon={Gavel} label={"Auction income"} value={format(totals.income)} tone="text-success" hint={"Entry, bid fees, extra bids, wins"} />
+        <Stat icon={Clock} label={"Awaiting winner payment"} value={format(totals.awaiting)} tone="text-warning" hint={"Invoiced, not settled yet"} />
+        <Stat icon={ArrowUpRight} label={"Refunds"} value={format(totals.refunds)} tone="text-destructive" />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-accent/20 overflow-hidden bg-background/35">
           <div className="px-3 py-2 text-[11px] font-medium text-accent bg-accent/10">
-            {L("Per auction", "لكل مزاد")}
+            {"Per auction"}
           </div>
           <div className="max-h-[320px] overflow-y-auto divide-y divide-border">
             {rows.length === 0 && (
-              <p className="p-4 text-xs text-muted-foreground">{L("No auction money yet.", "لا توجد حركة مالية بعد.")}</p>
+              <p className="p-4 text-xs text-muted-foreground">{"No auction money yet."}</p>
             )}
             {rows.map((r) => (
               <div key={r.id} className="p-3 space-y-1.5">
@@ -185,12 +184,12 @@ export default function AdminRevenueStream() {
                   <span className="text-xs font-semibold tabular-nums text-success">{format(r.income)}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground tabular-nums">
-                  <span>{L("Entry", "دخول")} {format(r.entry)}</span>
-                  <span>{L("Bids", "مزايدات")} {format(r.bidFees + r.extra)}</span>
-                  <span>{L("Wins", "مكاسب")} {format(r.winner)}</span>
-                  {r.refunds > 0 && <span className="text-destructive">{L("Refunds", "استرداد")} {format(r.refunds)}</span>}
+                  <span>{"Entry"} {format(r.entry)}</span>
+                  <span>{"Bids"} {format(r.bidFees + r.extra)}</span>
+                  <span>{"Wins"} {format(r.winner)}</span>
+                  {r.refunds > 0 && <span className="text-destructive">{"Refunds"} {format(r.refunds)}</span>}
                   {r.awaiting > 0 && (
-                    <span className="text-warning font-medium">{L("Awaiting", "بانتظار")} {format(r.awaiting)}</span>
+                    <span className="text-warning font-medium">{"Awaiting"} {format(r.awaiting)}</span>
                   )}
                   {r.auction?.status && <span className="uppercase">{r.auction.status}</span>}
                 </div>
@@ -201,11 +200,11 @@ export default function AdminRevenueStream() {
 
         <div className="rounded-xl border border-accent/20 overflow-hidden bg-background/35">
           <div className="px-3 py-2 text-[11px] font-medium text-accent bg-accent/10">
-            {L("Latest movements", "أحدث الحركات")}
+            {"Latest movements"}
           </div>
           <div className="max-h-[320px] overflow-y-auto divide-y divide-border">
             {feed.length === 0 && (
-              <p className="p-4 text-xs text-muted-foreground">{L("Nothing yet.", "لا شيء بعد.")}</p>
+              <p className="p-4 text-xs text-muted-foreground">{"Nothing yet."}</p>
             )}
             {feed.map((x) => {
               const [label, Icon, tone] = LABELS[x.type] || [x.type, Activity, "text-muted-foreground"];

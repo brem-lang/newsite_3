@@ -46,10 +46,10 @@ function Kpi({ icon: Icon, label, value, hint, tone = "default" }) {
  * the fees the platform collected, the winner and what is still owed.
  */
 export default function AdminAuctionPL() {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const { format, code } = useCurrency();
   const L = t.admin.auctionPl || {};
-  const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
+  const Back = ArrowLeft;
 
   const [auctions, setAuctions] = useState([]);
   const [listLoading, setListLoading] = useState(true);

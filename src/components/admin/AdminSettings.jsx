@@ -19,7 +19,7 @@ const TIMEZONES = [
 ];
 
 export default function AdminSettings() {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const { user, checkUserAuth } = useAuth();
   const [row, setRow] = useState(null);
   const [caps, setCaps] = useState(null);

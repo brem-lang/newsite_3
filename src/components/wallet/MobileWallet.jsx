@@ -30,8 +30,8 @@ export default function MobileWallet({
 }) {
   const { t, dir } = useI18n();
   const { symbol, code } = useCurrency();
-  const arrowCls = dir === "rtl" ? "rotate-180" : "";
-  const L = (o) => (dir === "rtl" ? o.ar : o.en);
+  const arrowCls = "";
+  const L = (o) => (o.en);
   const quickAmounts = [25, 50, 100, 250];
   const selectedMethod = methods.find((m) => m.id === selected);
   const needsRef = selectedMethod && ["manual", "transfer", "cod"].includes(selectedMethod.type);
@@ -57,8 +57,8 @@ export default function MobileWallet({
     if (isNaN(d)) return "—";
     const today = new Date();
     const y = new Date(today); y.setDate(y.getDate() - 1);
-    if (d.toDateString() === today.toDateString()) return L({ en: "Today", ar: "اليوم" });
-    if (d.toDateString() === y.toDateString()) return L({ en: "Yesterday", ar: "أمس" });
+    if (d.toDateString() === today.toDateString()) return "Today";
+    if (d.toDateString() === y.toDateString()) return "Yesterday";
     return d.toLocaleDateString("en-GB", { weekday: "short", month: "short", day: "numeric" });
   };
 
@@ -263,7 +263,7 @@ export default function MobileWallet({
               </div>
               <p className="text-[14px] font-bold text-foreground">{t.wallet.noHistory}</p>
               <p className="mt-1 text-[12px] text-muted-foreground max-w-[240px] mx-auto">
-                {L({ en: "Your top-ups, entries and refunds will appear here.", ar: "ستظهر هنا عمليات الإيداع والمشاركات والاستردادات." })}
+                {"Your top-ups, entries and refunds will appear here."}
               </p>
             </div>
           ) : (

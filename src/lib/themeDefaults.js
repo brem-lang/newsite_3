@@ -1,10 +1,8 @@
 // Default Street Neon theme + helpers to materialize a theme as CSS custom properties.
 
 export const FONT_OPTIONS = [
-  { value: "Cairo", label: "Cairo" },
+  { value: "Inter", label: "Inter" },
   { value: "Sora", label: "Sora" },
-  { value: "Tajawal", label: "Tajawal" },
-  { value: "Almarai", label: "Almarai" },
 ];
 
 export const DEFAULT_THEME = {
@@ -16,8 +14,8 @@ export const DEFAULT_THEME = {
   neonLime: "#E8BE54",
   neonPink: "#F05F78",
   neonViolet: "#21C7E5",
-  fontHeading: "Cairo",
-  fontBody: "Cairo",
+  fontHeading: "Inter",
+  fontBody: "Inter",
   fontDisplay: "Sora",
   radius: 10,
   components: {

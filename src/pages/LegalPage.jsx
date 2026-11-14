@@ -7,11 +7,10 @@ import { cn } from "@/lib/utils";
 import { getLegalDoc, LEGAL_UPDATED } from "@/lib/legal";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 function formatUpdated(lang) {
   try {
-    return new Date(LEGAL_UPDATED).toLocaleDateString(lang === "ar" ? "ar" : "en-GB", {
+    return new Date(LEGAL_UPDATED).toLocaleDateString("en-GB", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -35,17 +34,15 @@ export default function LegalPage({ kind = "terms" }) {
           <div className="h-14 px-2 flex items-center gap-1">
             <Link
               to="/account"
-              aria-label={lang === "ar" ? "رجوع" : "Back"}
+              aria-label={"Back"}
               className="w-10 h-10 rounded-xl grid place-items-center text-foreground active:scale-95 transition"
             >
-              <ChevronLeft className={cn("w-5 h-5", dir === "rtl" && "rotate-180")} />
+              <ChevronLeft className={cn("w-5 h-5")} />
             </Link>
             <h1 className="flex-1 text-center font-display font-extrabold text-[15px] text-foreground truncate px-1">
               {doc.title}
             </h1>
-            <div className="w-10 grid place-items-center">
-              <LanguageSwitcher />
-            </div>
+            <div className="w-10" aria-hidden="true" />
           </div>
         </header>
 
@@ -92,7 +89,7 @@ export default function LegalPage({ kind = "terms" }) {
               to="/"
               className="flex-1 h-12 rounded-2xl bg-primary text-primary-foreground grid place-items-center text-[13px] font-bold active:scale-95 transition"
             >
-              {lang === "ar" ? "الرئيسية" : "Home"}
+              {"Home"}
             </Link>
           </div>
         </main>

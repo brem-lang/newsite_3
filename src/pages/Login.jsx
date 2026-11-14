@@ -71,7 +71,7 @@ export default function Login() {
         <div className="space-y-2">
           <Label htmlFor="email">{t.authp.email}</Label>
           <div className="relative">
-            <Mail className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="email"
               type="email"
@@ -80,7 +80,7 @@ export default function Login() {
               placeholder={t.authp.emailPlaceholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="ltr:pl-10 rtl:pr-10 h-12"
+              className="pl-10 h-12"
               required
             />
           </div>
@@ -93,7 +93,7 @@ export default function Login() {
             </Link>
           </div>
           <div className="relative">
-            <Lock className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="password"
               type="password"
@@ -101,7 +101,7 @@ export default function Login() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="ltr:pl-10 rtl:pr-10 h-12"
+              className="pl-10 h-12"
               required
             />
           </div>

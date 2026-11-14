@@ -22,7 +22,7 @@ function maskName(id, names) {
  */
 export default function AuctionResults() {
   const { id } = useParams();
-  const { t, lang, dir } = useI18n();
+  const { t, dir } = useI18n();
   const [auction, setAuction] = useState(null);
   const [bids, setBids] = useState([]);
   const [payment, setPayment] = useState(null);
@@ -30,24 +30,7 @@ export default function AuctionResults() {
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const copy = lang === "ar"
-    ? {
-        title: "نتائج المزاد",
-        winner: "الفائز",
-        noWinner: "لا يوجد فائز",
-        winningBid: "المزايدة الفائزة",
-        allBids: "جميع المزايدات",
-        empty: "لا توجد مزايدات",
-        cancelled: "ملغاة",
-        payout: "المحفظة",
-        payNow: "أكمل الدفع",
-        amountDue: "المبلغ المستحق",
-        paid: "مدفوع",
-        target: "السعر المستهدف",
-        back: "رجوع",
-        bidsCount: "عدد المزايدات",
-      }
-    : {
+  const copy = {
         title: "Auction results",
         winner: "Winner",
         noWinner: "No winner",
@@ -106,7 +89,7 @@ export default function AuctionResults() {
           aria-label={copy.back}
           className="tap-44 grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-foreground"
         >
-          <ArrowLeft className={cn("h-5 w-5", dir === "rtl" && "rotate-180")} />
+          <ArrowLeft className={cn("h-5 w-5")} />
         </Link>
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-widest text-accent">{copy.title}</p>
@@ -199,7 +182,7 @@ export default function AuctionResults() {
                       {b.user_id === me?.id ? <span className="ms-1 text-accent">({t.common?.you || "you"})</span> : null}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      {new Date(b.created_date).toLocaleString(lang === "ar" ? "ar" : "en-GB")}
+                      {new Date(b.created_date).toLocaleString("en-GB")}
                     </p>
                   </div>
                   {b.burned ? (

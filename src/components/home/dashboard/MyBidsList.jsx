@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 /** Rows for auctions the user has a seat or a bid in. */
 export default function MyBidsList({ items = [], loading }) {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
 
   if (loading) {
     return (
@@ -57,7 +57,7 @@ export default function MyBidsList({ items = [], loading }) {
                   : `${auction.subscriber_ids?.length || 0}/${auction.max_subscribers} ${t.auction.seats}`}
               </span>
             </span>
-            <ChevronRight className={cn("h-4 w-4 shrink-0 text-muted-foreground", dir === "rtl" && "rotate-180")} />
+            <ChevronRight className={cn("h-4 w-4 shrink-0 text-muted-foreground")} />
           </Link>
         );
       })}

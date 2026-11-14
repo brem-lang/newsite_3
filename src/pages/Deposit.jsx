@@ -27,7 +27,7 @@ function methodIcon(type) {
  * gateways, pending transaction for manual/transfer/cash methods).
  */
 export default function Deposit() {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const { symbol, code } = useCurrency();
   const { user } = useOutletContext() || {};
   const { balance, refresh } = useWallet(user?.id);
@@ -58,7 +58,7 @@ export default function Deposit() {
     selectedMethod && ["manual", "transfer", "cod"].includes(selectedMethod.type);
   const isLive = selectedMethod?.type === "live_gateway";
   const numericAmount = Number(amount) || 0;
-  const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
+  const Back = ArrowLeft;
 
   const submit = async () => {
     if (!user) { navigate("/login"); return; }

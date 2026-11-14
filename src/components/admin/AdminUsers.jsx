@@ -17,8 +17,8 @@ import EditUserDialog from "@/components/admin/EditUserDialog";
 import PermissionsDialog from "@/components/admin/PermissionsDialog";
 
 export default function AdminUsers() {
-  const { t, lang } = useI18n();
-  const L = (o) => (o ? o[lang] || o.en || "" : "");
+  const { t } = useI18n();
+  const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState(null);
@@ -162,11 +162,11 @@ export default function AdminUsers() {
 
   const applyAdjustment = async () => {
     const amount = parseFloat(balanceForm.amount);
-    if (!balanceUser || !amount || amount <= 0) { toast.error(L({ en: "Enter a valid amount", ar: "أدخل مبلغاً صحيحاً" })); return; }
+    if (!balanceUser || !amount || amount <= 0) { toast.error("Enter a valid amount"); return; }
     setBusy(true);
     try {
       const signed = balanceForm.dir === "credit" ? amount : -amount;
-      const verb = balanceForm.dir === "credit" ? L({ en: "Credit", ar: "إضافة" }) : L({ en: "Debit", ar: "خصم" });
+      const verb = balanceForm.dir === "credit" ? "Credit" : "Debit";
       await base44.entities.WalletTransaction.create({
         user_id: balanceUser.id,
         type: "adjustment",
@@ -176,7 +176,7 @@ export default function AdminUsers() {
         status: "confirmed",
       });
       logAdminAction("wallet.adjust", { targetType: "profiles", targetId: balanceUser.id, details: `${balanceForm.dir} ${amount} — ${balanceForm.note || ""}` });
-      toast.success(L({ en: "Balance updated", ar: "تم تحديث الرصيد" }));
+      toast.success("Balance updated");
       const ref = balanceUser;
       setBalanceUser(null);
       setBalanceForm({ amount: "", note: "", dir: "credit" });
@@ -251,7 +251,7 @@ export default function AdminUsers() {
                     <div className="flex items-center gap-1 ms-1">
                       {canEdit && <Button variant="ghost" size="icon" onClick={() => setPermsUser(u)} title={t.admin.permissions.title}><KeyRound className="w-4 h-4" /></Button>}
                       {canEdit && <Button variant="ghost" size="icon" onClick={() => setEditUser(u)} title={t.admin.users.edit}><Edit2 className="w-4 h-4" /></Button>}
-                      {canEdit && <Button variant="ghost" size="icon" onClick={() => { setBalanceUser(u); setBalanceForm({ amount: "", note: "", dir: "credit" }); }} title={L({ en: "Adjust balance", ar: "تعديل الرصيد" })}><Wallet className="w-4 h-4 text-success" /></Button>}
+                      {canEdit && <Button variant="ghost" size="icon" onClick={() => { setBalanceUser(u); setBalanceForm({ amount: "", note: "", dir: "credit" }); }} title={"Adjust balance"}><Wallet className="w-4 h-4 text-success" /></Button>}
                       {canManage && <Button variant="ghost" size="icon" onClick={() => togglePause(u)} title={u.paused ? t.admin.users.unpause : t.admin.users.pause}>
                         {u.paused ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
                       </Button>}
@@ -386,25 +386,25 @@ export default function AdminUsers() {
       {/* Adjust balance dialog */}
       <Dialog open={!!balanceUser} onOpenChange={(o) => !o && setBalanceUser(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="w-4 h-4 text-success" />{L({ en: "Adjust wallet balance", ar: "تعديل رصيد المحفظة" })}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="w-4 h-4 text-success" />{"Adjust wallet balance"}</DialogTitle></DialogHeader>
           {balanceUser && <p className="text-sm text-muted-foreground">{balanceUser.full_name || balanceUser.email}</p>}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <Button type="button" size="sm" variant={balanceForm.dir === "credit" ? "default" : "outline"} onClick={() => setBalanceForm({ ...balanceForm, dir: "credit" })} className="gap-1.5"><Plus className="w-4 h-4" />{L({ en: "Increase", ar: "زيادة" })}</Button>
-              <Button type="button" size="sm" variant={balanceForm.dir === "debit" ? "destructive" : "outline"} onClick={() => setBalanceForm({ ...balanceForm, dir: "debit" })} className="gap-1.5"><Minus className="w-4 h-4" />{L({ en: "Decrease", ar: "خصم" })}</Button>
+              <Button type="button" size="sm" variant={balanceForm.dir === "credit" ? "default" : "outline"} onClick={() => setBalanceForm({ ...balanceForm, dir: "credit" })} className="gap-1.5"><Plus className="w-4 h-4" />{"Increase"}</Button>
+              <Button type="button" size="sm" variant={balanceForm.dir === "debit" ? "destructive" : "outline"} onClick={() => setBalanceForm({ ...balanceForm, dir: "debit" })} className="gap-1.5"><Minus className="w-4 h-4" />{"Decrease"}</Button>
             </div>
             <div>
-              <Label className="text-xs">{L({ en: "Amount", ar: "المبلغ" })}</Label>
+              <Label className="text-xs">{"Amount"}</Label>
               <Input type="number" min="0" step="0.01" value={balanceForm.amount} onChange={(e) => setBalanceForm({ ...balanceForm, amount: e.target.value })} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs">{L({ en: "Reason", ar: "السبب" })}</Label>
+              <Label className="text-xs">{"Reason"}</Label>
               <Input value={balanceForm.note} onChange={(e) => setBalanceForm({ ...balanceForm, note: e.target.value })} className="mt-1" />
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-            <Button onClick={applyAdjustment} disabled={busy}>{busy ? t.admin.saving : L({ en: "Apply adjustment", ar: "تطبيق التعديل" })}</Button>
+            <Button onClick={applyAdjustment} disabled={busy}>{busy ? t.admin.saving : "Apply adjustment"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

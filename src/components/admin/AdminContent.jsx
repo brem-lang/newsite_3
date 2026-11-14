@@ -11,12 +11,12 @@ import { toast } from "sonner";
 const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
 export default function AdminContent() {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ key: "", label: "", value_en: "", value_ar: "" });
+  const [form, setForm] = useState({ key: "", label: "", value_en: "" });
 
   const load = useCallback(() => {
     base44.entities.Content.list("-created_date", 200)
@@ -27,12 +27,12 @@ export default function AdminContent() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ key: "", label: "", value_en: "", value_ar: "" });
+    setForm({ key: "", label: "", value_en: "" });
     setOpen(true);
   };
   const openEdit = (it) => {
     setEditing(it);
-    setForm({ key: it.key, label: it.label || "", value_en: it.value_en || "", value_ar: it.value_ar || "" });
+    setForm({ key: it.key, label: it.label || "", value_en: it.value_en || "" });
     setOpen(true);
   };
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -50,15 +50,14 @@ export default function AdminContent() {
 
   const handleSave = async () => {
     if (!form.key.trim() || !form.value_en.trim()) {
-      toast.error(`${t.admin.content.key} / ${t.admin.content.valueEn}`);
+      toast.error(`${t.admin.content.key} / ${t.admin.content.value}`);
       return;
     }
     try {
       const payload = {
         key: form.key.trim(),
         label: form.label.trim(),
-        value_en: form.value_en,
-        value_ar: form.value_ar || form.value_en
+        value_en: form.value_en
       };
       if (editing) {
         await base44.entities.Content.update(editing.id, payload);
@@ -93,7 +92,7 @@ export default function AdminContent() {
       ) : (
         <div className="space-y-3">
           {items.map((it) => {
-            const preview = lang === "ar" ? (it.value_ar || it.value_en) : (it.value_en || it.value_ar);
+            const preview = it.value_en;
             return (
               <div key={it.id} className="rounded-xl border border-border bg-card p-4 flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1 flex-1">
@@ -129,12 +128,8 @@ export default function AdminContent() {
               <Input value={form.label} onChange={(e) => set("label", e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>{t.admin.content.valueEn}</Label>
+              <Label>{t.admin.content.value}</Label>
               <textarea rows={3} value={form.value_en} onChange={(e) => set("value_en", e.target.value)} className={inputCls} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t.admin.content.valueAr}</Label>
-              <textarea rows={3} dir="rtl" value={form.value_ar} onChange={(e) => set("value_ar", e.target.value)} className={inputCls} />
             </div>
           </div>
           <DialogFooter>

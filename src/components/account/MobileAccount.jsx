@@ -31,8 +31,8 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
   const [pwOpen, setPwOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const L = (copy) => (dir === "rtl" ? copy.ar : copy.en);
-  const arrow = dir === "rtl" ? "rotate-180" : "";
+  const L = (copy) => (copy.en);
+  const arrow = "";
   const name =
     [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() ||
     user?.full_name ||
@@ -56,7 +56,7 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
         <header className="relative px-gutter pt-safe">
           <div className="h-14 flex items-center justify-center">
             <h1 className="font-display text-[17px] font-extrabold text-foreground">
-              {L({ en: "Personal profile", ar: "الملف الشخصي" })}
+              {"Personal profile"}
             </h1>
           </div>
 
@@ -78,8 +78,8 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
         </header>
 
         <main className="px-gutter space-y-3">
-          <section className="native-panel overflow-hidden rounded-xl" aria-label={L({ en: "Account activity", ar: "نشاط الحساب" })}>
-            <div className="grid grid-cols-3 divide-x divide-border rtl:divide-x-reverse">
+          <section className="native-panel overflow-hidden rounded-xl" aria-label={"Account activity"}>
+            <div className="grid grid-cols-3 divide-x divide-border">
               <ProfileStat icon={Gavel} value={stats?.total || 0} label={t.account.stats.total} />
               <ProfileStat icon={Trophy} value={stats?.won || 0} label={t.account.stats.won} />
               <ProfileStat icon={BadgeCheck} value={activeCount} label={t.account.stats.ongoing} />
@@ -87,8 +87,8 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
           </section>
 
           <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_16px_36px_-28px_hsl(var(--accent)/0.7)]">
-            <ProfileMenuRow icon={UserRound} label={L({ en: "Account information", ar: "معلومات الحساب" })} onClick={() => setEditOpen(true)} arrow={arrow} />
-            <ProfileMenuRow icon={WalletCards} label={L({ en: "Wallet", ar: "المحفظة" })} to="/wallet" arrow={arrow} accent />
+            <ProfileMenuRow icon={UserRound} label={"Account information"} onClick={() => setEditOpen(true)} arrow={arrow} />
+            <ProfileMenuRow icon={WalletCards} label={"Wallet"} to="/wallet" arrow={arrow} accent />
             <ProfileMenuRow icon={Gavel} label={t.account.myBids} to="/auctions?tab=mine" arrow={arrow} />
             <ProfileMenuRow icon={ShieldCheck} label={t.account.profile.securitySettings} onClick={() => setSecurityOpen(true)} arrow={arrow} />
             <ProfileMenuRow icon={KeyRound} label={t.account.profile.changePassword} onClick={() => setPwOpen(true)} arrow={arrow} />
@@ -97,7 +97,7 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
           <section className="overflow-hidden rounded-xl border border-border bg-card">
             <ProfileMenuRow icon={FileText} label={t.site.footer.terms} to="/terms" arrow={arrow} />
             <ProfileMenuRow icon={ShieldCheck} label={t.site.footer.privacy} to="/privacy" arrow={arrow} />
-            <ProfileMenuRow icon={CircleHelp} label={L({ en: "Help & support", ar: "مركز المساعدة" })} to="/support" arrow={arrow} />
+            <ProfileMenuRow icon={CircleHelp} label={"Help & support"} to="/support" arrow={arrow} />
             <ProfileMenuRow icon={LogOut} label={t.common.logout} onClick={onLogout} arrow={arrow} destructive />
           </section>
         </main>

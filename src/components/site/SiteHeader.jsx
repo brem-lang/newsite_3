@@ -4,7 +4,6 @@ import { Gavel, LogOut, Wallet as WalletIcon, CircleUserRound } from "lucide-rea
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { useWallet } from "@/lib/useWallet";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import NotificationBell from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
 
@@ -36,7 +35,6 @@ export default function SiteHeader() {
           ))}
         </nav>
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 shrink-0">
-          <LanguageSwitcher />
           {user && <NotificationBell />}
           {user ? (
             <>

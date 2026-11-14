@@ -7,8 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 export default function AdminSystem() {
-  const { lang, t } = useI18n();
-  const L = (o) => (o ? o[lang] || o.en : "");
+  const { t } = useI18n();
+  const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
   const [counts, setCounts] = useState({});
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,17 +42,17 @@ export default function AdminSystem() {
         ? await base44.entities.SiteSettings.update(settings.id, { maintenance_mode: v })
         : await base44.entities.SiteSettings.create({ key: "global", maintenance_mode: v });
       setSettings(updated);
-      toast.success(L({ en: "Updated", ar: "تم التحديث" }));
+      toast.success("Updated");
     } catch (e) { toast.error(e.message); }
   };
 
   const cards = [
-    { icon: Gavel, label: { en: "Auctions", ar: "المزادات" }, value: counts.auctions, tone: "text-info bg-info/10" },
-    { icon: Users, label: { en: "Users", ar: "المستخدمون" }, value: counts.users, tone: "text-primary bg-primary/10" },
-    { icon: Activity, label: { en: "Bids", ar: "المزايدات" }, value: counts.bids, tone: "text-warning bg-warning/10" },
-    { icon: Wallet, label: { en: "Transactions", ar: "المعاملات" }, value: counts.transactions, tone: "text-success bg-success/10" },
-    { icon: PackageCheck, label: { en: "Fulfilment", ar: "التسليم" }, value: counts.fulfilment, tone: "text-cyan-600 bg-cyan-50" },
-    { icon: LifeBuoy, label: { en: "Support tickets", ar: "تذاكر الدعم" }, value: counts.support, tone: "text-destructive bg-destructive/10" },
+    { icon: Gavel, label: { en: "Auctions" }, value: counts.auctions, tone: "text-info bg-info/10" },
+    { icon: Users, label: { en: "Users" }, value: counts.users, tone: "text-primary bg-primary/10" },
+    { icon: Activity, label: { en: "Bids" }, value: counts.bids, tone: "text-warning bg-warning/10" },
+    { icon: Wallet, label: { en: "Transactions" }, value: counts.transactions, tone: "text-success bg-success/10" },
+    { icon: PackageCheck, label: { en: "Fulfilment" }, value: counts.fulfilment, tone: "text-cyan-600 bg-cyan-50" },
+    { icon: LifeBuoy, label: { en: "Support tickets" }, value: counts.support, tone: "text-destructive bg-destructive/10" },
   ];
 
   if (loading) return <div className="py-10 text-center text-sm text-muted-foreground">{t.common.loading}</div>;
@@ -60,8 +60,8 @@ export default function AdminSystem() {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-display text-xl font-semibold">{L({ en: "System health", ar: "صحة النظام" })}</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">{L({ en: "Record counts and maintenance controls.", ar: "عدد السجلات وأدوات الصيانة." })}</p>
+        <h2 className="font-display text-xl font-semibold">{"System health"}</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">{"Record counts and maintenance controls."}</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -87,7 +87,7 @@ export default function AdminSystem() {
 
       <div className="rounded-xl border bg-success/10 border-success/25 p-4 flex items-center gap-2 text-sm">
         <Database className="w-4 h-4 text-success" />
-        <span className="text-success font-medium">{L({ en: "All services operational", ar: "جميع الخدمات تعمل" })}</span>
+        <span className="text-success font-medium">{"All services operational"}</span>
       </div>
     </div>
   );

@@ -134,7 +134,7 @@ export default function Account() {
   }, [withOutcome]);
 
   const filterTabs = [
-    { id: "all", label: dir === "rtl" ? "الكل" : "All" },
+    { id: "all", label: "All" },
     { id: "ongoing", label: t.account.status.ongoing },
     { id: "won", label: t.account.status.won },
     { id: "lost", label: t.account.status.lost },
@@ -156,8 +156,8 @@ export default function Account() {
   };
   const onTabsKeyDown = (e) => {
     const idx = filterTabs.findIndex((f) => f.id === filter);
-    const forward = dir === "rtl" ? "ArrowLeft" : "ArrowRight";
-    const back = dir === "rtl" ? "ArrowRight" : "ArrowLeft";
+    const forward = "ArrowRight";
+    const back = "ArrowLeft";
     if (e.key === forward) { e.preventDefault(); focusTab(idx + 1); }
     else if (e.key === back) { e.preventDefault(); focusTab(idx - 1); }
     else if (e.key === "Home") { e.preventDefault(); focusTab(0); }
@@ -230,7 +230,7 @@ export default function Account() {
           <h2 className="font-heading text-lg font-semibold flex items-center gap-2"><Heart className="w-4 h-4 text-destructive" /> {t.account.watchlist}</h2>
           <div className="flex flex-wrap gap-3">
             {watchlist.map((a) => (
-              <Link key={a.id} to={`/auction/${a.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-background p-2 ltr:pr-3 rtl:pl-3 hover:shadow-sm transition-shadow">
+              <Link key={a.id} to={`/auction/${a.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-background p-2 pr-3 hover:shadow-sm transition-shadow">
                 {a.image_url ? <Image src={a.image_url} alt={a.title} className="w-10 h-10 rounded-lg shrink-0" fittingType="fill" /> : <div className="w-10 h-10 rounded-lg bg-muted grid place-items-center"><Gavel className="w-4 h-4 text-muted-foreground/50" /></div>}
                 <div className="min-w-0">
                   <p className="text-sm font-semibold line-clamp-1">{a.title}</p>
@@ -250,7 +250,7 @@ export default function Account() {
             <div
               className="flex items-center gap-2 flex-wrap"
               role="tablist"
-              aria-label={dir === "rtl" ? "تصفية المزادات حسب الحالة" : "Filter bids by status"}
+              aria-label={"Filter bids by status"}
               aria-orientation="horizontal"
               onKeyDown={onTabsKeyDown}
             >
@@ -269,7 +269,7 @@ export default function Account() {
                     aria-selected={active}
                     aria-controls="bids-panel"
                     tabIndex={active ? 0 : -1}
-                    aria-label={dir === "rtl" ? `${f.label}، ${count} مزاد` : `${f.label}, ${count} ${count === 1 ? "auction" : "auctions"}`}
+                    aria-label={`${f.label}, ${count} ${count === 1 ? "auction" : "auctions"}`}
                     onClick={() => setFilter(f.id)}
                     className={`h-9 gap-1.5 px-3 text-xs ${active ? "" : "text-muted-foreground"}`}
                   >
@@ -280,15 +280,15 @@ export default function Account() {
               })}
             </div>
             <div className="relative sm:w-72">
-              <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={dir === "rtl" ? "ابحث في مزاداتك" : "Search your bids"}
-                aria-label={dir === "rtl" ? "ابحث في مزاداتك" : "Search your bids"}
+                placeholder={"Search your bids"}
+                aria-label={"Search your bids"}
                 aria-controls="bids-panel"
-                className="w-full h-9 rounded-xl bg-card border border-border text-sm ltr:pl-9 rtl:pr-9 outline-none focus:ring-2 focus:ring-ring/30 transition"
+                className="w-full h-9 rounded-xl bg-card border border-border text-sm pl-9 outline-none focus:ring-2 focus:ring-ring/30 transition"
               />
             </div>
           </div>
@@ -421,7 +421,7 @@ function DesktopEmptyState({ filter, t, dir, onReset }) {
   const Icon = EMPTY_ICON[filter] || Gavel;
   const tone = EMPTY_TONE[filter] || EMPTY_TONE.all;
   const copy = t.account.emptyStates[filter] || t.account.emptyStates.all;
-  const arrow = dir === "rtl" ? "rotate-180" : "";
+  const arrow = "";
   const btn = "gold-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition active:scale-[0.97]";
   return (
     <div className="rounded-2xl border border-border bg-card p-10 text-center" role="status">
@@ -431,11 +431,11 @@ function DesktopEmptyState({ filter, t, dir, onReset }) {
       <div className="mt-4 flex items-center justify-center gap-2">
         {filter === "noMatch" && onReset ? (
           <Button type="button" onClick={onReset}>
-            {dir === "rtl" ? "إعادة تعيين" : "Reset filters"}
+            {"Reset filters"}
           </Button>
         ) : null}
         {filter !== "noMatch" && (
-          <Link to="/auctions" className={btn} aria-label={dir === "rtl" ? "تصفح المزادات" : "Browse auctions"}>
+          <Link to="/auctions" className={btn} aria-label={"Browse auctions"}>
             <Compass className="w-4 h-4" aria-hidden="true" /> {t.home.browse}
             <ArrowLeft className={`w-4 h-4 ${arrow}`} aria-hidden="true" />
           </Link>

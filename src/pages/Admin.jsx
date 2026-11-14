@@ -5,7 +5,6 @@ import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminCommandPalette from "@/components/admin/AdminCommandPalette";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -176,7 +175,7 @@ export default function Admin({ caps: capsProp = null }) {
       />
 
       <Sheet open={drawer} onOpenChange={setDrawer}>
-        <SheetContent side={dir === "rtl" ? "right" : "left"} className="p-0 w-72">
+        <SheetContent side={"left"} className="p-0 w-72">
           <AdminSidebar
             groups={groups}
             basePath={BASE_PATH}
@@ -199,7 +198,7 @@ export default function Admin({ caps: capsProp = null }) {
               </Button>
               <nav aria-label="breadcrumb" className="flex items-center gap-1.5 min-w-0 text-sm">
                 <span className="text-muted-foreground hidden sm:inline truncate">{group.label(t)}</span>
-                <ChevronRight className={cn("w-4 h-4 text-muted-foreground/60 hidden sm:inline", dir === "rtl" && "rotate-180")} />
+                <ChevronRight className={cn("w-4 h-4 text-muted-foreground/60 hidden sm:inline")} />
                 <span className="font-display font-semibold text-base sm:text-lg truncate">{sectionLabel(t, active)}</span>
               </nav>
             </div>
@@ -207,7 +206,6 @@ export default function Admin({ caps: capsProp = null }) {
               <Button variant="ghost" size="icon" onClick={() => setPalette(true)} aria-label={t.admin.searchPlaceholder || "Search"}>
                 <Search className="w-4 h-4" />
               </Button>
-              <LanguageSwitcher />
               <Link to="/" className="hidden sm:block"><Button variant="outline" size="sm">{t.admin.backToSite}</Button></Link>
               <Button variant="ghost" size="icon" onClick={logout} title={t.common.logout}><LogOut className="w-4 h-4" /></Button>
             </div>

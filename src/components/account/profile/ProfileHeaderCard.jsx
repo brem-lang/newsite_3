@@ -11,7 +11,7 @@ const STATUS = {
 };
 
 export default function ProfileHeaderCard({ user }) {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const p = t.account.profile;
   const name =
     [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() ||
@@ -27,7 +27,7 @@ export default function ProfileHeaderCard({ user }) {
 
   const status = STATUS[user?.verification_status] || STATUS.unverified;
   const StatusIcon = status.icon;
-  const country = user?.country || countryName(user?.country_code, dir === "rtl" ? "ar" : "en");
+  const country = user?.country || countryName(user?.country_code, "en");
   const since = user?.created_date
     ? new Date(user.created_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
     : "";

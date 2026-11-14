@@ -12,9 +12,9 @@ const STATUS = {
 };
 
 export default function SecuritySettings({ user }) {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const p = t.account.profile;
-  const L = (o) => (dir === "rtl" ? o.ar : o.en);
+  const L = (o) => (o.en);
   const [showPw, setShowPw] = useState(false);
 
   const status = STATUS[user?.verification_status] || STATUS.unverified;
@@ -61,7 +61,7 @@ export default function SecuritySettings({ user }) {
             <span className="block font-heading text-sm font-semibold">{p.changePassword}</span>
             <span className="block text-xs text-muted-foreground truncate">{p.changePasswordSubtitle}</span>
           </span>
-          <ChevronRight className={cn("w-4 h-4 text-muted-foreground shrink-0", dir === "rtl" && "rotate-180")} />
+          <ChevronRight className={cn("w-4 h-4 text-muted-foreground shrink-0")} />
         </Button>
       )}
     </div>

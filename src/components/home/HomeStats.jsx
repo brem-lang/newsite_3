@@ -11,7 +11,7 @@ export default function HomeStats({ liveCount, seatsFilled, topBid }) {
   ];
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-8">
-      <div className="native-panel rounded-xl grid grid-cols-3 divide-x rtl:divide-x-reverse divide-border">
+      <div className="native-panel rounded-xl grid grid-cols-3 divide-x divide-border">
         {rows.map((s, i) => {
           const Icon = s.icon;
           return (

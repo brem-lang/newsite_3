@@ -442,7 +442,7 @@ export default function AuctionDetail() {
   return (
     <div className={cn("min-h-[calc(100vh-4rem)] space-y-6 pb-28 sm:pb-4", showQuickBid && "pb-52 sm:pb-4")} dir={dir}>
       <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent">
-        <ArrowLeft className={cn("w-4 h-4", dir === "rtl" && "rotate-180")} /> {t.auction.back}
+        <ArrowLeft className={cn("w-4 h-4")} /> {t.auction.back}
       </Link>
 
       <div className="grid lg:grid-cols-2 gap-8">

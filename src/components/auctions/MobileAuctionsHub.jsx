@@ -104,7 +104,7 @@ export default function MobileAuctionsHub({
   const { t, dir } = useI18n();
   const { symbol } = useCurrency();
   const h = t.hub;
-  const arrowCls = dir === "rtl" ? "rotate-180" : "";
+  const arrowCls = "";
   const showFeatured = !!featured && (activeTab === "all" || activeTab === "live" || activeTab === "open");
   // Hide the pinned featured strip when the same auction is already the
   // first card in the grid — it's redundant to show it twice back-to-back.
@@ -120,10 +120,9 @@ export default function MobileAuctionsHub({
     const next = tabs[tabIndex + delta];
     if (next) onTab(next.id);
   };
-  const rtl = dir === "rtl";
   const swipeRef = useSwipe({
-    onSwipeLeft: () => goTab(rtl ? -1 : 1),
-    onSwipeRight: () => goTab(rtl ? 1 : -1)
+    onSwipeLeft: () => goTab(1),
+    onSwipeRight: () => goTab(-1)
   });
 
   return (
@@ -309,10 +308,10 @@ function MobileTile({ auction, yourBid, symbol, t, arrowCls }) {
     >
        <div className="relative w-[112px] shrink-0 bg-muted">
         <Image src={auction.image_url} alt={auction.title} className="w-full h-full" fittingType="fill" />
-        <span className={cn("absolute top-2.5 ltr:left-2.5 rtl:right-2.5 text-[10px] font-bold px-2 py-0.5 rounded-md border backdrop-blur", badgeCls)}>
+        <span className={cn("absolute top-2.5 left-2.5 text-[10px] font-bold px-2 py-0.5 rounded-md border backdrop-blur", badgeCls)}>
           {statusLabel}
         </span>
-        <span className="absolute top-2.5 ltr:right-2.5 rtl:left-2.5 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-primary text-primary-foreground border border-primary">
+        <span className="absolute top-2.5 right-2.5 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-primary text-primary-foreground border border-primary">
           {symbol}{auction.entry_fee}
         </span>
       </div>

@@ -6,7 +6,7 @@ import { useCurrency } from "@/lib/currency";
 import { useWallet } from "@/lib/useWallet";
 
 export default function AccountInfoCard({ user, compact = false }) {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const p = t.account.profile;
   const { symbol } = useCurrency();
   const { balance } = useWallet(user?.id);
@@ -35,7 +35,7 @@ export default function AccountInfoCard({ user, compact = false }) {
         </span>
         <span className="flex items-center gap-1 text-sm font-bold">
           {`${symbol}${(balance || 0).toFixed(2)}`}
-          <ChevronRight className={`w-4 h-4 text-muted-foreground ${dir === "rtl" ? "rotate-180" : ""}`} />
+          <ChevronRight className={`w-4 h-4 text-muted-foreground ${""}`} />
         </span>
       </Link>
     </div>

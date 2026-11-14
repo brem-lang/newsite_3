@@ -7,7 +7,7 @@ import { effectiveStatus, timeRemaining, formatCountdownRing } from "@/lib/aucti
 
 /** Horizontal snap carousel of live/open auctions — app-store style shelf. */
 export default function LiveCarousel({ title, auctions = [], loading, to = "/auctions", emptyLabel }) {
-  const { t, dir } = useI18n();
+  const { t } = useI18n();
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function LiveCarousel({ title, auctions = [], loading, to = "/auc
         </div>
         <Link to={to} className="inline-flex items-center gap-0.5 text-xs font-bold text-accent active:opacity-70">
           {t.dash.seeAll}
-          <ChevronRight className={dir === "rtl" ? "w-4 h-4 rotate-180" : "w-4 h-4"} />
+          <ChevronRight className={"w-4 h-4"} />
         </Link>
       </div>
 
@@ -53,11 +53,11 @@ export default function LiveCarousel({ title, auctions = [], loading, to = "/auc
                 <div className={index === 0 ? "relative h-52 bg-muted sm:h-56" : "relative h-40 bg-muted sm:h-44"}>
                   <Image src={a.image_url} alt={a.title} className="w-full h-full" fittingType="fill" />
                   <span className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-card via-card/55 to-transparent" />
-                  <span className="absolute top-3 ltr:left-3 rtl:right-3 inline-flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/90 px-2.5 py-1 text-[10px] font-extrabold text-destructive-foreground shadow-[0_0_18px_hsl(var(--destructive)/0.35)] backdrop-blur">
+                  <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/90 px-2.5 py-1 text-[10px] font-extrabold text-destructive-foreground shadow-[0_0_18px_hsl(var(--destructive)/0.35)] backdrop-blur">
                     {st === "live" ? <Flame className="w-3 h-3 text-destructive-foreground" /> : null}
                     {st === "live" ? t.auction.statusLive : t.auction.statusOpen}
                   </span>
-                  <span className="timer-glow absolute top-3 ltr:right-3 rtl:left-3 rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold text-primary tabular-nums backdrop-blur">{st === "live" ? formatCountdownRing(timeRemaining(a)) : t.auction.statusOpen}</span>
+                  <span className="timer-glow absolute top-3 right-3 rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold text-primary tabular-nums backdrop-blur">{st === "live" ? formatCountdownRing(timeRemaining(a)) : t.auction.statusOpen}</span>
                 </div>
                  <div className="relative -mt-5 p-4 pt-0">
                   <p className="line-clamp-1 text-[15px] font-extrabold text-foreground">{a.title}</p>

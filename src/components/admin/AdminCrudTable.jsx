@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Search, ArrowUpDown, Download, RefreshCw, AlertTriangle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { useI18n } from "@/lib/i18n";
 import { logAdminAction } from "@/lib/adminAudit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +30,8 @@ const csvCell = (v) => {
 };
 
 export default function AdminCrudTable({ entity, title, subtitle, addLabel, emptyLabel, fields, readOnly }) {
-  const { lang } = useI18n();
-  const L = (o) => (o ? o[lang] || o.en || "" : "");
+  
+  const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
   const cols = fields.filter((f) => !f.hideInTable);
   const qc = useQueryClient();
 
@@ -117,7 +116,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
         audit(`${entity}.create`, created);
       }
       setOpen(false);
-      toast.success(editing ? L({ en: "Saved", ar: "تم الحفظ" }) : L({ en: "Added", ar: "تمت الإضافة" }));
+      toast.success(editing ? "Saved" : "Added");
       invalidate();
     } catch (e) { toast.error(e.message); }
     setSaving(false);
@@ -130,7 +129,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
     try {
       await base44.entities[entity].delete(row.id);
       audit(`${entity}.delete`, row);
-      toast.success(L({ en: "Deleted", ar: "تم الحذف" }));
+      toast.success("Deleted");
       invalidate();
     } catch (e) { toast.error(e.message); }
   };
@@ -145,7 +144,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
           <p className="text-sm text-muted-foreground mt-0.5">{L(subtitle)}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()} title={L({ en: "Refresh", ar: "تحديث" })}>
+          <Button variant="outline" size="sm" onClick={() => refetch()} title={"Refresh"}>
             <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
           </Button>
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
@@ -165,12 +164,12 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
           <Input
             value={query}
             onChange={(e) => { setQuery(e.target.value); setPage(0); }}
-            placeholder={L({ en: "Search…", ar: "بحث…" })}
+            placeholder={"Search…"}
             className="ps-9"
           />
         </div>
         <span className="text-xs text-muted-foreground">
-          {filtered.length} {L({ en: "records", ar: "سجل" })}
+          {filtered.length} {"records"}
         </span>
       </div>
 
@@ -181,12 +180,12 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
       ) : isError ? (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center space-y-3">
           <AlertTriangle className="w-6 h-6 text-destructive mx-auto" />
-          <p className="text-sm text-destructive">{error?.message || L({ en: "Failed to load data.", ar: "تعذّر تحميل البيانات." })}</p>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>{L({ en: "Try again", ar: "إعادة المحاولة" })}</Button>
+          <p className="text-sm text-destructive">{error?.message || "Failed to load data."}</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>{"Try again"}</Button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-12 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
-          {query ? L({ en: "No matching records.", ar: "لا نتائج مطابقة." }) : L(emptyLabel)}
+          {query ? "No matching records." : L(emptyLabel)}
         </div>
       ) : (
         <>
@@ -211,7 +210,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
                     {cols.map((f) => (
                       <td key={f.key} className="px-3 py-2 align-top max-w-xs">
                         {f.type === "boolean" ? (
-                          <span className={r[f.key] ? "text-success" : "text-muted-foreground"}>{r[f.key] ? L({ en: "Yes", ar: "نعم" }) : L({ en: "No", ar: "لا" })}</span>
+                          <span className={r[f.key] ? "text-success" : "text-muted-foreground"}>{r[f.key] ? "Yes" : "No"}</span>
                         ) : f.type === "select" ? (
                           L((f.options.find((o) => o.value === r[f.key])?.label) || r[f.key])
                         ) : (
@@ -236,14 +235,14 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
           {pageCount > 1 && (
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs text-muted-foreground">
-                {L({ en: "Page", ar: "صفحة" })} {current + 1} / {pageCount}
+                {"Page"} {current + 1} / {pageCount}
               </span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled={current === 0} onClick={() => setPage(current - 1)}>
-                  {L({ en: "Previous", ar: "السابق" })}
+                  {"Previous"}
                 </Button>
                 <Button variant="outline" size="sm" disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)}>
-                  {L({ en: "Next", ar: "التالي" })}
+                  {"Next"}
                 </Button>
               </div>
             </div>
@@ -254,12 +253,12 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{L({ en: "Delete this item?", ar: "حذف هذا العنصر؟" })}</AlertDialogTitle>
-            <AlertDialogDescription>{L({ en: "This action cannot be undone.", ar: "لا يمكن التراجع عن هذا الإجراء." })}</AlertDialogDescription>
+            <AlertDialogTitle>{"Delete this item?"}</AlertDialogTitle>
+            <AlertDialogDescription>{"This action cannot be undone."}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{L({ en: "Cancel", ar: "إلغاء" })}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>{L({ en: "Delete", ar: "حذف" })}</AlertDialogAction>
+            <AlertDialogCancel>{"Cancel"}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>{"Delete"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -267,7 +266,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? L({ en: "Edit", ar: "تعديل" }) : L(addLabel)}</DialogTitle>
+            <DialogTitle>{editing ? "Edit" : L(addLabel)}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 max-h-[60vh] overflow-y-auto py-2">
             {fields.map((f) => (
@@ -297,8 +296,8 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
             ))}
           </div>
           <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{L({ en: "Cancel", ar: "إلغاء" })}</Button></DialogClose>
-            <Button onClick={save} disabled={saving}>{L({ en: "Save", ar: "حفظ" })}</Button>
+            <DialogClose asChild><Button variant="outline">{"Cancel"}</Button></DialogClose>
+            <Button onClick={save} disabled={saving}>{"Save"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
