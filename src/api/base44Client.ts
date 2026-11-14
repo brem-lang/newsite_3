@@ -1,16 +1,15 @@
+import { supabase, supabaseAdmin } from "@/lib/supabase";
+
 /**
- * Frontend-only (design) build.
+ * Design build with real authentication.
  *
- * This keeps the app's `base44.*` call surface so every screen still renders,
- * but there is no backend, no database and no storage behind it:
+ * Keeps the app's `base44.*` call surface. Sign-in is real (self-hosted
+ * Supabase); auction data has no backend yet:
+ *   - auth: customer accounts (Supabase Auth + public.profiles)
+ *   - adminAuth: separate staff session for /admin; requires a row in
+ *     public.user_roles (admin / super_admin)
  *   - entity reads return empty results, writes are accepted and discarded
- *   - functions.invoke returns an empty success payload
- *   - auth holds a placeholder signed-in member in memory so every customer
- *     screen can be opened for design review
- *   - adminAuth is a separate staff session for /admin only; it starts signed
- *     out, accepts any credentials, and never touches the customer session
- *
- * To connect a real backend later, re-implement this file against it.
+ *   - functions.invoke: only myAdminCapabilities is backed
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,81 +81,171 @@ const entities = new Proxy({} as Record<string, ReturnType<typeof makeEntity>>, 
 
 /* --------------------------------- auth --------------------------------- */
 
-const PLACEHOLDER_USER: Row = {
-  id: "design-user",
-  email: "demo@example.com",
-  first_name: "Demo",
-  last_name: "User",
-  full_name: "Demo User",
-  country: "",
-  role: "user",
-  is_super: false,
-  staff_role: null,
-  verification_status: "verified",
-  is_verified: true,
-  paused: false,
-  permissions: {},
-  watched_auction_ids: [],
-  created_date: now(),
-};
+type AuthClient = typeof supabase;
 
-// In memory only: a reload always starts signed in as the placeholder user.
-let signedIn = true;
-const authListeners = new Set<(event: string) => void>();
-const emitAuth = (event: string) => authListeners.forEach((cb) => cb(event));
+const unauthorized = (message = "Unauthorized") => Object.assign(new Error(message), { status: 401 });
 
-export function invalidateProfileCache() {}
+/** Profile + staff role for whoever is signed in on `client`. */
+async function loadProfile(client: AuthClient) {
+  const { data: sessionData } = await client.auth.getSession();
+  const authUser = sessionData?.session?.user;
+  if (!authUser) throw unauthorized();
+
+  const [{ data: profile }, { data: roles }] = await Promise.all([
+    client.from("profiles").select("*").eq("id", authUser.id).maybeSingle(),
+    client.from("user_roles").select("role").eq("user_id", authUser.id),
+  ]);
+  const roleNames = (roles || []).map((r: Row) => r.role as string);
+  const staffRole = roleNames.includes("super_admin") ? "super_admin" : roleNames.includes("admin") ? "admin" : null;
+  const meta = (authUser.user_metadata || {}) as Row;
+
+  return {
+    ...(profile || {}),
+    id: authUser.id,
+    email: authUser.email || profile?.email || "",
+    first_name: profile?.first_name ?? meta.first_name ?? "",
+    last_name: profile?.last_name ?? meta.last_name ?? "",
+    full_name: profile?.full_name || meta.full_name || "",
+    country: profile?.country ?? meta.country ?? "",
+    role: staffRole ? "admin" : "user",
+    is_super: staffRole === "super_admin",
+    staff_role: staffRole,
+    verification_status: profile?.verification_status || "unverified",
+    is_verified: profile?.verification_status === "verified",
+    paused: false,
+    permissions: {},
+    watched_auction_ids: [],
+    created_date: profile?.created_at || authUser.created_at,
+  } as Row;
+}
+
+const PROFILE_TTL = 30_000;
+let profileCache: { at: number; promise: Promise<Row> } | null = null;
+
+export function invalidateProfileCache() {
+  profileCache = null;
+}
+
+function currentProfile(): Promise<Row> {
+  const t = Date.now();
+  if (profileCache && t - profileCache.at < PROFILE_TTL) return profileCache.promise;
+  const promise = loadProfile(supabase).catch((err) => {
+    profileCache = null;
+    throw err;
+  });
+  profileCache = { at: t, promise };
+  return promise;
+}
 
 const auth = {
   async me() {
-    if (!signedIn) throw Object.assign(new Error("Unauthorized"), { status: 401 });
-    return { ...PLACEHOLDER_USER };
+    return currentProfile();
   },
   async isAuthenticated() {
-    return signedIn;
+    const { data } = await supabase.auth.getSession();
+    return !!data.session;
   },
+  /** No-op: supabase-js manages the session itself. */
   setToken(_token?: string) {},
-  async loginViaEmailPassword(_email: string, _password: string) {
-    signedIn = true;
-    emitAuth("SIGNED_IN");
-    return { user: PLACEHOLDER_USER };
+  async loginViaEmailPassword(email: string, password: string) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    invalidateProfileCache();
+    return data;
   },
-  async register(_input: Row) {
-    signedIn = true;
-    emitAuth("SIGNED_IN");
-    return { user: PLACEHOLDER_USER, session: null };
+  async register({
+    email,
+    password,
+    firstName,
+    lastName,
+    country,
+    countryCode,
+    phone,
+  }: {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    country?: string;
+    countryCode?: string;
+    phone?: string;
+    phoneCountryCode?: string;
+    phoneNumber?: string;
+  }) {
+    const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+        data: {
+          first_name: firstName || null,
+          last_name: lastName || null,
+          full_name: fullName || null,
+          country: country || null,
+          country_code: countryCode || null,
+          phone: phone || null,
+        },
+      },
+    });
+    if (error) throw error;
+    return data;
   },
-  async verifyOtp(_input: { email: string; otpCode: string }) {
-    signedIn = true;
-    emitAuth("SIGNED_IN");
-    return { access_token: "design" };
+  async verifyOtp({ email, otpCode }: { email: string; otpCode: string }) {
+    const { data, error } = await supabase.auth.verifyOtp({ email, token: otpCode, type: "email" });
+    if (error) throw error;
+    return { access_token: data.session?.access_token, ...data };
   },
-  async resendOtp(_email: string) {
+  async resendOtp(email: string) {
+    const { error } = await supabase.auth.resend({ type: "signup", email });
+    if (error) throw error;
     return { ok: true };
   },
-  async resetPasswordRequest(_email: string) {
+  async resetPasswordRequest(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
     return { ok: true };
   },
-  async resetPassword(_input: { resetToken?: string; newPassword: string }) {
+  async resetPassword({ newPassword }: { resetToken?: string; newPassword: string }) {
+    const { data: sess } = await supabase.auth.getSession();
+    if (!sess.session) throw unauthorized("recovery_link_expired");
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
     return { ok: true };
   },
-  async changePassword(_input: { userId?: string; currentPassword: string; newPassword: string }) {
+  /** Re-authenticate with the current password, then set a new one. */
+  async changePassword({ currentPassword, newPassword }: { userId?: string; currentPassword: string; newPassword: string }) {
+    const { data: sess } = await supabase.auth.getSession();
+    const email = sess.session?.user?.email;
+    if (!email) throw unauthorized("not_signed_in");
+    const reauth = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+    if (reauth.error) throw unauthorized("invalid_current_password");
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw Object.assign(new Error(error.message), { status: 422 });
     return { ok: true };
   },
-  async loginWithProvider(_provider: string, returnTo?: string) {
-    signedIn = true;
-    emitAuth("SIGNED_IN");
-    window.location.href = safePath(returnTo) || "/";
-    return { redirected: true };
+  async loginWithProvider(_provider: string, _returnTo?: string): Promise<{ redirected: boolean }> {
+    throw new Error("Social sign-in is not set up yet. Please use email and password.");
   },
+  /** Only the editable profile columns are sent. */
   async updateMe(patch: Row) {
-    Object.assign(PLACEHOLDER_USER, patch);
-    emitAuth("USER_UPDATED");
-    return { ...PLACEHOLDER_USER };
+    const { data: sessionData } = await supabase.auth.getSession();
+    const id = sessionData?.session?.user?.id;
+    if (!id) throw unauthorized();
+    const allowed = ["first_name", "last_name", "full_name", "country"];
+    const values = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowed.includes(k)));
+    if (Object.keys(values).length) {
+      const { error } = await supabase.from("profiles").update(values).eq("id", id);
+      if (error) throw error;
+    }
+    invalidateProfileCache();
+    return currentProfile();
   },
   async logout(redirectTo?: string) {
-    signedIn = false;
-    emitAuth("SIGNED_OUT");
+    invalidateProfileCache();
+    await supabase.auth.signOut();
     if (redirectTo) window.location.href = redirectTo;
     return { ok: true };
   },
@@ -164,11 +253,15 @@ const auth = {
     const dest = safePath(returnTo);
     window.location.href = dest && dest !== "/" ? `/login?returnTo=${encodeURIComponent(dest)}` : "/login";
   },
+  /** Subscribe to identity transitions. Returns an unsubscribe function. */
   onAuthStateChange(callback: (event: string) => void) {
-    authListeners.add(callback);
-    return () => {
-      authListeners.delete(callback);
-    };
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      invalidateProfileCache();
+      // Run outside the auth lock so callbacks may call supabase again.
+      setTimeout(() => callback(event), 0);
+    });
+    return () => data.subscription.unsubscribe();
   },
 };
 
@@ -186,56 +279,44 @@ function safePath(value?: string) {
 
 /* ------------------------------ admin auth ------------------------------ */
 
-const ADMIN_USER: Row = {
-  id: "design-admin",
-  email: "admin@example.com",
-  first_name: "Demo",
-  last_name: "Admin",
-  full_name: "Demo Admin",
-  role: "admin",
-  is_super: true,
-  staff_role: "super_admin",
-  verification_status: "verified",
-  is_verified: true,
-  paused: false,
-  permissions: {},
-  created_date: now(),
-};
-
-// Staff session for /admin, separate from the customer session above.
-// In memory only: a reload shows the staff sign-in screen again.
-let adminSignedIn = false;
-
+// Staff session for /admin, on its own client (see src/lib/supabase.ts).
+// Only accounts with a role in public.user_roles get in.
 const adminAuth = {
   async me() {
-    if (!adminSignedIn) throw Object.assign(new Error("Unauthorized"), { status: 401 });
-    return { ...ADMIN_USER };
+    const profile = await loadProfile(supabaseAdmin);
+    if (!profile.staff_role) throw unauthorized("not_staff");
+    return profile;
   },
-  isAuthenticated() {
-    return adminSignedIn;
+  async isAuthenticated() {
+    const { data } = await supabaseAdmin.auth.getSession();
+    return !!data.session;
   },
-  async login(email: string, _password: string) {
-    adminSignedIn = true;
-    if (email) ADMIN_USER.email = email;
-    return { ...ADMIN_USER };
+  async login(email: string, password: string) {
+    const { error } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return loadProfile(supabaseAdmin);
   },
   async logout() {
-    adminSignedIn = false;
+    await supabaseAdmin.auth.signOut();
     return { ok: true };
   },
 };
 
+async function myAdminCapabilities() {
+  const none = { is_admin: false, is_super: false, capabilities: [], staff_role: null };
+  const { data: sess } = await supabaseAdmin.auth.getSession();
+  if (!sess.session) return none;
+  const { data: role, error } = await supabaseAdmin.rpc("my_staff_role");
+  if (error || !role) return none;
+  return { is_admin: true, is_super: role === "super_admin", capabilities: [], staff_role: role };
+}
+
 /* ------------------------------- functions ------------------------------ */
 
 const functions = {
-  /** No backend: every call succeeds with an empty payload. */
+  /** Only staff capabilities are backed; everything else has no backend yet. */
   async invoke(name: string, _payload: Row = {}) {
-    if (name === "myAdminCapabilities") {
-      const data = adminSignedIn
-        ? { is_admin: true, is_super: true, capabilities: [], staff_role: "super_admin" }
-        : { is_admin: false, is_super: false, capabilities: [], staff_role: null };
-      return { data, status: 200 };
-    }
+    if (name === "myAdminCapabilities") return { data: await myAdminCapabilities(), status: 200 };
     return { data: { ok: true }, status: 200 };
   },
 };

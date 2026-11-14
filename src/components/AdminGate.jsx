@@ -14,7 +14,7 @@ export default function AdminGate() {
 
   const verify = useCallback(async () => {
     try {
-      if (!base44.adminAuth.isAuthenticated()) {
+      if (!(await base44.adminAuth.isAuthenticated())) {
         setCaps(null);
         return;
       }
