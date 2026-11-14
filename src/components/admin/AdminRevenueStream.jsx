@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Gavel, Ticket, Trophy, Wallet, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
@@ -35,12 +34,7 @@ export default function AdminRevenueStream() {
     const [tx, au, wp] = await Promise.all([
       base44.entities.WalletTransaction.list("-created_date", 400).catch(() => []),
       base44.entities.Auction.listFields("id, title, status, round", "-created_date", 300).catch(() => []),
-      supabase
-        .from("winner_payments")
-        .select("auction_id, amount, status")
-        .neq("status", "paid")
-        .then(({ data }) => data || [])
-        .catch(() => []),
+      base44.entities.WinnerPayment.list().then((rows) => (rows || []).filter((p) => p.status !== "paid")).catch(() => []),
     ]);
     setTxns(tx || []);
     setAuctions(au || []);
@@ -56,14 +50,13 @@ export default function AdminRevenueStream() {
       if (timer.current) return;
       timer.current = setTimeout(() => { timer.current = null; load(); }, 800);
     };
-    const channel = supabase
-      .channel("admin-revenue-stream")
-      .on("postgres_changes", { event: "*", schema: "public", table: "wallet_transactions" }, bump)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bids" }, bump)
-      .subscribe();
+    const unsubs = [
+      base44.entities.WalletTransaction.subscribe(bump),
+      base44.entities.Bid.subscribe(bump),
+    ];
     const poll = setInterval(load, 20000);
     return () => {
-      supabase.removeChannel(channel);
+      unsubs.forEach((u) => u());
       clearInterval(poll);
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;

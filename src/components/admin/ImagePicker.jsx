@@ -1,15 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload, ImageIcon, Check, RefreshCw, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const BUCKET = "auction-images";
-const TEN_YEARS = 315360000;
 const PAGE_SIZE = 12;
-const MAX_FILES = 500;
 
 const SORTS = [
   { value: "newest", label: "Newest" },
@@ -30,27 +26,8 @@ export default function ImagePicker({ value, onChange, label = "Image" }) {
   const loadPool = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.storage.from(BUCKET).list("", {
-        limit: MAX_FILES,
-        sortBy: { column: "created_at", order: "desc" }
-      });
-      if (error) throw error;
-      const files = (data || []).filter((f) => f.id);
-      if (!files.length) { setPool([]); return; }
-      const { data: signed, error: sErr } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrls(files.map((f) => f.name), TEN_YEARS);
-      if (sErr) throw sErr;
-      setPool(
-        (signed || [])
-          .map((s, i) => ({
-            name: files[i].name,
-            url: s.signedUrl,
-            createdAt: files[i].created_at || files[i].updated_at || null,
-            size: files[i].metadata?.size || 0
-          }))
-          .filter((x) => x.url)
-      );
+      // Frontend-only build: no image storage is connected.
+      setPool([]);
     } catch (e) {
       toast.error(e.message || "Could not load images");
     } finally {
@@ -82,22 +59,13 @@ export default function ImagePicker({ value, onChange, label = "Image" }) {
     if (!file.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
     setUploading(true);
     try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-        cacheControl: "31536000",
-        contentType: file.type
-      });
-      if (error) throw error;
-      const { data, error: sErr } = await supabase.storage.from(BUCKET).createSignedUrl(path, TEN_YEARS);
-      if (sErr) throw sErr;
-      onChange(data.signedUrl);
+      // Frontend-only build: preview the file locally instead of uploading it.
+      onChange(URL.createObjectURL(file));
       setQuery("");
       setSort("newest");
       setPage(1);
       setOpen(true);
-      loadPool();
-      toast.success("Image uploaded");
+      toast.success("Image selected (not uploaded: no backend connected)");
     } catch (e) {
       toast.error(e.message || "Upload failed");
     } finally {

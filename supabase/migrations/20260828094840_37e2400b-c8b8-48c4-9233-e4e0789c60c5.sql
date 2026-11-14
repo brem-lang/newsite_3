@@ -1,1 +1,0 @@
-revoke all on function public.place_closest_bid(uuid, uuid, numeric) from anon, authenticated;

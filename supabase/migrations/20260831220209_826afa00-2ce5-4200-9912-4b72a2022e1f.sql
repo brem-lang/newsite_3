@@ -1,4 +1,0 @@
-insert into public.payment_methods (name, type, provider, instructions, enabled, display_order) values
-('Bank transfer', 'transfer', 'bank', 'Transfer the amount to: Mazad Atna Ltd — IBAN PS00 0000 0000 0000, then enter the transfer reference below. Funds appear in your wallet once our team confirms the transfer (usually within a few hours).', true, 1),
-('Credit / debit card', 'manual', 'card', 'Enter the amount and submit. Our team will send you a secure payment link and your wallet is credited as soon as the payment clears.', true, 2),
-('Cash deposit', 'cod', 'cash', 'Pay in cash at any of our branches and enter the receipt number below. Your balance is credited after the receipt is verified.', true, 3);

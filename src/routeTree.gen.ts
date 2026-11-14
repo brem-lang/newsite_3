@@ -28,8 +28,6 @@ import { Route as AppWalletRouteImport } from './routes/_app.wallet'
 import { Route as AdminSectionRouteImport } from './routes/admin_.$section'
 import { Route as AppAuctionIdRouteImport } from './routes/_app.auction.$id'
 import { Route as AppPayTokenRouteImport } from './routes/_app.pay.$token'
-import { Route as ApiPublicAuctionTickRouteImport } from './routes/api/public/auction-tick'
-import { Route as ApiPublicFinalizeAuctionsRouteImport } from './routes/api/public/finalize-auctions'
 import { Route as AppAuctionIdResultsRouteImport } from './routes/_app.auction.$id.results'
 
 const IndexRoute = IndexRouteImport.update({
@@ -126,17 +124,6 @@ const AppPayTokenRoute = AppPayTokenRouteImport.update({
   path: '/pay/$token',
   getParentRoute: () => AppRoute,
 } as any)
-const ApiPublicAuctionTickRoute = ApiPublicAuctionTickRouteImport.update({
-  id: '/api/public/auction-tick',
-  path: '/api/public/auction-tick',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicFinalizeAuctionsRoute =
-  ApiPublicFinalizeAuctionsRouteImport.update({
-    id: '/api/public/finalize-auctions',
-    path: '/api/public/finalize-auctions',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AppAuctionIdResultsRoute = AppAuctionIdResultsRouteImport.update({
   id: '/results',
   path: '/results',
@@ -162,8 +149,6 @@ export interface FileRoutesByFullPath {
   '/admin/$section': typeof AdminSectionRoute
   '/auction/$id': typeof AppAuctionIdRouteWithChildren
   '/pay/$token': typeof AppPayTokenRoute
-  '/api/public/auction-tick': typeof ApiPublicAuctionTickRoute
-  '/api/public/finalize-auctions': typeof ApiPublicFinalizeAuctionsRoute
   '/auction/$id/results': typeof AppAuctionIdResultsRoute
 }
 export interface FileRoutesByTo {
@@ -185,8 +170,6 @@ export interface FileRoutesByTo {
   '/admin/$section': typeof AdminSectionRoute
   '/auction/$id': typeof AppAuctionIdRouteWithChildren
   '/pay/$token': typeof AppPayTokenRoute
-  '/api/public/auction-tick': typeof ApiPublicAuctionTickRoute
-  '/api/public/finalize-auctions': typeof ApiPublicFinalizeAuctionsRoute
   '/auction/$id/results': typeof AppAuctionIdResultsRoute
 }
 export interface FileRoutesById {
@@ -210,8 +193,6 @@ export interface FileRoutesById {
   '/admin_/$section': typeof AdminSectionRoute
   '/_app/auction/$id': typeof AppAuctionIdRouteWithChildren
   '/_app/pay/$token': typeof AppPayTokenRoute
-  '/api/public/auction-tick': typeof ApiPublicAuctionTickRoute
-  '/api/public/finalize-auctions': typeof ApiPublicFinalizeAuctionsRoute
   '/_app/auction/$id/results': typeof AppAuctionIdResultsRoute
 }
 export interface FileRouteTypes {
@@ -235,8 +216,6 @@ export interface FileRouteTypes {
     | '/admin/$section'
     | '/auction/$id'
     | '/pay/$token'
-    | '/api/public/auction-tick'
-    | '/api/public/finalize-auctions'
     | '/auction/$id/results'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -258,8 +237,6 @@ export interface FileRouteTypes {
     | '/admin/$section'
     | '/auction/$id'
     | '/pay/$token'
-    | '/api/public/auction-tick'
-    | '/api/public/finalize-auctions'
     | '/auction/$id/results'
   id:
     | '__root__'
@@ -282,8 +259,6 @@ export interface FileRouteTypes {
     | '/admin_/$section'
     | '/_app/auction/$id'
     | '/_app/pay/$token'
-    | '/api/public/auction-tick'
-    | '/api/public/finalize-auctions'
     | '/_app/auction/$id/results'
   fileRoutesById: FileRoutesById
 }
@@ -300,8 +275,6 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   AdminSectionRoute: typeof AdminSectionRoute
-  ApiPublicAuctionTickRoute: typeof ApiPublicAuctionTickRoute
-  ApiPublicFinalizeAuctionsRoute: typeof ApiPublicFinalizeAuctionsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -439,20 +412,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPayTokenRouteImport
       parentRoute: typeof AppRoute
     }
-    '/api/public/auction-tick': {
-      id: '/api/public/auction-tick'
-      path: '/api/public/auction-tick'
-      fullPath: '/api/public/auction-tick'
-      preLoaderRoute: typeof ApiPublicAuctionTickRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/finalize-auctions': {
-      id: '/api/public/finalize-auctions'
-      path: '/api/public/finalize-auctions'
-      fullPath: '/api/public/finalize-auctions'
-      preLoaderRoute: typeof ApiPublicFinalizeAuctionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_app/auction/$id/results': {
       id: '/_app/auction/$id/results'
       path: '/results'
@@ -510,8 +469,6 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   AdminSectionRoute: AdminSectionRoute,
-  ApiPublicAuctionTickRoute: ApiPublicAuctionTickRoute,
-  ApiPublicFinalizeAuctionsRoute: ApiPublicFinalizeAuctionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
