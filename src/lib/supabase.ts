@@ -1,9 +1,15 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-// Self-hosted Supabase (authentication only), served from the site's own
-// origin through the Apache proxy at /auth/v1 and /rest/v1.
+declare const __SUPABASE_DEV_PROXY__: boolean | undefined;
+
+// Self-hosted Supabase, served from the site's own origin through the Apache
+// proxy (/auth/v1, /rest/v1, /functions/v1, /storage/v1, /realtime/v1).
+// In local development the Vite dev server proxies those same paths (see
+// vite.config.ts), so calls go to the page's own origin and avoid CORS.
+const viaDevProxy = typeof __SUPABASE_DEV_PROXY__ !== "undefined" && __SUPABASE_DEV_PROXY__ && import.meta.env.DEV;
 const SUPABASE_URL =
-  import.meta.env['VITE_SUPABASE_URL'] || (typeof window !== "undefined" ? window.location.origin : "");
+  (viaDevProxy ? "" : import.meta.env['VITE_SUPABASE_URL']) ||
+  (typeof window !== "undefined" ? window.location.origin : "");
 const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || "";
 
 if (!SUPABASE_KEY && typeof window !== "undefined") console.warn("VITE_SUPABASE_PUBLISHABLE_KEY is not set; sign-in will fail.");
