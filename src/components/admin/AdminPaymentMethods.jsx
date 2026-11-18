@@ -189,7 +189,7 @@ export default function AdminPaymentMethods() {
               <Field label={m.methodName}>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label={m.methodType}>
                   <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">

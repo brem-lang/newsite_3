@@ -361,7 +361,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
                         : (t.admin.fields.bidsPerParticipantHint || "Every participant gets the same amount of numbers.")}
                   </p>
                 </Field>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label={t.admin.fields.minRoundMinutes || "Minimum round length (minutes)"}>
                     <Input type="number" min="0" step="1" value={form.min_round_minutes} onChange={(e) => set("min_round_minutes", e.target.value)} />
                     <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.minRoundMinutesHint || "Fairness guard: the automatic time reduction can never end the round earlier than this."}</p>
@@ -382,7 +382,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
                 )}
               </>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label={t.admin.fields.antiSnipe || "Anti-sniping extension (seconds, 0 = off)"}>
                 <Input type="number" min="0" step="1" value={form.anti_snipe_seconds} onChange={(e) => set("anti_snipe_seconds", e.target.value)} />
                 <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.antiSnipeHint || "A bid placed inside this window before the end pushes the deadline forward by the same number of seconds."}</p>
@@ -399,7 +399,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
             </Section>
   
             <Section title={t.admin.fields.sectionPace || "Bidding pace"}>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label={t.admin.fields.bidRateLimit || "Bids allowed per time window (0 = unlimited)"}>
                   <Input type="number" min="0" step="1" value={form.bid_rate_limit} onChange={(e) => set("bid_rate_limit", e.target.value)} />
                 </Field>
@@ -431,7 +431,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
             </Section>
   
             <Section title={t.admin.fields.sectionSchedule || "Money, participants & timing"}>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label={t.admin.fields.entryFee}><Input type="number" min="0" step="0.01" value={form.entry_fee} onChange={(e) => set("entry_fee", e.target.value)} /></Field>
               <Field label={t.admin.fields.minParticipants || "Participants needed to close (minimum)"}>
                 <Input type="number" min="1" value={form.max_subscribers} onChange={(e) => set("max_subscribers", e.target.value)} />

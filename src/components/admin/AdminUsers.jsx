@@ -361,7 +361,7 @@ export default function AdminUsers() {
               <Textarea id="user-f4" value={msg.body} onChange={(e) => setMsg({ ...msg, body: e.target.value })} rows={5} className="mt-1" />
             </div>
           </div>
-          <DialogFooter className="grid grid-cols-3 gap-2">
+          <DialogFooter className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Button variant="outline" className="gap-1.5" onClick={() => sendContact("whatsapp")} disabled={busy}><MessageCircle className="w-4 h-4" />{t.admin.users.sendWhatsapp}</Button>
             <Button variant="outline" className="gap-1.5" onClick={() => sendContact("inapp")} disabled={busy}><Bell className="w-4 h-4" />{t.admin.users.sendInapp}</Button>
             <Button className="gap-1.5" onClick={() => sendContact("email")} disabled={busy}><Mail className="w-4 h-4" />{busy ? t.admin.users.sending : t.admin.users.send}</Button>

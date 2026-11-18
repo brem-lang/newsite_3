@@ -131,7 +131,7 @@ export default function AdminCoupons() {
                 <Label htmlFor="coupon-f1">{t.admin.coupons.code}</Label>
                 <Input id="coupon-f1" value={form.code} onChange={(e) => set("code", e.target.value)} placeholder="SUMMER20" className="font-mono uppercase" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="coupon-f2">{t.admin.coupons.type}</Label>
                   <select id="coupon-f2" value={form.type} onChange={(e) => set("type", e.target.value)} className={inputCls}>
