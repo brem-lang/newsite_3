@@ -10,12 +10,14 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
 const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
 export default function AdminCoupons() {
   const { t } = useI18n();
+  const askConfirm = useConfirm();
   const { symbol } = useCurrency();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export default function AdminCoupons() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleDelete = async (it) => {
-    if (!window.confirm(t.admin.confirmDelete)) return;
+    if (!(await askConfirm({ title: t.admin.confirm.deleteCoupon, description: t.admin.confirm.cannotUndo, confirmLabel: t.admin.confirm.delete, destructive: true }))) return;
     try {
       await base44.entities.Coupon.delete(it.id);
       toast.success(t.admin.coupons.deleted);

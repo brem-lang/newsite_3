@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Palette, Check, RotateCcw, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { useI18n } from "@/lib/i18n";
 import { useSiteTheme } from "@/lib/useSiteTheme";
 import { DEFAULT_THEME, FONT_OPTIONS } from "@/lib/themeDefaults";
@@ -55,6 +56,7 @@ function SelectField({ label, value, onChange, options }) {
 
 export default function AdminDesign() {
   const { t } = useI18n();
+  const askConfirm = useConfirm();
   const { draft, published, history, loading, saving, saveDraft, publish, discard, restore } = useSiteTheme();
 
   const base = draft?.theme || published?.theme || DEFAULT_THEME;
@@ -89,20 +91,20 @@ export default function AdminDesign() {
     setTheme((p) => ({ ...p, sections: { ...p.sections, [section]: { ...p.sections?.[section], [key]: value } } }));
 
   const onPublish = async () => {
-    if (!window.confirm(t.admin.design.confirmPublish)) return;
+    if (!(await askConfirm({ title: t.admin.confirm.publishTitle, description: t.admin.design.confirmPublish, confirmLabel: t.admin.confirm.publishLabel }))) return;
     await publish(theme);
     toast.success(t.admin.design.publishedOk);
   };
 
   const onDiscard = async () => {
-    if (!window.confirm(t.admin.design.discardConfirm)) return;
+    if (!(await askConfirm({ title: t.admin.confirm.discardTitle, description: t.admin.design.discardConfirm, confirmLabel: t.admin.confirm.discardLabel, destructive: true }))) return;
     await discard();
     setTheme(published?.theme || DEFAULT_THEME);
     toast.success(t.admin.design.discarded);
   };
 
   const onRestore = async (ver) => {
-    if (!window.confirm(t.admin.design.restoreConfirm)) return;
+    if (!(await askConfirm({ title: t.admin.confirm.restoreTitle, description: t.admin.design.restoreConfirm, confirmLabel: t.admin.confirm.restoreLabel }))) return;
     await restore(ver.theme);
     setTheme(ver.theme);
     toast.success(t.admin.design.restored);

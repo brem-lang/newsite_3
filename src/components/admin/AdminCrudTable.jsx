@@ -10,10 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useConfirm } from "@/components/admin/ConfirmDialog";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +40,8 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState({ key: null, dir: "asc" });
   const [page, setPage] = useState(0);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { t } = useI18n();
+  const askConfirm = useConfirm();
 
   const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
     queryKey: ["admin-entity", entity],
@@ -122,10 +121,8 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
     setSaving(false);
   };
 
-  const confirmDelete = async () => {
-    const row = deleteTarget;
-    setDeleteTarget(null);
-    if (!row) return;
+  const confirmDelete = async (row) => {
+    if (!(await askConfirm({ title: t.admin.confirm.deleteItem, description: t.admin.confirm.cannotUndo, confirmLabel: t.admin.confirm.delete, destructive: true }))) return;
     try {
       await base44.entities[entity].delete(row.id);
       audit(`${entity}.delete`, row);
@@ -222,7 +219,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
                       {!readOnly && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => { setEditing(r); setForm(buildForm(fields, r)); setOpen(true); }}><Pencil className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => confirmDelete(r)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                         </>
                       )}
                     </td>
@@ -250,18 +247,6 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
         </>
       )}
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{"Delete this item?"}</AlertDialogTitle>
-            <AlertDialogDescription>{"This action cannot be undone."}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{"Cancel"}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>{"Delete"}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">

@@ -7,7 +7,8 @@ import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminCommandPalette from "@/components/admin/AdminCommandPalette";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { ConfirmProvider } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { GROUPS, SECTIONS, SECTION_IDS, DEFAULT_SECTION, groupOfSection, sectionLabel } from "@/lib/adminNav";
 
@@ -177,7 +178,9 @@ export default function Admin({ caps: capsProp = null, onSignedOut }) {
       />
 
       <Sheet open={drawer} onOpenChange={setDrawer}>
-        <SheetContent side={"left"} className="p-0 w-72">
+        <SheetContent side={dir === "rtl" ? "right" : "left"} hideClose className="p-0 w-72">
+          <SheetTitle className="sr-only">{t.admin.panelTitle}</SheetTitle>
+          <SheetDescription className="sr-only">{t.admin.navDescription}</SheetDescription>
           <AdminSidebar
             groups={groups}
             basePath={BASE_PATH}
@@ -236,9 +239,11 @@ export default function Admin({ caps: capsProp = null, onSignedOut }) {
 
         <main className="flex-1 overflow-y-auto p-3 sm:p-6">
           <div className="max-w-7xl mx-auto">
-            <Suspense fallback={<PanelSkeleton />}>
-              {Panel ? <Panel /> : null}
-            </Suspense>
+            <ConfirmProvider>
+              <Suspense fallback={<PanelSkeleton />}>
+                {Panel ? <Panel /> : null}
+              </Suspense>
+            </ConfirmProvider>
           </div>
         </main>
       </div>

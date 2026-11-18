@@ -3,6 +3,7 @@ import { CreditCard, Plus, Pencil, Trash2, Globe, X, Check } from "lucide-react"
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ const COMMON = ["USD", "EUR", "GBP", "JOD", "SAR", "AED", "EGP", "QAR", "KWD", "
 
 export default function AdminPaymentMethods() {
   const { t } = useI18n();
+  const askConfirm = useConfirm();
   const m = t.admin.payments;
   const [methods, setMethods] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +86,7 @@ export default function AdminPaymentMethods() {
   };
 
   const remove = async (id) => {
-    if (!confirm(t.admin.confirmDelete)) return;
+    if (!(await askConfirm({ title: t.admin.confirm.deletePaymentMethod, description: t.admin.confirm.cannotUndo, confirmLabel: t.admin.confirm.delete, destructive: true }))) return;
     try {
       const creds = await base44.entities.PaymentMethodCredential.filter({ payment_method_id: id });
       if (creds?.[0]) await base44.entities.PaymentMethodCredential.delete(creds[0].id);

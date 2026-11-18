@@ -8,6 +8,7 @@ import AuctionFormDialog from "@/components/admin/AuctionFormDialog";
 import AuctionBidsLog from "@/components/admin/AuctionBidsLog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { MAX_HOME_SLOTS } from "@/lib/homeShowcase";
 
@@ -18,7 +19,8 @@ const statusStyles = {
 };
 
 export default function AdminAuctions() {
-  const { t } = useI18n();
+  const { t, format } = useI18n();
+  const askConfirm = useConfirm();
   const [auctions, setAuctions] = useState([]);
   const [users, setUsers] = useState({});
   const [view, setView] = useState("all");
@@ -48,7 +50,7 @@ export default function AdminAuctions() {
   useEffect(() => { load(); }, [load]);
 
   const handleDelete = async (auction) => {
-    if (!window.confirm(t.admin.confirmDelete)) return;
+    if (!(await askConfirm({ title: t.admin.confirm.deleteAuction, description: t.admin.confirm.cannotUndo, confirmLabel: t.admin.confirm.delete, destructive: true }))) return;
     try {
       await base44.entities.Auction.delete(auction.id);
       logAdminAction("auction.delete", { targetType: "auctions", targetId: auction.id, details: auction.title });
@@ -126,7 +128,7 @@ export default function AdminAuctions() {
       await closeNow(auction);
       return;
     }
-    if (newStatus === "live" && !window.confirm(`Start “${auction.title}” now?`)) return;
+    if (newStatus === "live" && !(await askConfirm({ title: format(t.admin.confirm.startTitle, { title: auction.title }), description: t.admin.confirm.startDesc, confirmLabel: t.admin.confirm.startLabel }))) return;
     try {
       setChangingId(auction.id);
       const patch = { status: newStatus };
@@ -151,7 +153,7 @@ export default function AdminAuctions() {
   };
 
   const closeNow = async (auction) => {
-    if (!window.confirm(`Close “${auction.title}” now, calculate the winner, and create the winner payment?`)) return;
+    if (!(await askConfirm({ title: format(t.admin.confirm.closeTitle, { title: auction.title }), description: t.admin.confirm.closeDesc, confirmLabel: t.admin.confirm.closeLabel, destructive: true }))) return;
     setChangingId(auction.id);
     try {
       const result = await base44.functions.invoke("closeAuction", { auction_id: auction.id });

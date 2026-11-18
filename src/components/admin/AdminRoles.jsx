@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
+import { useConfirm } from "@/components/admin/ConfirmDialog";
 
 const CATEGORY_LABELS = {
   overview: { en: "Overview" },
@@ -25,6 +27,8 @@ const CATEGORY_LABELS = {
  * on every admin action, so the UI here only edits the rules.
  */
 export default function AdminRoles() {
+  const { t } = useI18n();
+  const askConfirm = useConfirm();
   
   const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
 
@@ -144,7 +148,7 @@ export default function AdminRoles() {
 
   const remove = async (row) => {
     if (row.is_system) { toast.error("Built-in roles cannot be deleted"); return; }
-    if (!window.confirm("Delete this role?")) return;
+    if (!(await askConfirm({ title: t.admin.confirm.deleteRole, description: t.admin.confirm.cannotUndo, confirmLabel: t.admin.confirm.delete, destructive: true }))) return;
     try {
       await base44.entities.Role.delete(row.id);
       toast.success("Deleted");

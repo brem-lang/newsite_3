@@ -3,13 +3,15 @@ import { Radio, Users, Gavel, Trophy, Square, Flame, Maximize2, Coins, Hash } fr
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatCountdownCompact, closeQuota } from "@/lib/auction";
 import LiveAuctionMonitor, { useLiveAuctionStats } from "@/components/admin/LiveAuctionMonitor";
 
 export default function AdminLive() {
-  const { t } = useI18n();
+  const { t, format } = useI18n();
+  const askConfirm = useConfirm();
   const [auctions, setAuctions] = useState([]);
   const [detail, setDetail] = useState({}); // auctionId -> { bids, credits, txns }
   const [users, setUsers] = useState({});
@@ -87,7 +89,7 @@ export default function AdminLive() {
   }, [auctionIds, loadDetail]);
 
   const endNow = async (a) => {
-    if (!window.confirm(`Close “${a.title}” now and calculate the winner?`)) return;
+    if (!(await askConfirm({ title: format(t.admin.confirm.closeTitle, { title: a.title }), description: t.admin.confirm.closeLiveDesc, confirmLabel: t.admin.confirm.closeLabel, destructive: true }))) return;
     setEnding(a.id);
     try {
       const result = await base44.functions.invoke("closeAuction", { auction_id: a.id });
