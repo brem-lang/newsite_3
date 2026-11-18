@@ -40,7 +40,7 @@ export default function AuctionFilters({ tabs, activeTab, onTab, sorts, activeSo
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Select value={activeSort} onValueChange={onSort}>
-            <SelectTrigger className="w-40 sm:w-48 h-9 text-xs gap-2">
+            <SelectTrigger size="sm" className="w-40 sm:w-48 text-xs">
               <SlidersHorizontal className="w-3.5 h-3.5" />
               <SelectValue />
             </SelectTrigger>

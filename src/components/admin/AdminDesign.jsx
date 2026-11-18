@@ -39,7 +39,7 @@ function SelectField({ label, value, onChange, options }) {
     <div className="py-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="mt-1 h-8 text-xs">
+        <SelectTrigger size="sm" className="mt-1 text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
