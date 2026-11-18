@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogForm } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -21,12 +22,7 @@ function Section({ title, children }) {
 }
 
 function Field({ label, children }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-sm font-medium">{label}</Label>
-      {children}
-    </div>
-  );
+  return <FormField label={label} labelClassName="text-sm font-medium">{children}</FormField>;
 }
 
 export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved }) {
@@ -253,216 +249,218 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? t.admin.edit : t.admin.new}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <Section title={t.admin.fields.sectionBasics || "Basics"}>
-          <Field label={t.admin.fields.title}>
-            <Input value={form.title} onChange={(e) => set("title", e.target.value)} />
-          </Field>
-          <Field label={t.admin.fields.description}>
-            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} className={inputCls} />
-          </Field>
-          <Field label={t.admin.fields.imageUrl}>
-            <ImagePicker value={form.image_url} onChange={(v) => set("image_url", v)} label={t.admin.fields.imageUrl} />
-          </Field>
-          </Section>
-
-          <Section title={t.admin.fields.sectionMode || "Auction type & numbers"}>
-          <Field label={t.admin.fields.mode || "Auction type"}>
-            <select value={form.mode} onChange={(e) => set("mode", e.target.value)} className={inputCls}>
-              {modeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </Field>
-          {form.mode === "closest" && (
-            <>
-              <Field label={t.admin.fields.targetPrice || "Selling price (target)"}>
-                <Input type="number" min="0" step="0.01" value={form.target_price} onChange={(e) => set("target_price", e.target.value)} />
-              </Field>
-              <Field label={t.admin.fields.bidFee || "Fee charged per bid (0 = free)"}>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={autoBidFee ? computedBidFee : form.bid_fee}
-                  readOnly={autoBidFee}
-                  onChange={(e) => set("bid_fee", e.target.value)}
-                  className={autoBidFee ? "bg-muted/60" : undefined}
-                />
-                <label className="mt-2 flex items-center gap-2 text-xs font-medium text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={autoBidFee}
-                    onChange={(e) => {
-                      setAutoBidFee(e.target.checked);
-                      if (e.target.checked) set("bid_fee", computedBidFee);
-                    }}
-                    className="h-4 w-4 rounded border-input accent-primary"
+        <DialogForm onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <DialogHeader>
+            <DialogTitle>{isEdit ? t.admin.edit : t.admin.new}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Section title={t.admin.fields.sectionBasics || "Basics"}>
+            <Field label={t.admin.fields.title}>
+              <Input value={form.title} onChange={(e) => set("title", e.target.value)} />
+            </Field>
+            <Field label={t.admin.fields.description}>
+              <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} />
+            </Field>
+            <Field label={t.admin.fields.imageUrl}>
+              <ImagePicker value={form.image_url} onChange={(v) => set("image_url", v)} label={t.admin.fields.imageUrl} />
+            </Field>
+            </Section>
+  
+            <Section title={t.admin.fields.sectionMode || "Auction type & numbers"}>
+            <Field label={t.admin.fields.mode || "Auction type"}>
+              <select value={form.mode} onChange={(e) => set("mode", e.target.value)} className={inputCls}>
+                {modeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </Field>
+            {form.mode === "closest" && (
+              <>
+                <Field label={t.admin.fields.targetPrice || "Selling price (target)"}>
+                  <Input type="number" min="0" step="0.01" value={form.target_price} onChange={(e) => set("target_price", e.target.value)} />
+                </Field>
+                <Field label={t.admin.fields.bidFee || "Fee charged per bid (0 = free)"}>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={autoBidFee ? computedBidFee : form.bid_fee}
+                    readOnly={autoBidFee}
+                    onChange={(e) => set("bid_fee", e.target.value)}
+                    className={autoBidFee ? "bg-muted/60" : undefined}
                   />
-                  {t.admin.fields.bidFeeAuto || "Calculate from entry fee x bid increment"}
-                </label>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {autoBidFee
-                    ? `${Number(form.entry_fee) || 0} x ${Number(form.bid_increment) || 0} = ${computedBidFee} ${t.admin.fields.bidFeePerBid || "per bid"}`
-                    : (t.admin.fields.bidFeeHint || "Deducted from the participant's wallet on every number they submit.")}
-                </p>
-              </Field>
-              <Field label={t.admin.fields.extraBidPrice || "Price per extra number (0 = cannot buy)"}>
-                <Input type="number" min="0" step="0.01" value={form.extra_bid_price} onChange={(e) => set("extra_bid_price", e.target.value)} />
-                <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.extraBidPriceHint || "After using their free numbers, a participant can buy more at this price from their wallet."}</p>
-              </Field>
-              <Field label={t.admin.fields.bidsPerParticipant || "Numbers per participant"}>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={unlimitedQuota ? "" : (autoQuota ? computedQuota : form.bids_per_participant)}
-                  placeholder={unlimitedQuota ? "∞" : undefined}
-                  readOnly={autoQuota || unlimitedQuota}
-                  disabled={unlimitedQuota}
-                  onChange={(e) => set("bids_per_participant", e.target.value)}
-                  className={autoQuota || unlimitedQuota ? "bg-muted/60" : undefined}
-                />
-                <label className="mt-2 flex items-center gap-2 text-xs font-medium text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={unlimitedQuota}
-                    onChange={(e) => {
-                      setUnlimitedQuota(e.target.checked);
-                      if (e.target.checked) {
-                        setAutoQuota(false);
-                        set("bids_per_participant", 0);
-                      } else {
-                        setAutoQuota(true);
-                        set("bids_per_participant", computedQuota);
-                      }
-                    }}
-                    className="h-4 w-4 rounded border-input accent-primary"
-                  />
-                  {t.admin.fields.bidsUnlimited || "Unlimited bids — only the wallet balance limits them"}
-                </label>
-                {!unlimitedQuota && (
                   <label className="mt-2 flex items-center gap-2 text-xs font-medium text-foreground">
                     <input
                       type="checkbox"
-                      checked={autoQuota}
+                      checked={autoBidFee}
                       onChange={(e) => {
-                        setAutoQuota(e.target.checked);
-                        if (e.target.checked) set("bids_per_participant", computedQuota);
+                        setAutoBidFee(e.target.checked);
+                        if (e.target.checked) set("bid_fee", computedBidFee);
                       }}
                       className="h-4 w-4 rounded border-input accent-primary"
                     />
-                    {t.admin.fields.bidsPerParticipantAuto || "Calculate from entry fee / bid increment"}
+                    {t.admin.fields.bidFeeAuto || "Calculate from entry fee x bid increment"}
                   </label>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {unlimitedQuota
-                    ? (t.admin.fields.bidsUnlimitedHint || "Participants keep bidding as long as their balance covers the fee per bid.")
-                    : autoQuota
-                      ? `${Number(form.entry_fee) || 0} / ${Number(form.bid_increment) || 0} = ${computedQuota}`
-                      : (t.admin.fields.bidsPerParticipantHint || "Every participant gets the same amount of numbers.")}
-                </p>
-              </Field>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label={t.admin.fields.minRoundMinutes || "Minimum round length (minutes)"}>
-                  <Input type="number" min="0" step="1" value={form.min_round_minutes} onChange={(e) => set("min_round_minutes", e.target.value)} />
-                  <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.minRoundMinutesHint || "Fairness guard: the automatic time reduction can never end the round earlier than this."}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {autoBidFee
+                      ? `${Number(form.entry_fee) || 0} x ${Number(form.bid_increment) || 0} = ${computedBidFee} ${t.admin.fields.bidFeePerBid || "per bid"}`
+                      : (t.admin.fields.bidFeeHint || "Deducted from the participant's wallet on every number they submit.")}
+                  </p>
                 </Field>
-                <Field label={t.admin.fields.poolWarnPct || "Low number-pool warning (% free)"}>
-                  <Input type="number" min="0" max="100" step="1" value={form.pool_warn_pct} onChange={(e) => set("pool_warn_pct", e.target.value)} />
-                  <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.poolWarnPctHint || "The live monitor flashes a warning once free numbers drop to this share of the pool."}</p>
+                <Field label={t.admin.fields.extraBidPrice || "Price per extra number (0 = cannot buy)"}>
+                  <Input type="number" min="0" step="0.01" value={form.extra_bid_price} onChange={(e) => set("extra_bid_price", e.target.value)} />
+                  <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.extraBidPriceHint || "After using their free numbers, a participant can buy more at this price from their wallet."}</p>
+                </Field>
+                <Field label={t.admin.fields.bidsPerParticipant || "Numbers per participant"}>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={unlimitedQuota ? "" : (autoQuota ? computedQuota : form.bids_per_participant)}
+                    placeholder={unlimitedQuota ? "∞" : undefined}
+                    readOnly={autoQuota || unlimitedQuota}
+                    disabled={unlimitedQuota}
+                    onChange={(e) => set("bids_per_participant", e.target.value)}
+                    className={autoQuota || unlimitedQuota ? "bg-muted/60" : undefined}
+                  />
+                  <label className="mt-2 flex items-center gap-2 text-xs font-medium text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={unlimitedQuota}
+                      onChange={(e) => {
+                        setUnlimitedQuota(e.target.checked);
+                        if (e.target.checked) {
+                          setAutoQuota(false);
+                          set("bids_per_participant", 0);
+                        } else {
+                          setAutoQuota(true);
+                          set("bids_per_participant", computedQuota);
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-input accent-primary"
+                    />
+                    {t.admin.fields.bidsUnlimited || "Unlimited bids — only the wallet balance limits them"}
+                  </label>
+                  {!unlimitedQuota && (
+                    <label className="mt-2 flex items-center gap-2 text-xs font-medium text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={autoQuota}
+                        onChange={(e) => {
+                          setAutoQuota(e.target.checked);
+                          if (e.target.checked) set("bids_per_participant", computedQuota);
+                        }}
+                        className="h-4 w-4 rounded border-input accent-primary"
+                      />
+                      {t.admin.fields.bidsPerParticipantAuto || "Calculate from entry fee / bid increment"}
+                    </label>
+                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {unlimitedQuota
+                      ? (t.admin.fields.bidsUnlimitedHint || "Participants keep bidding as long as their balance covers the fee per bid.")
+                      : autoQuota
+                        ? `${Number(form.entry_fee) || 0} / ${Number(form.bid_increment) || 0} = ${computedQuota}`
+                        : (t.admin.fields.bidsPerParticipantHint || "Every participant gets the same amount of numbers.")}
+                  </p>
+                </Field>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label={t.admin.fields.minRoundMinutes || "Minimum round length (minutes)"}>
+                    <Input type="number" min="0" step="1" value={form.min_round_minutes} onChange={(e) => set("min_round_minutes", e.target.value)} />
+                    <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.minRoundMinutesHint || "Fairness guard: the automatic time reduction can never end the round earlier than this."}</p>
+                  </Field>
+                  <Field label={t.admin.fields.poolWarnPct || "Low number-pool warning (% free)"}>
+                    <Input type="number" min="0" max="100" step="1" value={form.pool_warn_pct} onChange={(e) => set("pool_warn_pct", e.target.value)} />
+                    <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.poolWarnPctHint || "The live monitor flashes a warning once free numbers drop to this share of the pool."}</p>
+                  </Field>
+                </div>
+                {poolIssues.length > 0 && (
+                  <div className="space-y-1.5">
+                    {poolIssues.map((issue, i) => (
+                      <p key={i} className="rounded-md bg-warning/10 px-2 py-1.5 text-[11px] font-semibold text-warning">
+                        {issue.text}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <Field label={t.admin.fields.antiSnipe || "Anti-sniping extension (seconds, 0 = off)"}>
+                <Input type="number" min="0" step="1" value={form.anti_snipe_seconds} onChange={(e) => set("anti_snipe_seconds", e.target.value)} />
+                <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.antiSnipeHint || "A bid placed inside this window before the end pushes the deadline forward by the same number of seconds."}</p>
+              </Field>
+              <Field label={t.admin.fields.holdRetry || "Winner payment window (minutes)"}>
+                <Input type="number" min="0" step="1" value={form.hold_retry_minutes} onChange={(e) => set("hold_retry_minutes", e.target.value)} />
+                <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.holdRetryHint || "How long the winner's funds stay reserved while their manual payment is pending. Afterwards the reservation is released automatically."}</p>
+              </Field>
+            </div>
+            <Field label={t.admin.fields.maxRestarts || "Maximum round restarts"}>
+              <Input type="number" min="0" step="1" value={form.max_restarts} onChange={(e) => set("max_restarts", e.target.value)} />
+              <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.maxRestartsHint || "If the minimum participants are still not reached after this many restarts, the auction is voided and every fee is refunded."}</p>
+            </Field>
+            </Section>
+  
+            <Section title={t.admin.fields.sectionPace || "Bidding pace"}>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label={t.admin.fields.bidRateLimit || "Bids allowed per time window (0 = unlimited)"}>
+                  <Input type="number" min="0" step="1" value={form.bid_rate_limit} onChange={(e) => set("bid_rate_limit", e.target.value)} />
+                </Field>
+                <Field label={t.admin.fields.bidRateWindow || "Time window"}>
+                  <select value={String(form.bid_rate_window_minutes)} onChange={(e) => set("bid_rate_window_minutes", e.target.value)} className={inputCls}>
+                    {[1, 5, 10, 30, 60].map((m) => (
+                      <option key={m} value={m}>{formatDuration(m, t)}</option>
+                    ))}
+                  </select>
                 </Field>
               </div>
-              {poolIssues.length > 0 && (
-                <div className="space-y-1.5">
-                  {poolIssues.map((issue, i) => (
-                    <p key={i} className="rounded-md bg-warning/10 px-2 py-1.5 text-[11px] font-semibold text-warning">
-                      {issue.text}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <Field label={t.admin.fields.antiSnipe || "Anti-sniping extension (seconds, 0 = off)"}>
-              <Input type="number" min="0" step="1" value={form.anti_snipe_seconds} onChange={(e) => set("anti_snipe_seconds", e.target.value)} />
-              <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.antiSnipeHint || "A bid placed inside this window before the end pushes the deadline forward by the same number of seconds."}</p>
-            </Field>
-            <Field label={t.admin.fields.holdRetry || "Winner payment window (minutes)"}>
-              <Input type="number" min="0" step="1" value={form.hold_retry_minutes} onChange={(e) => set("hold_retry_minutes", e.target.value)} />
-              <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.holdRetryHint || "How long the winner's funds stay reserved while their manual payment is pending. Afterwards the reservation is released automatically."}</p>
-            </Field>
-          </div>
-          <Field label={t.admin.fields.maxRestarts || "Maximum round restarts"}>
-            <Input type="number" min="0" step="1" value={form.max_restarts} onChange={(e) => set("max_restarts", e.target.value)} />
-            <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.maxRestartsHint || "If the minimum participants are still not reached after this many restarts, the auction is voided and every fee is refunded."}</p>
-          </Field>
-          </Section>
-
-          <Section title={t.admin.fields.sectionPace || "Bidding pace"}>
+              <p className="text-xs text-muted-foreground">{t.admin.fields.bidRateHint || "Paces bidding: a participant can place at most this many bids inside the chosen window."}</p>
+              <div className="space-y-1.5">
+                {paceIssues.map((issue, i) => (
+                  <p
+                    key={i}
+                    className={
+                      issue.level === "error"
+                        ? "rounded-md bg-destructive/10 px-2 py-1.5 text-[11px] font-semibold text-destructive"
+                        : issue.level === "warn"
+                          ? "rounded-md bg-warning/10 px-2 py-1.5 text-[11px] font-semibold text-warning"
+                          : "rounded-md bg-info/10 px-2 py-1.5 text-[11px] text-info"
+                    }
+                  >
+                    {issue.text}
+                  </p>
+                ))}
+              </div>
+            </Section>
+  
+            <Section title={t.admin.fields.sectionSchedule || "Money, participants & timing"}>
             <div className="grid grid-cols-2 gap-4">
-              <Field label={t.admin.fields.bidRateLimit || "Bids allowed per time window (0 = unlimited)"}>
-                <Input type="number" min="0" step="1" value={form.bid_rate_limit} onChange={(e) => set("bid_rate_limit", e.target.value)} />
+              <Field label={t.admin.fields.entryFee}><Input type="number" min="0" step="0.01" value={form.entry_fee} onChange={(e) => set("entry_fee", e.target.value)} /></Field>
+              <Field label={t.admin.fields.minParticipants || "Participants needed to close (minimum)"}>
+                <Input type="number" min="1" value={form.max_subscribers} onChange={(e) => set("max_subscribers", e.target.value)} />
+                <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.minParticipantsHint || "There is no maximum. Extra participants can always join; the round only closes once this many have joined and the timer has run out."}</p>
               </Field>
-              <Field label={t.admin.fields.bidRateWindow || "Time window"}>
-                <select value={String(form.bid_rate_window_minutes)} onChange={(e) => set("bid_rate_window_minutes", e.target.value)} className={inputCls}>
-                  {[1, 5, 10, 30, 60].map((m) => (
-                    <option key={m} value={m}>{formatDuration(m, t)}</option>
-                  ))}
+              <Field label={t.admin.fields.costPrice || "Product cost (what you pay)"}>
+                <Input type="number" min="0" step="0.01" value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} />
+                <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.costPriceHint || "Used to calculate profit for this auction in the Revenue section."}</p>
+              </Field>
+              <Field label={t.admin.fields.otherCost || "Other costs (shipping, fees...)"}>
+                <Input type="number" min="0" step="0.01" value={form.other_cost} onChange={(e) => set("other_cost", e.target.value)} />
+              </Field>
+              <Field label={t.admin.fields.startPrice}><Input type="number" min="0" step="0.01" value={form.start_price} onChange={(e) => set("start_price", e.target.value)} /></Field>
+              <Field label={t.admin.fields.bidIncrement}><Input type="number" min="0.01" step="0.01" value={form.bid_increment} onChange={(e) => set("bid_increment", e.target.value)} /></Field>
+              <Field label={t.admin.fields.durationMinutes}><Input type="number" min="0.25" step="any" value={form.duration_hours} onChange={(e) => set("duration_hours", e.target.value)} /></Field>
+              <Field label={t.admin.fields.scheduledStart}><Input type="datetime-local" value={form.scheduled_start_time} onChange={(e) => set("scheduled_start_time", e.target.value)} /></Field>
+              <Field label={t.admin.fields.status}>
+                <select value={form.status} onChange={(e) => set("status", e.target.value)} className={inputCls}>
+                  {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </Field>
             </div>
-            <p className="text-xs text-muted-foreground">{t.admin.fields.bidRateHint || "Paces bidding: a participant can place at most this many bids inside the chosen window."}</p>
-            <div className="space-y-1.5">
-              {paceIssues.map((issue, i) => (
-                <p
-                  key={i}
-                  className={
-                    issue.level === "error"
-                      ? "rounded-md bg-destructive/10 px-2 py-1.5 text-[11px] font-semibold text-destructive"
-                      : issue.level === "warn"
-                        ? "rounded-md bg-warning/10 px-2 py-1.5 text-[11px] font-semibold text-warning"
-                        : "rounded-md bg-info/10 px-2 py-1.5 text-[11px] text-info"
-                  }
-                >
-                  {issue.text}
-                </p>
-              ))}
-            </div>
-          </Section>
-
-          <Section title={t.admin.fields.sectionSchedule || "Money, participants & timing"}>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label={t.admin.fields.entryFee}><Input type="number" min="0" step="0.01" value={form.entry_fee} onChange={(e) => set("entry_fee", e.target.value)} /></Field>
-            <Field label={t.admin.fields.minParticipants || "Participants needed to close (minimum)"}>
-              <Input type="number" min="1" value={form.max_subscribers} onChange={(e) => set("max_subscribers", e.target.value)} />
-              <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.minParticipantsHint || "There is no maximum. Extra participants can always join; the round only closes once this many have joined and the timer has run out."}</p>
-            </Field>
-            <Field label={t.admin.fields.costPrice || "Product cost (what you pay)"}>
-              <Input type="number" min="0" step="0.01" value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} />
-              <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.costPriceHint || "Used to calculate profit for this auction in the Revenue section."}</p>
-            </Field>
-            <Field label={t.admin.fields.otherCost || "Other costs (shipping, fees...)"}>
-              <Input type="number" min="0" step="0.01" value={form.other_cost} onChange={(e) => set("other_cost", e.target.value)} />
-            </Field>
-            <Field label={t.admin.fields.startPrice}><Input type="number" min="0" step="0.01" value={form.start_price} onChange={(e) => set("start_price", e.target.value)} /></Field>
-            <Field label={t.admin.fields.bidIncrement}><Input type="number" min="0.01" step="0.01" value={form.bid_increment} onChange={(e) => set("bid_increment", e.target.value)} /></Field>
-            <Field label={t.admin.fields.durationMinutes}><Input type="number" min="0.25" step="0.25" value={form.duration_hours} onChange={(e) => set("duration_hours", e.target.value)} /></Field>
-            <Field label={t.admin.fields.scheduledStart}><Input type="datetime-local" value={form.scheduled_start_time} onChange={(e) => set("scheduled_start_time", e.target.value)} /></Field>
-            <Field label={t.admin.fields.status}>
-              <select value={form.status} onChange={(e) => set("status", e.target.value)} className={inputCls}>
-                {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </Field>
+            </Section>
           </div>
-          </Section>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>{t.admin.cancel}</Button>
-          <Button className="gold-button" onClick={handleSave} disabled={saving || paceBlocked}>{saving ? t.admin.saving : t.admin.save}</Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{t.admin.cancel}</Button>
+            <Button className="gold-button" type="submit" disabled={saving || paceBlocked}>{saving ? t.admin.saving : t.admin.save}</Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

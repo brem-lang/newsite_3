@@ -37,12 +37,15 @@ const buttonVariants = cva(
   }
 )
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
+// Defaults to type="button" so a Button inside a <form> never submits it by
+// accident; pass type="submit" explicitly for the submit action.
+const Button = React.forwardRef(({ className, variant, size, asChild = false, type, ...props }, ref) => {
   const Comp = asChild ? Slot : "button"
   return (
     (<Comp
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
+      type={asChild ? type : (type ?? "button")}
       {...props} />)
   );
 })

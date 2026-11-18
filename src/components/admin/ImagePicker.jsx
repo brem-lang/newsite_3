@@ -145,6 +145,8 @@ export default function ImagePicker({ value, onChange, label = "Image" }) {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                // Enter filters as you type already; don't let it submit a surrounding form.
+                onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
                 placeholder="Search by file name"
                 aria-label="Search images"
                 className="h-9 ps-8 pe-8 text-xs"

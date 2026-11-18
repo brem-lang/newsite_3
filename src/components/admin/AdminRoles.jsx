@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
@@ -224,78 +224,80 @@ export default function AdminRoles() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit role" : "Add role"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 max-h-[64vh] overflow-y-auto py-2">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>{"Name"} *</Label>
-                <Input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{"Rank (0–100)"}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={form.level}
-                  onChange={(e) => setForm((s) => ({ ...s, level: e.target.value }))}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {"Higher rank = more senior. Rank alone grants any action at or below it."}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{"Description"}</Label>
-              <Textarea rows={2} value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} />
-            </div>
-            <div className="flex items-center justify-between gap-3 rounded-md border p-2.5">
-              <span className="text-sm font-medium">{"Built-in role"}</span>
-              <Switch checked={form.is_system} onCheckedChange={(v) => setForm((s) => ({ ...s, is_system: v }))} />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label>{"Admin actions"}</Label>
-                <div className="flex gap-1">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setAll(true)}>{"Select all"}</Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setAll(false)}>{"Clear"}</Button>
+          <DialogForm onSubmit={(e) => { e.preventDefault(); save(); }}>
+            <DialogHeader>
+              <DialogTitle>{editing ? "Edit role" : "Add role"}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-3 max-h-[64vh] overflow-y-auto py-2">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="role-f1">{"Name"} *</Label>
+                  <Input id="role-f1" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="role-f2">{"Rank (0–100)"}</Label>
+                  <Input id="role-f2"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={form.level}
+                    onChange={(e) => setForm((s) => ({ ...s, level: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {"Higher rank = more senior. Rank alone grants any action at or below it."}
+                  </p>
                 </div>
               </div>
-              <div className="space-y-3 rounded-md border p-2.5">
-                {grouped.map((bucket) => (
-                  <div key={bucket.key} className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {L(CATEGORY_LABELS[bucket.key] || { en: bucket.key })}
-                    </p>
-                    <div className="grid sm:grid-cols-2 gap-1">
-                      {bucket.items.map((c) => (
-                        <label key={c.key} className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={!!form.capabilities[c.key]}
-                            onChange={() => toggleCap(c.key)}
-                            className="mt-0.5 h-4 w-4 rounded border-input"
-                          />
-                          <span className="text-sm leading-tight">
-                            {c.label}
-                            <span className="block text-xs text-muted-foreground">
-                              {"min rank"} {c.min_level}
-                            </span>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="role-f3">{"Description"}</Label>
+                <Textarea id="role-f3" rows={2} value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} />
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border p-2.5">
+                <span className="text-sm font-medium">{"Built-in role"}</span>
+                <Switch checked={form.is_system} onCheckedChange={(v) => setForm((s) => ({ ...s, is_system: v }))} />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>{"Admin actions"}</Label>
+                  <div className="flex gap-1">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setAll(true)}>{"Select all"}</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setAll(false)}>{"Clear"}</Button>
                   </div>
-                ))}
+                </div>
+                <div className="space-y-3 rounded-md border p-2.5">
+                  {grouped.map((bucket) => (
+                    <div key={bucket.key} className="space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {L(CATEGORY_LABELS[bucket.key] || { en: bucket.key })}
+                      </p>
+                      <div className="grid sm:grid-cols-2 gap-1">
+                        {bucket.items.map((c) => (
+                          <label key={c.key} className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!form.capabilities[c.key]}
+                              onChange={() => toggleCap(c.key)}
+                              className="mt-0.5 h-4 w-4 rounded border-input"
+                            />
+                            <span className="text-sm leading-tight">
+                              {c.label}
+                              <span className="block text-xs text-muted-foreground">
+                                {"min rank"} {c.min_level}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{"Cancel"}</Button></DialogClose>
-            <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{"Cancel"}</Button></DialogClose>
+              <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

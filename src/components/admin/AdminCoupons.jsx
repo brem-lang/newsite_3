@@ -4,10 +4,11 @@ import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogForm } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
@@ -123,50 +124,52 @@ export default function AdminCoupons() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editing ? t.admin.edit : t.admin.coupons.new}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>{t.admin.coupons.code}</Label>
-              <Input value={form.code} onChange={(e) => set("code", e.target.value)} placeholder="SUMMER20" className="font-mono uppercase" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          <DialogForm onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+            <DialogHeader><DialogTitle>{editing ? t.admin.edit : t.admin.coupons.new}</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-2">
               <div className="space-y-1.5">
-                <Label>{t.admin.coupons.type}</Label>
-                <select value={form.type} onChange={(e) => set("type", e.target.value)} className={inputCls}>
-                  <option value="percent">{t.admin.coupons.typePercent}</option>
-                  <option value="fixed">{t.admin.coupons.typeFixed}</option>
-                </select>
+                <Label htmlFor="coupon-f1">{t.admin.coupons.code}</Label>
+                <Input id="coupon-f1" value={form.code} onChange={(e) => set("code", e.target.value)} placeholder="SUMMER20" className="font-mono uppercase" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="coupon-f2">{t.admin.coupons.type}</Label>
+                  <select id="coupon-f2" value={form.type} onChange={(e) => set("type", e.target.value)} className={inputCls}>
+                    <option value="percent">{t.admin.coupons.typePercent}</option>
+                    <option value="fixed">{t.admin.coupons.typeFixed}</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="coupon-f3">{t.admin.coupons.value}</Label>
+                  <Input id="coupon-f3" type="number" value={form.value} onChange={(e) => set("value", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="coupon-f4">{t.admin.coupons.minAmount}</Label>
+                  <Input id="coupon-f4" type="number" value={form.min_amount} onChange={(e) => set("min_amount", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="coupon-f5">{t.admin.coupons.maxUses}</Label>
+                  <Input id="coupon-f5" type="number" value={form.max_uses} onChange={(e) => set("max_uses", e.target.value)} />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label htmlFor="coupon-f6">{t.admin.coupons.expiresAt}</Label>
+                  <Input id="coupon-f6" type="datetime-local" value={form.expires_at} onChange={(e) => set("expires_at", e.target.value)} />
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label>{t.admin.coupons.value}</Label>
-                <Input type="number" value={form.value} onChange={(e) => set("value", e.target.value)} />
+                <Label htmlFor="coupon-f7">{t.admin.categories.description}</Label>
+                <Textarea id="coupon-f7" rows={2} value={form.description} onChange={(e) => set("description", e.target.value)} />
               </div>
-              <div className="space-y-1.5">
-                <Label>{t.admin.coupons.minAmount}</Label>
-                <Input type="number" value={form.min_amount} onChange={(e) => set("min_amount", e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t.admin.coupons.maxUses}</Label>
-                <Input type="number" value={form.max_uses} onChange={(e) => set("max_uses", e.target.value)} />
-              </div>
-              <div className="space-y-1.5 col-span-2">
-                <Label>{t.admin.coupons.expiresAt}</Label>
-                <Input type="datetime-local" value={form.expires_at} onChange={(e) => set("expires_at", e.target.value)} />
+              <div className="flex items-center gap-2">
+                <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} />
+                <span className="text-sm">{t.admin.coupons.active}</span>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>{t.admin.categories.description}</Label>
-              <textarea rows={2} value={form.description} onChange={(e) => set("description", e.target.value)} className={inputCls} />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} />
-              <span className="text-sm">{t.admin.coupons.active}</span>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>{t.admin.cancel}</Button>
-            <Button onClick={handleSave}>{t.admin.save}</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>{t.admin.cancel}</Button>
+              <Button type="submit">{t.admin.save}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

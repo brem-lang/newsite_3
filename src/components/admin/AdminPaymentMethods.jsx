@@ -5,11 +5,12 @@ import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { cn } from "@/lib/utils";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm
 } from "@/components/ui/dialog";
 
 const COMMON = ["USD", "EUR", "GBP", "JOD", "SAR", "AED", "EGP", "QAR", "KWD", "BHD", "OMR"];
@@ -182,45 +183,46 @@ export default function AdminPaymentMethods() {
 
       <Dialog open={dialog} onOpenChange={setDialog}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{form.id ? t.admin.edit : m.addMethod}</DialogTitle></DialogHeader>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pe-1">
-            <Field label={m.methodName}>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={m.methodType}>
-                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                  {["live_gateway", "manual", "transfer", "cod"].map((tp) => <option key={tp} value={tp}>{typeLabel(tp)}</option>)}
-                </select>
+          <DialogForm onSubmit={(e) => { e.preventDefault(); save(); }}>
+            <DialogHeader><DialogTitle>{form.id ? t.admin.edit : m.addMethod}</DialogTitle></DialogHeader>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pe-1">
+              <Field label={m.methodName}>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </Field>
-              <Field label={m.methodProvider}>
-                <Input value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} placeholder="stripe, paypal…" disabled={form.type !== "live_gateway"} />
-              </Field>
-            </div>
-            <Field label={m.methodLogo}>
-              <Input value={form.logo} onChange={(e) => setForm({ ...form, logo: e.target.value })} placeholder="https://…" />
-            </Field>
-            <Field label={m.methodInstructions}>
-              <textarea value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px]" />
-            </Field>
-            {form.type === "live_gateway" && (
-              <div className="space-y-3 rounded-xl bg-muted/30 border border-border p-3">
-                <p className="text-xs font-semibold text-muted-foreground">{t.admin.payments.credentials}</p>
-                <Field label={m.methodSecret}><Input type="password" value={form.secret_key} onChange={(e) => setForm({ ...form, secret_key: e.target.value })} placeholder="sk_live_…" /></Field>
-                <Field label={m.methodPublishable}><Input value={form.publishable_key} onChange={(e) => setForm({ ...form, publishable_key: e.target.value })} placeholder="pk_live_…" /></Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={m.methodType}>
+                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                    {["live_gateway", "manual", "transfer", "cod"].map((tp) => <option key={tp} value={tp}>{typeLabel(tp)}</option>)}
+                  </select>
+                </Field>
+                <Field label={m.methodProvider}>
+                  <Input value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} placeholder="stripe, paypal…" disabled={form.type !== "live_gateway"} />
+                </Field>
               </div>
-            )}
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} className="w-4 h-4" />
-              {m.methodEnabled}
-            </label>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-            <Button onClick={save} disabled={busy}>{busy ? t.admin.saving : t.admin.save}</Button>
-          </DialogFooter>
+              <Field label={m.methodLogo}>
+                <Input value={form.logo} onChange={(e) => setForm({ ...form, logo: e.target.value })} placeholder="https://…" />
+              </Field>
+              <Field label={m.methodInstructions}>
+                <Textarea value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} />
+              </Field>
+              {form.type === "live_gateway" && (
+                <div className="space-y-3 rounded-xl bg-muted/30 border border-border p-3">
+                  <p className="text-xs font-semibold text-muted-foreground">{t.admin.payments.credentials}</p>
+                  <Field label={m.methodSecret}><Input type="password" value={form.secret_key} onChange={(e) => setForm({ ...form, secret_key: e.target.value })} placeholder="sk_live_…" /></Field>
+                  <Field label={m.methodPublishable}><Input value={form.publishable_key} onChange={(e) => setForm({ ...form, publishable_key: e.target.value })} placeholder="pk_live_…" /></Field>
+                </div>
+              )}
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} className="w-4 h-4" />
+                {m.methodEnabled}
+              </label>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+              <Button type="submit" disabled={busy}>{busy ? t.admin.saving : t.admin.save}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>
@@ -232,10 +234,5 @@ function emptyForm() {
 }
 
 function Field({ label, children }) {
-  return (
-    <div>
-      <Label className="text-xs">{label}</Label>
-      <div className="mt-1">{children}</div>
-    </div>
-  );
+  return <FormField label={label} className="space-y-1" labelClassName="text-xs">{children}</FormField>;
 }

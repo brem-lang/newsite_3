@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { base44 } from "@/api/base44Client";
@@ -38,15 +38,17 @@ export default function RefundRequestDialog({ transaction, open, onOpenChange, o
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>{t.refund.request}</DialogTitle></DialogHeader>
-        <div className="space-y-4 py-2">
-          <p className="text-sm text-muted-foreground">{t.common.currency}{Math.abs(transaction?.amount || 0).toFixed(2)}</p>
-          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t.refund.reason} rows={3} />
-        </div>
-        <DialogFooter>
-          <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-          <Button onClick={submit} disabled={busy}>{busy ? t.refund.submitting : t.refund.submit}</Button>
-        </DialogFooter>
+        <DialogForm onSubmit={(e) => { e.preventDefault(); submit(); }}>
+          <DialogHeader><DialogTitle>{t.refund.request}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">{t.common.currency}{Math.abs(transaction?.amount || 0).toFixed(2)}</p>
+            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t.refund.reason} rows={3} />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+            <Button type="submit" disabled={busy}>{busy ? t.refund.submitting : t.refund.submit}</Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

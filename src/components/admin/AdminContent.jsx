@@ -3,13 +3,13 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogForm } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 
-const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
 export default function AdminContent() {
   const { t } = useI18n();
@@ -116,28 +116,30 @@ export default function AdminContent() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editing ? t.admin.edit : t.admin.content.new}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>{t.admin.content.key}</Label>
-              <Input value={form.key} onChange={(e) => set("key", e.target.value)} disabled={!!editing} placeholder="hero_title" />
-              <p className="text-xs text-muted-foreground">{t.admin.content.keyHint}</p>
+          <DialogForm onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+            <DialogHeader>
+              <DialogTitle>{editing ? t.admin.edit : t.admin.content.new}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="content-f1">{t.admin.content.key}</Label>
+                <Input id="content-f1" value={form.key} onChange={(e) => set("key", e.target.value)} disabled={!!editing} placeholder="hero_title" />
+                <p className="text-xs text-muted-foreground">{t.admin.content.keyHint}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="content-f2">{t.admin.content.label}</Label>
+                <Input id="content-f2" value={form.label} onChange={(e) => set("label", e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="content-f3">{t.admin.content.value}</Label>
+                <Textarea id="content-f3" rows={3} value={form.value_en} onChange={(e) => set("value_en", e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>{t.admin.content.label}</Label>
-              <Input value={form.label} onChange={(e) => set("label", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t.admin.content.value}</Label>
-              <textarea rows={3} value={form.value_en} onChange={(e) => set("value_en", e.target.value)} className={inputCls} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>{t.admin.cancel}</Button>
-            <Button onClick={handleSave}>{t.admin.save}</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>{t.admin.cancel}</Button>
+              <Button type="submit">{t.admin.save}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

@@ -5,7 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -166,23 +166,25 @@ export default function AdminFulfilment() {
 
       <Dialog open={!!advance} onOpenChange={(o) => !o && setAdvance(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{t.admin.fulfilment.advance.replace("{status}", advance ? t.fulfilment.status[nextStatus(advance)] || "" : "")}</DialogTitle></DialogHeader>
-          {advance && advance.method === "shipping" && (
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs">{t.admin.fulfilment.carrierPrompt}</Label>
-                <Input value={form.carrier} onChange={(e) => setForm({ ...form, carrier: e.target.value })} className="mt-1" />
+          <DialogForm onSubmit={(e) => { e.preventDefault(); confirmAdvance(); }}>
+            <DialogHeader><DialogTitle>{t.admin.fulfilment.advance.replace("{status}", advance ? t.fulfilment.status[nextStatus(advance)] || "" : "")}</DialogTitle></DialogHeader>
+            {advance && advance.method === "shipping" && (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs" htmlFor="fulfilment-f1">{t.admin.fulfilment.carrierPrompt}</Label>
+                  <Input id="fulfilment-f1" value={form.carrier} onChange={(e) => setForm({ ...form, carrier: e.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs" htmlFor="fulfilment-f2">{t.admin.fulfilment.trackingPrompt}</Label>
+                  <Input id="fulfilment-f2" value={form.tracking_number} onChange={(e) => setForm({ ...form, tracking_number: e.target.value })} className="mt-1" />
+                </div>
               </div>
-              <div>
-                <Label className="text-xs">{t.admin.fulfilment.trackingPrompt}</Label>
-                <Input value={form.tracking_number} onChange={(e) => setForm({ ...form, tracking_number: e.target.value })} className="mt-1" />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-            <Button onClick={confirmAdvance} disabled={busy}>{busy ? t.admin.saving : t.admin.save}</Button>
-          </DialogFooter>
+            )}
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+              <Button type="submit" disabled={busy}>{busy ? t.admin.saving : t.admin.save}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

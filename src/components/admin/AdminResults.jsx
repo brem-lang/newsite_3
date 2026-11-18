@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -127,7 +128,7 @@ export default function AdminResults() {
             </div>
             <div>
               <Label className="text-xs">{t.admin.results.message}</Label>
-              <textarea value={msg.body} onChange={(e) => setMsg({ ...msg, body: e.target.value })} rows={5} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              <Textarea value={msg.body} onChange={(e) => setMsg({ ...msg, body: e.target.value })} rows={5} className="mt-1" />
             </div>
           </div>
           <DialogFooter className="flex gap-2">

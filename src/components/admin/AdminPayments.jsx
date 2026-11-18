@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm
 } from "@/components/ui/dialog";
 
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -271,33 +271,35 @@ export default function AdminPayments() {
 
       <Dialog open={dialog} onOpenChange={setDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t.admin.payments.manualTitle}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-xs">{t.admin.payments.user}</Label>
-              <select value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}
-                className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">—</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
-              </select>
+          <DialogForm onSubmit={(e) => { e.preventDefault(); apply(); }}>
+            <DialogHeader><DialogTitle>{t.admin.payments.manualTitle}</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs" htmlFor="payment-f1">{t.admin.payments.user}</Label>
+                <select id="payment-f1" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}
+                  className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="">—</option>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant={form.dir === "credit" ? "default" : "outline"} onClick={() => setForm({ ...form, dir: "credit" })} className="gap-2"><Plus className="w-4 h-4" />{t.admin.payments.credit}</Button>
+                <Button type="button" variant={form.dir === "debit" ? "destructive" : "outline"} onClick={() => setForm({ ...form, dir: "debit" })} className="gap-2"><Minus className="w-4 h-4" />{t.admin.payments.debit}</Button>
+              </div>
+              <div>
+                <Label className="text-xs" htmlFor="payment-f2">{t.admin.payments.amount}</Label>
+                <Input id="payment-f2" type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs" htmlFor="payment-f3">{t.admin.payments.reason}</Label>
+                <Input id="payment-f3" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} className="mt-1" placeholder={t.admin.payments.reason} />
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant={form.dir === "credit" ? "default" : "outline"} onClick={() => setForm({ ...form, dir: "credit" })} className="gap-2"><Plus className="w-4 h-4" />{t.admin.payments.credit}</Button>
-              <Button type="button" variant={form.dir === "debit" ? "destructive" : "outline"} onClick={() => setForm({ ...form, dir: "debit" })} className="gap-2"><Minus className="w-4 h-4" />{t.admin.payments.debit}</Button>
-            </div>
-            <div>
-              <Label className="text-xs">{t.admin.payments.amount}</Label>
-              <Input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">{t.admin.payments.reason}</Label>
-              <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} className="mt-1" placeholder={t.admin.payments.reason} />
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-            <Button onClick={apply} disabled={busy}>{busy ? t.admin.payments.applying : t.admin.payments.apply}</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+              <Button type="submit" disabled={busy}>{busy ? t.admin.payments.applying : t.admin.payments.apply}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

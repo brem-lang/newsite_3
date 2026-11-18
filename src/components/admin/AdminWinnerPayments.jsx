@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm
 } from "@/components/ui/dialog";
 
 const STATUSES = ["pending", "paid", "void"];
@@ -216,23 +216,25 @@ export default function AdminWinnerPayments() {
 
       <Dialog open={!!payDialog} onOpenChange={(o) => !o && setPayDialog(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t.admin.winnerPayments?.markPaid || "Mark as paid"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs">{t.admin.winnerPayments?.reference || "Reference"}</Label>
-              <Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} className="mt-1" />
+          <DialogForm onSubmit={(e) => { e.preventDefault(); confirmPaid(); }}>
+            <DialogHeader>
+              <DialogTitle>{t.admin.winnerPayments?.markPaid || "Mark as paid"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs" htmlFor="winner-pay-f1">{t.admin.winnerPayments?.reference || "Reference"}</Label>
+                <Input id="winner-pay-f1" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs" htmlFor="winner-pay-f2">{t.admin.winnerPayments?.note || "Note"}</Label>
+                <Input id="winner-pay-f2" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="mt-1" />
+              </div>
             </div>
-            <div>
-              <Label className="text-xs">{t.admin.winnerPayments?.note || "Note"}</Label>
-              <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="mt-1" />
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-            <Button onClick={confirmPaid} disabled={busy}>{t.admin.save || "Save"}</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+              <Button type="submit" disabled={busy}>{t.admin.save || "Save"}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

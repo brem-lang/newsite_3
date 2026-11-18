@@ -6,12 +6,13 @@ import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { sendEmail, sendWhatsApp, sendInApp } from "@/lib/messaging";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm
 } from "@/components/ui/dialog";
 import EditUserDialog from "@/components/admin/EditUserDialog";
 import PermissionsDialog from "@/components/admin/PermissionsDialog";
@@ -320,26 +321,28 @@ export default function AdminUsers() {
       {/* Invite dialog */}
       <Dialog open={invite} onOpenChange={setInvite}>
         <DialogContent>
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><UserPlus className="w-4 h-4" />{t.admin.users.invite}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs">{t.admin.users.inviteEmail}</Label>
-              <Input type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} className="mt-1" />
+          <DialogForm onSubmit={(e) => { e.preventDefault(); handleInvite(); }}>
+            <DialogHeader><DialogTitle className="flex items-center gap-2"><UserPlus className="w-4 h-4" />{t.admin.users.invite}</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs" htmlFor="user-f1">{t.admin.users.inviteEmail}</Label>
+                <Input id="user-f1" type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs" htmlFor="user-f2">{t.admin.users.inviteRole}</Label>
+                <select id="user-f2" value={inviteForm.role} onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                  className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="user">{t.admin.users.roleUser}</option>
+                  {isSuper && <option value="admin">{t.admin.users.roleAdmin}</option>}
+                </select>
+                {!isSuper && <p className="text-xs text-muted-foreground mt-1">{t.admin.users.roleSuperOnly}</p>}
+              </div>
             </div>
-            <div>
-              <Label className="text-xs">{t.admin.users.inviteRole}</Label>
-              <select value={inviteForm.role} onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
-                className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="user">{t.admin.users.roleUser}</option>
-                {isSuper && <option value="admin">{t.admin.users.roleAdmin}</option>}
-              </select>
-              {!isSuper && <p className="text-xs text-muted-foreground mt-1">{t.admin.users.roleSuperOnly}</p>}
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-            <Button onClick={handleInvite} disabled={busy}>{busy ? t.admin.users.inviting : t.admin.users.inviteSend}</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+              <Button type="submit" disabled={busy}>{busy ? t.admin.users.inviting : t.admin.users.inviteSend}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
 
@@ -350,12 +353,12 @@ export default function AdminUsers() {
           {contact && <p className="text-sm text-muted-foreground">{contact.full_name || contact.email}</p>}
           <div className="space-y-3">
             <div>
-              <Label className="text-xs">{t.admin.users.subject}</Label>
-              <Input value={msg.subject} onChange={(e) => setMsg({ ...msg, subject: e.target.value })} className="mt-1" />
+              <Label className="text-xs" htmlFor="user-f3">{t.admin.users.subject}</Label>
+              <Input id="user-f3" value={msg.subject} onChange={(e) => setMsg({ ...msg, subject: e.target.value })} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs">{t.admin.users.message}</Label>
-              <textarea value={msg.body} onChange={(e) => setMsg({ ...msg, body: e.target.value })} rows={5} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              <Label className="text-xs" htmlFor="user-f4">{t.admin.users.message}</Label>
+              <Textarea id="user-f4" value={msg.body} onChange={(e) => setMsg({ ...msg, body: e.target.value })} rows={5} className="mt-1" />
             </div>
           </div>
           <DialogFooter className="grid grid-cols-3 gap-2">
@@ -369,43 +372,47 @@ export default function AdminUsers() {
       {/* Phone edit dialog */}
       <Dialog open={!!phoneEdit} onOpenChange={(o) => !o && setPhoneEdit(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t.admin.users.editPhone}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs">{t.admin.users.phone}</Label>
-              <Input value={phoneValue} onChange={(e) => setPhoneValue(e.target.value)} placeholder="+962790000000" className="mt-1" />
+          <DialogForm onSubmit={(e) => { e.preventDefault(); savePhone(phoneEdit); }}>
+            <DialogHeader><DialogTitle>{t.admin.users.editPhone}</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs" htmlFor="user-f5">{t.admin.users.phone}</Label>
+                <Input id="user-f5" value={phoneValue} onChange={(e) => setPhoneValue(e.target.value)} placeholder="+962790000000" className="mt-1" />
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-            <Button onClick={() => savePhone(phoneEdit)}>{t.admin.users.savePhone}</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+              <Button type="submit">{t.admin.users.savePhone}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
 
       {/* Adjust balance dialog */}
       <Dialog open={!!balanceUser} onOpenChange={(o) => !o && setBalanceUser(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="w-4 h-4 text-success" />{"Adjust wallet balance"}</DialogTitle></DialogHeader>
-          {balanceUser && <p className="text-sm text-muted-foreground">{balanceUser.full_name || balanceUser.email}</p>}
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" size="sm" variant={balanceForm.dir === "credit" ? "default" : "outline"} onClick={() => setBalanceForm({ ...balanceForm, dir: "credit" })} className="gap-1.5"><Plus className="w-4 h-4" />{"Increase"}</Button>
-              <Button type="button" size="sm" variant={balanceForm.dir === "debit" ? "destructive" : "outline"} onClick={() => setBalanceForm({ ...balanceForm, dir: "debit" })} className="gap-1.5"><Minus className="w-4 h-4" />{"Decrease"}</Button>
+          <DialogForm onSubmit={(e) => { e.preventDefault(); applyAdjustment(); }}>
+            <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="w-4 h-4 text-success" />{"Adjust wallet balance"}</DialogTitle></DialogHeader>
+            {balanceUser && <p className="text-sm text-muted-foreground">{balanceUser.full_name || balanceUser.email}</p>}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" size="sm" variant={balanceForm.dir === "credit" ? "default" : "outline"} onClick={() => setBalanceForm({ ...balanceForm, dir: "credit" })} className="gap-1.5"><Plus className="w-4 h-4" />{"Increase"}</Button>
+                <Button type="button" size="sm" variant={balanceForm.dir === "debit" ? "destructive" : "outline"} onClick={() => setBalanceForm({ ...balanceForm, dir: "debit" })} className="gap-1.5"><Minus className="w-4 h-4" />{"Decrease"}</Button>
+              </div>
+              <div>
+                <Label className="text-xs" htmlFor="user-f6">{"Amount"}</Label>
+                <Input id="user-f6" type="number" min="0" step="0.01" value={balanceForm.amount} onChange={(e) => setBalanceForm({ ...balanceForm, amount: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs" htmlFor="user-f7">{"Reason"}</Label>
+                <Input id="user-f7" value={balanceForm.note} onChange={(e) => setBalanceForm({ ...balanceForm, note: e.target.value })} className="mt-1" />
+              </div>
             </div>
-            <div>
-              <Label className="text-xs">{"Amount"}</Label>
-              <Input type="number" min="0" step="0.01" value={balanceForm.amount} onChange={(e) => setBalanceForm({ ...balanceForm, amount: e.target.value })} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">{"Reason"}</Label>
-              <Input value={balanceForm.note} onChange={(e) => setBalanceForm({ ...balanceForm, note: e.target.value })} className="mt-1" />
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-            <Button onClick={applyAdjustment} disabled={busy}>{busy ? t.admin.saving : "Apply adjustment"}</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+              <Button type="submit" disabled={busy}>{busy ? t.admin.saving : "Apply adjustment"}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

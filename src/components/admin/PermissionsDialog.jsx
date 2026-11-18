@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -44,48 +44,50 @@ export default function PermissionsDialog({ user, open, onOpenChange, onSaved })
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{t.admin.permissions.title}</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-1">{t.admin.permissions.subtitle}</p>
-        <p className="text-sm font-medium">{user.full_name || user.email}</p>
-
-        <div className="space-y-3">
-          {CAPS.map((cap) => {
-            const cur = perms[cap] || "inherit";
-            return (
-              <div key={cap} className="rounded-xl border border-border p-3">
-                <p className="text-sm font-medium mb-2">{t.admin.permissions.caps[cap]}</p>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {STATES.map((s) => {
-                    const active = cur === s;
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => set(cap, s)}
-                        className={cn(
-                          "text-xs font-semibold rounded-lg px-2 py-1.5 border transition-colors",
-                          active
-                            ? s === "allow" ? "bg-success text-success-foreground border-success/40"
-                              : s === "deny" ? "bg-destructive text-destructive-foreground border-destructive/40"
-                              : "bg-secondary text-secondary-foreground border-secondary"
-                            : "bg-transparent text-muted-foreground border-input hover:bg-secondary/50"
-                        )}
-                      >
-                        {t.admin.permissions[s]}
-                      </button>
-                    );
-                  })}
+        <DialogForm onSubmit={(e) => { e.preventDefault(); save(); }}>
+          <DialogHeader><DialogTitle>{t.admin.permissions.title}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground -mt-1">{t.admin.permissions.subtitle}</p>
+          <p className="text-sm font-medium">{user.full_name || user.email}</p>
+  
+          <div className="space-y-3">
+            {CAPS.map((cap) => {
+              const cur = perms[cap] || "inherit";
+              return (
+                <div key={cap} className="rounded-xl border border-border p-3">
+                  <p className="text-sm font-medium mb-2">{t.admin.permissions.caps[cap]}</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {STATES.map((s) => {
+                      const active = cur === s;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => set(cap, s)}
+                          className={cn(
+                            "text-xs font-semibold rounded-lg px-2 py-1.5 border transition-colors",
+                            active
+                              ? s === "allow" ? "bg-success text-success-foreground border-success/40"
+                                : s === "deny" ? "bg-destructive text-destructive-foreground border-destructive/40"
+                                : "bg-secondary text-secondary-foreground border-secondary"
+                              : "bg-transparent text-muted-foreground border-input hover:bg-secondary/50"
+                          )}
+                        >
+                          {t.admin.permissions[s]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">{t.admin.permissions[`${cur}Hint`]}</p>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1.5">{t.admin.permissions[`${cur}Hint`]}</p>
-              </div>
-            );
-          })}
-        </div>
-
-        <DialogFooter>
-          <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-          <Button onClick={save} disabled={busy}>{busy ? t.admin.saving : t.admin.save}</Button>
-        </DialogFooter>
+              );
+            })}
+          </div>
+  
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+            <Button type="submit" disabled={busy}>{busy ? t.admin.saving : t.admin.save}</Button>
+          </DialogFooter>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );

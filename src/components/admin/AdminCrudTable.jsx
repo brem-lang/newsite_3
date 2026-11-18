@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -250,40 +250,42 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit" : L(addLabel)}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 max-h-[60vh] overflow-y-auto py-2">
-            {fields.map((f) => (
-              <div key={f.key} className="space-y-1.5">
-                {f.type !== "boolean" && <Label>{L(f.label)}{f.required && " *"}</Label>}
-                {f.type === "text" || f.type === "url" || !f.type ? (
-                  <Input value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
-                ) : f.type === "number" ? (
-                  <Input type="number" value={form[f.key] ?? 0} onChange={(e) => set(f.key, e.target.value)} />
-                ) : f.type === "textarea" || f.type === "json" ? (
-                  <Textarea rows={f.rows || 4} value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} className="font-mono" />
-                ) : f.type === "select" ? (
-                  <select
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                    value={form[f.key] ?? ""}
-                    onChange={(e) => set(f.key, e.target.value)}
-                  >
-                    {(f.options || []).map((o) => (<option key={o.value} value={o.value}>{L(o.label)}</option>))}
-                  </select>
-                ) : f.type === "boolean" ? (
-                  <div className="flex items-center gap-2">
-                    <Switch checked={!!form[f.key]} onCheckedChange={(v) => set(f.key, v)} />
-                    <Label>{L(f.label)}</Label>
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{"Cancel"}</Button></DialogClose>
-            <Button onClick={save} disabled={saving}>{"Save"}</Button>
-          </DialogFooter>
+          <DialogForm onSubmit={(e) => { e.preventDefault(); save(); }}>
+            <DialogHeader>
+              <DialogTitle>{editing ? "Edit" : L(addLabel)}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-3 max-h-[60vh] overflow-y-auto py-2">
+              {fields.map((f) => (
+                <div key={f.key} className="space-y-1.5">
+                  {f.type !== "boolean" && <Label>{L(f.label)}{f.required && " *"}</Label>}
+                  {f.type === "text" || f.type === "url" || !f.type ? (
+                    <Input value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
+                  ) : f.type === "number" ? (
+                    <Input type="number" value={form[f.key] ?? 0} onChange={(e) => set(f.key, e.target.value)} />
+                  ) : f.type === "textarea" || f.type === "json" ? (
+                    <Textarea rows={f.rows || 4} value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} className="font-mono" />
+                  ) : f.type === "select" ? (
+                    <select
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                      value={form[f.key] ?? ""}
+                      onChange={(e) => set(f.key, e.target.value)}
+                    >
+                      {(f.options || []).map((o) => (<option key={o.value} value={o.value}>{L(o.label)}</option>))}
+                    </select>
+                  ) : f.type === "boolean" ? (
+                    <div className="flex items-center gap-2">
+                      <Switch checked={!!form[f.key]} onCheckedChange={(v) => set(f.key, v)} />
+                      <Label>{L(f.label)}</Label>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{"Cancel"}</Button></DialogClose>
+              <Button type="submit" disabled={saving}>{"Save"}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

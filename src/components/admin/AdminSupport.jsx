@@ -3,6 +3,7 @@ import { LifeBuoy, Send, RotateCcw, CheckCircle2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
 const CAT_LABEL = (t, c) => ({
   general: t.admin.support.catGeneral, dispute: t.admin.support.catDispute,
@@ -151,7 +151,7 @@ export default function AdminSupport() {
               </div>
               <div className="space-y-1.5">
                 <Label>{t.admin.support.reply}</Label>
-                <textarea rows={4} value={reply} onChange={(e) => setReply(e.target.value)} className={inputCls} placeholder="Type your reply…" />
+                <Textarea rows={4} value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Type your reply…" />
               </div>
             </div>
           )}

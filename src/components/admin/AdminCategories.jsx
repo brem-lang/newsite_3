@@ -3,15 +3,15 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogForm } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
-const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 const slugify = (s) => s.toLowerCase().trim().replace(/[^\w\u0600-\u06FF\s-]/g, "").replace(/\s+/g, "-");
 
 export default function AdminCategories() {
@@ -102,48 +102,50 @@ export default function AdminCategories() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editing ? t.admin.edit : t.admin.categories.new}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>{t.admin.categories.name}</Label>
-                <Input value={form.name} onChange={(e) => set("name", e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t.admin.categories.slug}</Label>
-                <Input value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder="auto" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t.admin.categories.icon}</Label>
-                <Input value={form.icon} onChange={(e) => set("icon", e.target.value)} placeholder="🏆" className="text-lg" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t.admin.categories.color}</Label>
-                <div className="flex gap-2">
-                  <input type="color" value={form.color} onChange={(e) => set("color", e.target.value)} className="h-9 w-12 rounded-md border border-input bg-background cursor-pointer" />
-                  <Input value={form.color} onChange={(e) => set("color", e.target.value)} className="flex-1" />
+          <DialogForm onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+            <DialogHeader><DialogTitle>{editing ? t.admin.edit : t.admin.categories.new}</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="category-f1">{t.admin.categories.name}</Label>
+                  <Input id="category-f1" value={form.name} onChange={(e) => set("name", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="category-f2">{t.admin.categories.slug}</Label>
+                  <Input id="category-f2" value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder="auto" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="category-f3">{t.admin.categories.icon}</Label>
+                  <Input id="category-f3" value={form.icon} onChange={(e) => set("icon", e.target.value)} placeholder="🏆" className="text-lg" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="category-color">{t.admin.categories.color}</Label>
+                  <div className="flex gap-2">
+                    <input type="color" aria-label={t.admin.categories.color} value={form.color} onChange={(e) => set("color", e.target.value)} className="h-9 w-12 rounded-md border border-input bg-background cursor-pointer" />
+                    <Input id="category-color" value={form.color} onChange={(e) => set("color", e.target.value)} className="flex-1" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="category-f4">{t.admin.categories.sortOrder}</Label>
+                  <Input id="category-f4" type="number" value={form.sort_order} onChange={(e) => set("sort_order", e.target.value)} />
+                </div>
+                <div className="flex items-end pb-2">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} />
+                    <span className="text-sm">{t.admin.categories.active}</span>
+                  </div>
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>{t.admin.categories.sortOrder}</Label>
-                <Input type="number" value={form.sort_order} onChange={(e) => set("sort_order", e.target.value)} />
-              </div>
-              <div className="flex items-end pb-2">
-                <div className="flex items-center gap-2">
-                  <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} />
-                  <span className="text-sm">{t.admin.categories.active}</span>
-                </div>
+                <Label htmlFor="category-f5">{t.admin.categories.description}</Label>
+                <Textarea id="category-f5" rows={2} value={form.description} onChange={(e) => set("description", e.target.value)} />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>{t.admin.categories.description}</Label>
-              <textarea rows={2} value={form.description} onChange={(e) => set("description", e.target.value)} className={inputCls} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>{t.admin.cancel}</Button>
-            <Button onClick={handleSave}>{t.admin.save}</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>{t.admin.cancel}</Button>
+              <Button type="submit">{t.admin.save}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>

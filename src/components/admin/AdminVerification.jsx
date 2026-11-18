@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -155,15 +155,17 @@ export default function AdminVerification() {
 
       <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{t.admin.verification.reject}</DialogTitle></DialogHeader>
-          <div className="space-y-2">
-            <Label className="text-xs">{t.admin.verification.note}</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
-            <Button variant="destructive" onClick={confirmReject} disabled={!!busy}>{t.admin.verification.reject}</Button>
-          </DialogFooter>
+          <DialogForm onSubmit={(e) => { e.preventDefault(); confirmReject(); }}>
+            <DialogHeader><DialogTitle>{t.admin.verification.reject}</DialogTitle></DialogHeader>
+            <div className="space-y-2">
+              <Label className="text-xs" htmlFor="verify-reject-f1">{t.admin.verification.note}</Label>
+              <Input id="verify-reject-f1" value={note} onChange={(e) => setNote(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+              <Button variant="destructive" type="submit" disabled={!!busy}>{t.admin.verification.reject}</Button>
+            </DialogFooter>
+          </DialogForm>
         </DialogContent>
       </Dialog>
     </div>
