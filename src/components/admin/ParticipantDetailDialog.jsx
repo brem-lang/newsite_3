@@ -136,7 +136,7 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl" dir={dir}>
+      <DialogContent size="xl" dir={dir}>
         <Tabs defaultValue="overview" className="contents">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
@@ -261,11 +261,11 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
                   </div>
                   <div className="grid sm:grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-xs">{d.amount}</Label>
+                      <Label>{d.amount}</Label>
                       <Input type="number" min="0" step="0.01" value={adj.amount} onChange={(e) => setAdj({ ...adj, amount: e.target.value })} className="mt-1" />
                     </div>
                     <div>
-                      <Label className="text-xs">{d.reason}</Label>
+                      <Label>{d.reason}</Label>
                       <Input value={adj.reason} onChange={(e) => setAdj({ ...adj, reason: e.target.value })} className="mt-1" />
                     </div>
                   </div>

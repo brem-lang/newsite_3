@@ -165,17 +165,17 @@ export default function AdminFulfilment() {
       </div>
 
       <Dialog open={!!advance} onOpenChange={(o) => !o && setAdvance(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="sm">
           <DialogForm onSubmit={(e) => { e.preventDefault(); confirmAdvance(); }}>
             <DialogHeader><DialogTitle>{t.admin.fulfilment.advance.replace("{status}", advance ? t.fulfilment.status[nextStatus(advance)] || "" : "")}</DialogTitle></DialogHeader>
             {advance && advance.method === "shipping" && (
-              <div className="space-y-3">
+              <div className="grid gap-4">
                 <div>
-                  <Label className="text-xs" htmlFor="fulfilment-f1">{t.admin.fulfilment.carrierPrompt}</Label>
+                  <Label htmlFor="fulfilment-f1">{t.admin.fulfilment.carrierPrompt}</Label>
                   <Input id="fulfilment-f1" value={form.carrier} onChange={(e) => setForm({ ...form, carrier: e.target.value })} className="mt-1" />
                 </div>
                 <div>
-                  <Label className="text-xs" htmlFor="fulfilment-f2">{t.admin.fulfilment.trackingPrompt}</Label>
+                  <Label htmlFor="fulfilment-f2">{t.admin.fulfilment.trackingPrompt}</Label>
                   <Input id="fulfilment-f2" value={form.tracking_number} onChange={(e) => setForm({ ...form, tracking_number: e.target.value })} className="mt-1" />
                 </div>
               </div>

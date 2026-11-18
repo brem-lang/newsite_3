@@ -41,13 +41,13 @@ export default function ProfileSection({ user, compact = false }) {
       </div>
 
       <Dialog open={pwOpen} onOpenChange={setPwOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-primary" /> {p.security}
             </DialogTitle>
           </DialogHeader>
-          <ChangePassword user={user} />
+          <ChangePassword user={user} embedded />
         </DialogContent>
       </Dialog>
     </div>

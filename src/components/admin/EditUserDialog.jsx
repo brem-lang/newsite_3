@@ -51,13 +51,13 @@ export default function EditUserDialog({ user, actorIsSuper, open, onOpenChange,
       <DialogContent>
         <DialogForm onSubmit={(e) => { e.preventDefault(); save(); }}>
           <DialogHeader><DialogTitle className="flex items-center gap-2">{t.admin.users.editUser}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+          <div className="grid gap-4">
             <div>
-              <Label className="text-xs" htmlFor="edit-user-f1">{t.admin.users.name}</Label>
+              <Label htmlFor="edit-user-f1">{t.admin.users.name}</Label>
               <Input id="edit-user-f1" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs" htmlFor="edit-user-f2">{t.admin.users.verification}</Label>
+              <Label htmlFor="edit-user-f2">{t.admin.users.verification}</Label>
               <select id="edit-user-f2"
                 value={form.verification_status}
                 onChange={(e) => setForm({ ...form, verification_status: e.target.value })}
@@ -68,7 +68,7 @@ export default function EditUserDialog({ user, actorIsSuper, open, onOpenChange,
               </select>
             </div>
             <div>
-              <Label className="text-xs" htmlFor="edit-user-f3">{t.admin.users.role}</Label>
+              <Label htmlFor="edit-user-f3">{t.admin.users.role}</Label>
               <select id="edit-user-f3"
                 value={form.role}
                 disabled={!actorIsSuper}

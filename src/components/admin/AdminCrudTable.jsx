@@ -249,12 +249,12 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
 
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogForm onSubmit={(e) => { e.preventDefault(); save(); }}>
             <DialogHeader>
               <DialogTitle>{editing ? "Edit" : L(addLabel)}</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-3 max-h-[60vh] overflow-y-auto py-2">
+            <div className="grid gap-4">
               {fields.map((f) => (
                 <div key={f.key} className="space-y-1.5">
                   {f.type !== "boolean" && <Label>{L(f.label)}{f.required && " *"}</Label>}

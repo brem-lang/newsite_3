@@ -136,11 +136,11 @@ export default function AdminRefunds() {
       )}
 
       <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="sm">
           <DialogForm onSubmit={(e) => { e.preventDefault(); rejecting && decide(rejecting, "reject"); }}>
             <DialogHeader><DialogTitle>{t.admin.refunds.reject}</DialogTitle></DialogHeader>
-            <div className="space-y-2">
-              <Label className="text-xs" htmlFor="refund-reject-f1">{t.admin.refunds.colNote}</Label>
+            <div className="grid gap-1.5">
+              <Label htmlFor="refund-reject-f1">{t.admin.refunds.colNote}</Label>
               <Input id="refund-reject-f1" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
             <DialogFooter>

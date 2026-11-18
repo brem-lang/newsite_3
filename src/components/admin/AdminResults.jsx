@@ -12,7 +12,7 @@ import { sendEmail, sendWhatsApp } from "@/lib/messaging";
 import AuctionBidsLog from "@/components/admin/AuctionBidsLog";
 
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription
 } from "@/components/ui/dialog";
 
 export default function AdminResults() {
@@ -117,17 +117,19 @@ export default function AdminResults() {
 
       <Dialog open={!!contact} onOpenChange={(o) => !o && setContact(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Mail className="w-4 h-4" />{t.admin.results.contactTitle}</DialogTitle></DialogHeader>
-          {contact?.winner && (
-            <p className="text-sm text-muted-foreground">{contact.winner.full_name || contact.winner.email}{contact.winner.phone ? ` · ${contact.winner.phone}` : ""}</p>
-          )}
-          <div className="space-y-3">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Mail className="w-4 h-4" />{t.admin.results.contactTitle}</DialogTitle>
+            {contact?.winner && (
+              <DialogDescription>{contact.winner.full_name || contact.winner.email}{contact.winner.phone ? ` · ${contact.winner.phone}` : ""}</DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="grid gap-4">
             <div>
-              <Label className="text-xs">{t.admin.results.subject}</Label>
+              <Label>{t.admin.results.subject}</Label>
               <Input value={msg.subject} onChange={(e) => setMsg({ ...msg, subject: e.target.value })} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs">{t.admin.results.message}</Label>
+              <Label>{t.admin.results.message}</Label>
               <Textarea value={msg.body} onChange={(e) => setMsg({ ...msg, body: e.target.value })} rows={5} className="mt-1" />
             </div>
           </div>

@@ -134,14 +134,14 @@ export default function AdminSupport() {
       )}
 
       <Dialog open={!!active} onOpenChange={replyGuard.guard((o) => !o && setActive(null))}>
-        <DialogContent className="max-w-xl" onChange={replyGuard.markDirty}>
+        <DialogContent size="lg" onChange={replyGuard.markDirty}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <LifeBuoy className="w-4 h-4 text-primary" /> {active?.subject}
             </DialogTitle>
           </DialogHeader>
           {active && (
-            <div className="space-y-4 py-2">
+            <div className="grid gap-4">
               <div className="flex flex-wrap gap-2 text-xs">
                 <Badge variant="outline">{CAT_LABEL(t, active.category)}</Badge>
                 <Badge variant="outline" className={PRIO_CLS[active.priority]}>{PRIO_LABEL(t, active.priority)}</Badge>

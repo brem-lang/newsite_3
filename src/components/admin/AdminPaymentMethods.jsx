@@ -182,10 +182,10 @@ export default function AdminPaymentMethods() {
       )}
 
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogForm onSubmit={(e) => { e.preventDefault(); save(); }}>
             <DialogHeader><DialogTitle>{form.id ? t.admin.edit : m.addMethod}</DialogTitle></DialogHeader>
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pe-1">
+            <div className="grid gap-4">
               <Field label={m.methodName}>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </Field>

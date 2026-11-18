@@ -220,13 +220,13 @@ export default function AdminWinnerPayments() {
             <DialogHeader>
               <DialogTitle>{t.admin.winnerPayments?.markPaid || "Mark as paid"}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3">
+            <div className="grid gap-4">
               <div>
-                <Label className="text-xs" htmlFor="winner-pay-f1">{t.admin.winnerPayments?.reference || "Reference"}</Label>
+                <Label htmlFor="winner-pay-f1">{t.admin.winnerPayments?.reference || "Reference"}</Label>
                 <Input id="winner-pay-f1" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} className="mt-1" />
               </div>
               <div>
-                <Label className="text-xs" htmlFor="winner-pay-f2">{t.admin.winnerPayments?.note || "Note"}</Label>
+                <Label htmlFor="winner-pay-f2">{t.admin.winnerPayments?.note || "Note"}</Label>
                 <Input id="winner-pay-f2" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="mt-1" />
               </div>
             </div>

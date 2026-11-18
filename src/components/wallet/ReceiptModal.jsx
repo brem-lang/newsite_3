@@ -45,9 +45,9 @@ export default function ReceiptModal({ transaction, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent size="sm">
         <DialogHeader><DialogTitle>{t.receipt.title}</DialogTitle></DialogHeader>
-        <div className="space-y-3 py-2">
+        <div className="grid gap-3">
           <div className="flex items-center justify-between rounded-xl bg-secondary/50 px-4 py-3">
             <span className="text-xs font-bold tracking-wide text-primary uppercase">{t.receipt.title}</span>
             <span className="text-xs text-muted-foreground">{date}</span>

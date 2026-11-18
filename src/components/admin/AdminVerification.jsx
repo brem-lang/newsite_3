@@ -154,11 +154,11 @@ export default function AdminVerification() {
       )}
 
       <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="sm">
           <DialogForm onSubmit={(e) => { e.preventDefault(); confirmReject(); }}>
             <DialogHeader><DialogTitle>{t.admin.verification.reject}</DialogTitle></DialogHeader>
-            <div className="space-y-2">
-              <Label className="text-xs" htmlFor="verify-reject-f1">{t.admin.verification.note}</Label>
+            <div className="grid gap-1.5">
+              <Label htmlFor="verify-reject-f1">{t.admin.verification.note}</Label>
               <Input id="verify-reject-f1" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
             <DialogFooter>

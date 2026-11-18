@@ -250,12 +250,12 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
 
   return (
     <Dialog open={open} onOpenChange={guard(onOpenChange)}>
-      <DialogContent className="max-w-lg" onChange={markDirty}>
+      <DialogContent onChange={markDirty}>
         <DialogForm onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
           <DialogHeader>
             <DialogTitle>{isEdit ? t.admin.edit : t.admin.new}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="grid gap-4">
             <Section title={t.admin.fields.sectionBasics || "Basics"}>
             <Field label={t.admin.fields.title}>
               <Input value={form.title} onChange={(e) => set("title", e.target.value)} />

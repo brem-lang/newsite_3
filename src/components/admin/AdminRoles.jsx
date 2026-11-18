@@ -223,12 +223,12 @@ export default function AdminRoles() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent size="lg">
           <DialogForm onSubmit={(e) => { e.preventDefault(); save(); }}>
             <DialogHeader>
               <DialogTitle>{editing ? "Edit role" : "Add role"}</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-3 max-h-[64vh] overflow-y-auto py-2">
+            <div className="grid gap-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="role-f1">{"Name"} *</Label>

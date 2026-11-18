@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -29,6 +30,21 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+
+// Width scale for dialogs: sm = confirmations and single-field prompts,
+// md = standard forms (default), lg = wide forms/tables, xl = detail views.
+const dialogSizes = cva("", {
+  variants: {
+    size: {
+      sm: "max-w-md",
+      md: "max-w-lg",
+      lg: "max-w-2xl",
+      xl: "max-w-5xl",
+    },
+  },
+  defaultVariants: { size: "md" },
+});
+
 /*
  * Layout: the outer box is fixed and never taller than the visible viewport
  * (dvh, so mobile toolbars and the keyboard are respected). Children render in
@@ -38,14 +54,16 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
  */
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { scrollClassName?: string }
->(({ className, children, scrollClassName, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> &
+    VariantProps<typeof dialogSizes> & { scrollClassName?: string }
+>(({ className, children, scrollClassName, size, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        "fixed left-1/2 top-1/2 z-50 flex w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        dialogSizes({ size }),
         className,
       )}
       {...props}

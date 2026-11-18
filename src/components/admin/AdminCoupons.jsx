@@ -124,10 +124,10 @@ export default function AdminCoupons() {
       )}
 
       <Dialog open={open} onOpenChange={guard(setOpen)}>
-        <DialogContent className="max-w-lg" onChange={markDirty}>
+        <DialogContent onChange={markDirty}>
           <DialogForm onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
             <DialogHeader><DialogTitle>{editing ? t.admin.edit : t.admin.coupons.new}</DialogTitle></DialogHeader>
-            <div className="space-y-4 py-2">
+            <div className="grid gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="coupon-f1">{t.admin.coupons.code}</Label>
                 <Input id="coupon-f1" value={form.code} onChange={(e) => set("code", e.target.value)} placeholder="SUMMER20" className="font-mono uppercase" />

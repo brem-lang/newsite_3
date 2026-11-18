@@ -115,12 +115,12 @@ export default function AdminContent() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogForm onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
             <DialogHeader>
               <DialogTitle>{editing ? t.admin.edit : t.admin.content.new}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-2">
+            <div className="grid gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="content-f1">{t.admin.content.key}</Label>
                 <Input id="content-f1" value={form.key} onChange={(e) => set("key", e.target.value)} disabled={!!editing} placeholder="hero_title" />

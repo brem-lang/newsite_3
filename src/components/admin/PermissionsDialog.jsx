@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm, DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -45,8 +45,10 @@ export default function PermissionsDialog({ user, open, onOpenChange, onSaved })
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogForm onSubmit={(e) => { e.preventDefault(); save(); }}>
-          <DialogHeader><DialogTitle>{t.admin.permissions.title}</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground -mt-1">{t.admin.permissions.subtitle}</p>
+          <DialogHeader>
+            <DialogTitle>{t.admin.permissions.title}</DialogTitle>
+            <DialogDescription>{t.admin.permissions.subtitle}</DialogDescription>
+          </DialogHeader>
           <p className="text-sm font-medium">{user.full_name || user.email}</p>
   
           <div className="space-y-3">

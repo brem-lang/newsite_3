@@ -37,10 +37,10 @@ export default function RefundRequestDialog({ transaction, open, onOpenChange, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent size="sm">
         <DialogForm onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <DialogHeader><DialogTitle>{t.refund.request}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="grid gap-4">
             <p className="text-sm text-muted-foreground">{t.common.currency}{Math.abs(transaction?.amount || 0).toFixed(2)}</p>
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t.refund.reason} rows={3} />
           </div>

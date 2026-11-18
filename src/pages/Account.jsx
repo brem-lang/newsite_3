@@ -342,7 +342,7 @@ export default function Account() {
       )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="w-4 h-4 text-primary" /> {t.account.profile.editProfile}</DialogTitle>
           </DialogHeader>
@@ -351,7 +351,7 @@ export default function Account() {
       </Dialog>
 
       <Dialog open={pwOpen} onOpenChange={setPwOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><KeyRound className="w-4 h-4 text-primary" /> {t.account.profile.changePassword}</DialogTitle>
           </DialogHeader>
@@ -360,7 +360,7 @@ export default function Account() {
       </Dialog>
 
       <Dialog open={securityOpen} onOpenChange={setSecurityOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-primary" /> {t.account.profile.securitySettings}</DialogTitle>
           </DialogHeader>
