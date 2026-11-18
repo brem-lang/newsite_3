@@ -34,7 +34,7 @@ function download(name, text) {
 }
 
 export default function ParticipantDetailDialog({ participant, open, onOpenChange, onUpdate }) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const d = t.admin.participants.dialog;
   const [me, setMe] = useState(null);
   const [payload, setPayload] = useState(null);
