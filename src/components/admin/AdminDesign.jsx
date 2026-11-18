@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Palette, Check, RotateCcw, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
@@ -62,17 +62,20 @@ export default function AdminDesign() {
   const base = draft?.theme || published?.theme || DEFAULT_THEME;
   const [theme, setTheme] = useState(base);
   const [enabled, setEnabled] = useState(false);
+  const initialRef = useRef(null);
 
   useEffect(() => {
     if (!enabled && !loading) {
+      initialRef.current = JSON.stringify(base);
       setTheme(base);
       setEnabled(true);
     }
   }, [loading, enabled, base]);
 
-  // Debounced draft persistence (only after the working copy is initialized)
+  // Debounced draft persistence (only after the working copy is initialized
+  // and the admin has actually changed something)
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || JSON.stringify(theme) === initialRef.current) return;
     const id = setTimeout(() => saveDraft(theme), 700);
     return () => clearTimeout(id);
   }, [theme, enabled, saveDraft]);
@@ -99,7 +102,9 @@ export default function AdminDesign() {
   const onDiscard = async () => {
     if (!(await askConfirm({ title: t.admin.confirm.discardTitle, description: t.admin.design.discardConfirm, confirmLabel: t.admin.confirm.discardLabel, destructive: true }))) return;
     await discard();
-    setTheme(published?.theme || DEFAULT_THEME);
+    const reset = published?.theme || DEFAULT_THEME;
+    initialRef.current = JSON.stringify(reset); // don't immediately re-create the draft we just discarded
+    setTheme(reset);
     toast.success(t.admin.design.discarded);
   };
 

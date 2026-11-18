@@ -54,8 +54,21 @@ export function useSiteTheme() {
     load();
   }, [load]);
 
+  // Kept in refs (not state) so saveDraft's identity never changes. If it
+  // depended on `saving`, every save would recreate it, re-trigger the caller's
+  // debounce effect and save again — an endless PATCH /theme loop.
+  const savingRef = useRef(false);
+  const pendingRef = useRef(null);
+
   const saveDraft = useCallback(async (theme) => {
-    if (saving) return;
+    // Nothing changed since the last save: skip the request.
+    if (draftRef.current && JSON.stringify(draftRef.current.theme) === JSON.stringify(theme)) return;
+    // A save is already in flight: remember only the latest edit and send it after.
+    if (savingRef.current) {
+      pendingRef.current = theme;
+      return;
+    }
+    savingRef.current = true;
     setSaving(true);
     try {
       if (draftRef.current) {
@@ -68,11 +81,15 @@ export function useSiteTheme() {
         setDraft(created);
       }
     } catch (e) {
-      // ignore transient save errors; debounce will retry on next edit
+      // ignore transient save errors; the next edit will retry
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
-  }, [saving]);
+    const next = pendingRef.current;
+    pendingRef.current = null;
+    if (next) saveDraft(next);
+  }, []);
 
   const publish = useCallback(async (theme) => {
     setSaving(true);
