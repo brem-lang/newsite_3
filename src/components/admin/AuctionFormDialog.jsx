@@ -252,7 +252,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? t.admin.edit : t.admin.new}</DialogTitle>
         </DialogHeader>

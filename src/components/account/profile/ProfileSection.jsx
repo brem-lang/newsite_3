@@ -41,7 +41,7 @@ export default function ProfileSection({ user, compact = false }) {
       </div>
 
       <Dialog open={pwOpen} onOpenChange={setPwOpen}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-primary" /> {p.security}

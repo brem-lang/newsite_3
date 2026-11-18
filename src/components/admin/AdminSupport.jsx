@@ -132,7 +132,7 @@ export default function AdminSupport() {
       )}
 
       <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <LifeBuoy className="w-4 h-4 text-primary" /> {active?.subject}

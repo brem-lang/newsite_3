@@ -136,7 +136,8 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto" dir={dir}>
+      <DialogContent className="max-w-5xl" dir={dir}>
+        <Tabs defaultValue="overview" className="contents">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <div className="w-9 h-9 rounded-full bg-secondary grid place-items-center text-sm font-bold shrink-0">
@@ -156,14 +157,8 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
               </Button>
             </div>
           </DialogTitle>
-        </DialogHeader>
-
-        {loading && !payload ? (
-          <div className="h-56 grid place-items-center">
-            <div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" />
-          </div>
-        ) : (
-          <Tabs defaultValue="overview">
+          {/* Tab bar sits in the pinned header so it stays visible while a tab scrolls. */}
+          {!(loading && !payload) && (
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="overview" className="gap-1.5"><ShieldCheck className="w-4 h-4" />{d.tabOverview}</TabsTrigger>
               <TabsTrigger value="auctions" className="gap-1.5"><Gavel className="w-4 h-4" />{d.tabAuctions} ({rollups.length})</TabsTrigger>
@@ -171,7 +166,15 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
               <TabsTrigger value="payments" className="gap-1.5"><CreditCard className="w-4 h-4" />{d.tabPayments} ({txRows.length})</TabsTrigger>
               <TabsTrigger value="log" className="gap-1.5"><History className="w-4 h-4" />{d.tabLog} ({timeline.length})</TabsTrigger>
             </TabsList>
+          )}
+        </DialogHeader>
 
+        {loading && !payload ? (
+          <div className="h-56 grid place-items-center">
+            <div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" />
+          </div>
+        ) : (
+          <>
             {/* ---------------- Overview ---------------- */}
             <TabsContent value="overview" className="space-y-5 mt-4">
               <Section title={d.profile}>
@@ -290,8 +293,9 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
             <TabsContent value="log" className="mt-4">
               <LogTab items={timeline} d={d} currency={t.common.currency} />
             </TabsContent>
-          </Tabs>
+          </>
         )}
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

@@ -157,8 +157,8 @@ export default function LiveAuctionMonitor({ auction, users = {}, bids = [], cre
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
-        <SheetHeader className="p-5 pb-4 border-b border-border text-start">
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-3xl">
+        <SheetHeader className="shrink-0 p-5 pb-4 pe-12 border-b border-border text-start">
           <SheetTitle className="font-heading text-xl truncate">{auction.title}</SheetTitle>
           <SheetDescription className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1 font-semibold text-destructive">
@@ -171,7 +171,7 @@ export default function LiveAuctionMonitor({ auction, users = {}, bids = [], cre
           </SheetDescription>
         </SheetHeader>
 
-        <div className="p-5 space-y-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Stat icon={Users} label="Participants" value={`${s.seated} / ${s.seatTarget}`} hint={s.seated >= s.seatTarget ? "Minimum reached" : `${s.seatTarget - s.seated} more to close`} />
             <Stat icon={Gavel} label="Bids this round" value={s.live.length} hint={`${s.burnedNumbers.length} burned`} />

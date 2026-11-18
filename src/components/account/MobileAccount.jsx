@@ -104,7 +104,7 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
       </PullToRefresh>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t.account.profile.editProfile}</DialogTitle>
           </DialogHeader>
@@ -113,7 +113,7 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
       </Dialog>
 
       <Dialog open={pwOpen} onOpenChange={setPwOpen}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" />{t.account.profile.changePassword}</DialogTitle>
           </DialogHeader>
@@ -122,7 +122,7 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
       </Dialog>
 
       <Dialog open={securityOpen} onOpenChange={setSecurityOpen}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" />{t.account.profile.securitySettings}</DialogTitle>
           </DialogHeader>

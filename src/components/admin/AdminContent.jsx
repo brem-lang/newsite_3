@@ -115,7 +115,7 @@ export default function AdminContent() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? t.admin.edit : t.admin.content.new}</DialogTitle>
           </DialogHeader>
