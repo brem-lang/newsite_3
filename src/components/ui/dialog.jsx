@@ -18,26 +18,35 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props} />
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
+/*
+ * Layout: the outer box is fixed and never taller than the visible viewport
+ * (dvh, so mobile toolbars and the keyboard are respected). Children render in
+ * an inner scroller; DialogHeader and DialogFooter are sticky inside it, so the
+ * title and the action buttons stay visible while the body scrolls. The close
+ * button lives outside the scroller so it never scrolls away.
+ */
+const DialogContent = React.forwardRef(({ className, children, scrollClassName, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        "fixed left-1/2 top-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         className
       )}
       {...props}>
-      {children}
+      <div className={cn("grid min-h-0 flex-1 gap-4 overflow-y-auto overscroll-contain p-6", scrollClassName)}>
+        {children}
+      </div>
       <DialogPrimitive.Close
-        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+        className="absolute end-3 top-3 z-20 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/40 disabled:pointer-events-none cursor-pointer">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -46,22 +55,47 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
 ))
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
+// Sticky at the top of the scroller; end padding keeps titles clear of the X.
 const DialogHeader = ({
   className,
   ...props
 }) => (
   <div
-    className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)}
+    className={cn(
+      "sticky top-0 z-10 -mx-6 -mt-6 flex flex-col gap-1.5 bg-background px-6 pt-6 pb-2 pe-12 text-start",
+      className
+    )}
     {...props} />
 )
 DialogHeader.displayName = "DialogHeader"
 
+// Optional wrapper for the scrolling content between header and footer.
+const DialogBody = ({
+  className,
+  ...props
+}) => (
+  <div className={cn("grid gap-4", className)} {...props} />
+)
+DialogBody.displayName = "DialogBody"
+
+// Wraps header, body and footer in a real <form> so Enter submits and the
+// browser checks required/min/type. display: contents keeps the sticky
+// header/footer layout intact.
+const DialogForm = React.forwardRef(({ className, ...props }, ref) => (
+  <form ref={ref} className={cn("contents", className)} {...props} />
+))
+DialogForm.displayName = "DialogForm"
+
+// Sticky at the bottom of the scroller, so actions are always reachable.
 const DialogFooter = ({
   className,
   ...props
 }) => (
   <div
-    className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
+    className={cn(
+      "sticky bottom-0 z-10 -mx-6 -mb-6 flex flex-col-reverse gap-2 border-t border-border bg-background px-6 py-4 sm:flex-row sm:justify-end",
+      className
+    )}
     {...props} />
 )
 DialogFooter.displayName = "DialogFooter"
@@ -69,7 +103,7 @@ DialogFooter.displayName = "DialogFooter"
 const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
+    className={cn("text-lg font-semibold leading-tight tracking-tight", className)}
     {...props} />
 ))
 DialogTitle.displayName = DialogPrimitive.Title.displayName
@@ -90,6 +124,8 @@ export {
   DialogClose,
   DialogContent,
   DialogHeader,
+  DialogBody,
+  DialogForm,
   DialogFooter,
   DialogTitle,
   DialogDescription,
