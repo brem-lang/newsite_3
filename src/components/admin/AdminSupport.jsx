@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useDiscardGuard } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
 
@@ -28,6 +29,7 @@ export default function AdminSupport() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [active, setActive] = useState(null);
+  const replyGuard = useDiscardGuard(!!active);
   const [reply, setReply] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -131,8 +133,8 @@ export default function AdminSupport() {
         </div>
       )}
 
-      <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
-        <DialogContent className="max-w-xl">
+      <Dialog open={!!active} onOpenChange={replyGuard.guard((o) => !o && setActive(null))}>
+        <DialogContent className="max-w-xl" onChange={replyGuard.markDirty}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <LifeBuoy className="w-4 h-4 text-primary" /> {active?.subject}

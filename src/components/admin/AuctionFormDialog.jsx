@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { hoursToMinutes, minutesToHours, formatDuration } from "@/lib/auction";
 import ImagePicker from "@/components/admin/ImagePicker";
+import { useDiscardGuard } from "@/components/admin/ConfirmDialog";
 
 const inputCls = "w-full rounded-lg border border-accent/20 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
@@ -27,6 +28,7 @@ function Field({ label, children }) {
 
 export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved }) {
   const { t } = useI18n();
+  const { markDirty, guard } = useDiscardGuard(open);
   const isEdit = !!auction;
   const [form, setForm] = useState({
     title: "", description: "", image_url: "",
@@ -247,8 +249,8 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
   const paceBlocked = paceIssues.some((i) => i.level === "error");
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={guard(onOpenChange)}>
+      <DialogContent className="max-w-lg" onChange={markDirty}>
         <DialogForm onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
           <DialogHeader>
             <DialogTitle>{isEdit ? t.admin.edit : t.admin.new}</DialogTitle>
@@ -457,7 +459,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
             </Section>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>{t.admin.cancel}</Button>
+            <Button variant="outline" onClick={() => guard(onOpenChange)(false)}>{t.admin.cancel}</Button>
             <Button className="gold-button" type="submit" disabled={saving || paceBlocked}>{saving ? t.admin.saving : t.admin.save}</Button>
           </DialogFooter>
         </DialogForm>

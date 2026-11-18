@@ -539,7 +539,10 @@ const translations = {
         discardTitle: "Discard draft?",
         discardLabel: "Discard",
         restoreTitle: "Restore this version?",
-        restoreLabel: "Restore"
+        restoreLabel: "Restore",
+        discardChangesTitle: "Discard unsaved changes?",
+        discardChangesDesc: "You've made changes that haven't been saved. If you close now, they'll be lost.",
+        keepEditing: "Keep editing"
       },
       saved: "Auction saved",
       deleted: "Auction deleted",

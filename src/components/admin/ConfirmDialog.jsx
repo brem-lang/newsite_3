@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -64,6 +64,54 @@ export function ConfirmProvider({ children }) {
       </AlertDialog>
     </ConfirmContext.Provider>
   );
+}
+
+/**
+ * Asks before closing a dialog that has unsaved edits.
+ *
+ *   const { markDirty, guard } = useDiscardGuard(open);
+ *   <Dialog open={open} onOpenChange={guard(setOpen)}>
+ *     <DialogForm onChange={markDirty} …>
+ *     <Button onClick={() => guard(setOpen)(false)}>Cancel</Button>
+ *
+ * Any input/select/textarea change inside the dialog marks it dirty (React's
+ * onChange bubbles). Closing after a successful save should call the raw
+ * setter, so it never prompts.
+ */
+export function useDiscardGuard(open) {
+  const { t } = useI18n();
+  const askConfirm = useConfirm();
+  const dirty = useRef(false);
+
+  // Fresh state every time the dialog opens.
+  useEffect(() => {
+    if (open) dirty.current = false;
+  }, [open]);
+
+  const markDirty = useCallback(() => {
+    dirty.current = true;
+  }, []);
+
+  const guard = useCallback(
+    (setOpen) => async (next) => {
+      if (next || !dirty.current) return setOpen(next);
+      const c = t.admin.confirm;
+      const ok = await askConfirm({
+        title: c.discardChangesTitle,
+        description: c.discardChangesDesc,
+        confirmLabel: c.discardLabel,
+        cancelLabel: c.keepEditing,
+        destructive: true,
+      });
+      if (ok) {
+        dirty.current = false;
+        setOpen(false);
+      }
+    },
+    [askConfirm, t]
+  );
+
+  return { markDirty, guard };
 }
 
 export function useConfirm() {

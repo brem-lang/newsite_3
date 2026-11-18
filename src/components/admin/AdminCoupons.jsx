@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogForm } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useConfirm } from "@/components/admin/ConfirmDialog";
+import { useConfirm, useDiscardGuard } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
 const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
@@ -23,6 +23,7 @@ export default function AdminCoupons() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const { markDirty, guard } = useDiscardGuard(open);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ code: "", type: "percent", value: 10, min_amount: 0, max_uses: 100, active: true, expires_at: "", description: "" });
 
@@ -122,8 +123,8 @@ export default function AdminCoupons() {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={open} onOpenChange={guard(setOpen)}>
+        <DialogContent className="max-w-lg" onChange={markDirty}>
           <DialogForm onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
             <DialogHeader><DialogTitle>{editing ? t.admin.edit : t.admin.coupons.new}</DialogTitle></DialogHeader>
             <div className="space-y-4 py-2">
@@ -166,7 +167,7 @@ export default function AdminCoupons() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>{t.admin.cancel}</Button>
+              <Button variant="outline" onClick={() => guard(setOpen)(false)}>{t.admin.cancel}</Button>
               <Button type="submit">{t.admin.save}</Button>
             </DialogFooter>
           </DialogForm>

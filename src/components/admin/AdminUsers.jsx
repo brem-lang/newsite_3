@@ -5,6 +5,7 @@ import AdminPagination, { paginate } from "@/components/admin/AdminPagination";
 import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
+import { useDiscardGuard } from "@/components/admin/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ export default function AdminUsers() {
   const [inviteForm, setInviteForm] = useState({ email: "", role: "user" });
   const [busy, setBusy] = useState(false);
   const [contact, setContact] = useState(null);
+  const contactGuard = useDiscardGuard(!!contact);
   const [msg, setMsg] = useState({ subject: "", body: "" });
   const [phoneEdit, setPhoneEdit] = useState(null);
   const [phoneValue, setPhoneValue] = useState("");
@@ -347,8 +349,8 @@ export default function AdminUsers() {
       </Dialog>
 
       {/* Contact dialog */}
-      <Dialog open={!!contact} onOpenChange={(o) => !o && setContact(null)}>
-        <DialogContent>
+      <Dialog open={!!contact} onOpenChange={contactGuard.guard((o) => !o && setContact(null))}>
+        <DialogContent onChange={contactGuard.markDirty}>
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Mail className="w-4 h-4" />{t.admin.users.contactTitle}</DialogTitle></DialogHeader>
           {contact && <p className="text-sm text-muted-foreground">{contact.full_name || contact.email}</p>}
           <div className="space-y-3">
