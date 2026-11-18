@@ -42,11 +42,11 @@ const DialogContent = React.forwardRef(({ className, children, scrollClassName, 
         className
       )}
       {...props}>
-      <div className={cn("grid min-h-0 flex-1 gap-4 overflow-y-auto overscroll-contain p-6", scrollClassName)}>
+      <div className={cn("grid min-h-0 flex-1 gap-4 overflow-y-auto overscroll-contain px-6 py-6 has-[[data-slot=dialog-header]]:pt-0 has-[[data-slot=dialog-footer]]:pb-0", scrollClassName)}>
         {children}
       </div>
       <DialogPrimitive.Close
-        className="absolute end-3 top-3 z-20 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/40 disabled:pointer-events-none cursor-pointer">
+        className="absolute end-4 top-4 z-20 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/40 disabled:pointer-events-none cursor-pointer">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -61,8 +61,9 @@ const DialogHeader = ({
   ...props
 }) => (
   <div
+    data-slot="dialog-header"
     className={cn(
-      "sticky top-0 z-10 -mx-6 -mt-6 flex flex-col gap-1.5 bg-background px-6 pt-6 pb-2 pe-12 text-start",
+      "sticky top-0 z-10 -mx-6 flex flex-col gap-1.5 border-b border-border bg-background px-6 pt-5 pb-4 pe-14 text-start",
       className
     )}
     {...props} />
@@ -92,8 +93,9 @@ const DialogFooter = ({
   ...props
 }) => (
   <div
+    data-slot="dialog-footer"
     className={cn(
-      "sticky bottom-0 z-10 -mx-6 -mb-6 flex flex-col-reverse gap-2 border-t border-border bg-background px-6 py-4 sm:flex-row sm:justify-end",
+      "sticky bottom-0 z-10 -mx-6 flex flex-col-reverse gap-2 border-t border-border bg-background px-6 py-4 sm:flex-row sm:justify-end",
       className
     )}
     {...props} />
