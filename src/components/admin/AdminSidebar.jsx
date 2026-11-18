@@ -23,7 +23,7 @@ export default function AdminSidebar({ groups, basePath, active, activeGroup, on
           <p className="text-xs text-muted-foreground">{t.admin.panelTitle}</p>
         </div>
         {onClose && (
-          <Button variant="ghost" size="iconSm" onClick={onClose} aria-label={t.common.cancel}>
+          <Button variant="ghost" size="iconSm" onClick={onClose} aria-label={t.common.close}>
             <X className="w-4 h-4" />
           </Button>
         )}
