@@ -1,5 +1,5 @@
 import React from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 
 function dirX() {
@@ -22,13 +22,13 @@ export default function ActivityFeed({ bids, currentUserId, names = {} }) {
           ) : rows.map((b) => {
             const mine = b.user_id === currentUserId;
             return (
-              <motion.div key={b.id} layout initial={{ opacity: 0, x: dirX() }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-between p-4">
+              <m.div key={b.id} layout initial={{ opacity: 0, x: dirX() }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <span className={`w-2 h-2 rounded-full ${mine ? "bg-accent" : "bg-primary"}`} />
                   <span className={`text-sm ${mine ? "font-bold text-accent" : "text-muted-foreground"}`}>{mine ? t.auction.you : (names?.[b.user_id] || `User …${(b.user_id || "").slice(-4)}`)}</span>
                 </div>
                 <span className="font-bold tabular-nums text-primary">{t.common.currency}{Number(b.amount).toFixed(2)}</span>
-              </motion.div>
+              </m.div>
             );
           })}
         </AnimatePresence>

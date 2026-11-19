@@ -49,6 +49,26 @@ export default defineConfig({
     __SUPABASE_DEV_PROXY__: JSON.stringify(useDevProxy),
   },
   css: { transformer: "lightningcss" },
+  environments: {
+    client: {
+      build: {
+        rolldownOptions: {
+          output: {
+            // Stable vendor code in its own long-cached chunks, so an app deploy
+            // doesn't make returning visitors re-download React or Supabase.
+            codeSplitting: {
+              groups: [
+                { name: "vendor-react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/, priority: 30 },
+                // @supabase and @tanstack stay in the entry chunk: Rolldown keeps
+                // them there even when grouped (they're imported by the entry itself).
+                { name: "vendor-radix", test: /node_modules[\\/]@radix-ui[\\/]/, priority: 10 },
+              ],
+            },
+          },
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

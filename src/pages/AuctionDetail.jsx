@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrency, Money } from "@/lib/currency";
 import { effectiveStatus, timeRemaining, isSubscribed, formatDuration, formatCountdown, isClosestMode, validClosestAmount, closeQuota } from "@/lib/auction";
 import { useWallet } from "@/lib/useWallet";
+import { useNow, useRerenderAt } from "@/lib/useNow";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -47,7 +48,6 @@ export default function AuctionDetail() {
     enabled: !!id,
     staleTime: 10_000,
   });
-  const [now, setNow] = useState(Date.now());
   const [actionLoading, setActionLoading] = useState(false);
   const [bidAmount, setBidAmount] = useState(0);
   const [maxBid, setMaxBid] = useState(0);
@@ -138,10 +138,9 @@ export default function AuctionDetail() {
   useEffect(() => { if (auction?.id) loadBidState(); }, [auction?.id, auction?.mode, auction?.round, loadBidState]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
-  useEffect(() => {
-    const tick = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(tick);
-  }, []);
+  // The page only needs to re-render when a live auction's clock runs out (its
+  // status may flip). The per-second countdown lives in the leaf components.
+  useRerenderAt(auction?.status === "live" && auction?.end_time ? new Date(auction.end_time).getTime() : 0);
 
   // Lock page scroll while the no-scroll mobile console is shown.
   useEffect(() => {
@@ -163,9 +162,8 @@ export default function AuctionDetail() {
     setWatched((user?.watched_auction_ids || []).includes(id));
   }, [user, id]);
 
-  const status = effectiveStatus(auction, now);
+  const status = effectiveStatus(auction, Date.now());
   const subscribed = auction && isSubscribed(auction, user?.id);
-  const remaining = status === "live" ? timeRemaining(auction, now) : 0;
   const sealed = isClosestMode(auction);
   const nextBid = auction ? (auction.current_price || auction.start_price) + auction.bid_increment : 0;
   useEffect(() => { if (!sealed) setBidAmount(nextBid); }, [nextBid, sealed]);
@@ -459,7 +457,6 @@ export default function AuctionDetail() {
         bids={bids}
         user={user}
         status={status}
-        remaining={remaining}
         totalMs={totalMs}
         nextBid={nextBid}
         bidAmount={bidAmount}
@@ -517,7 +514,7 @@ export default function AuctionDetail() {
                   <Money amount={sealed ? (status === "ended" ? auction.current_price : auction.target_price) : auction.current_price} codeClassName="text-primary/60" />
                 </p>
               </div>
-              <CountdownRing remaining={remaining} total={totalMs} status={status} />
+              <LiveCountdownRing auction={auction} total={totalMs} status={status} />
             </div>
             <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
               <Stat icon={Users} label={t.auction.seats} value={`${filled}/${auction.max_subscribers}`} color="text-accent" />
@@ -682,6 +679,12 @@ function mergeBidEvent(prev = EMPTY, ev) {
   const next = [existing ? { ...existing, ...row } : row, ...without];
   next.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
   return next.slice(0, BID_PAGE);
+}
+
+/** The only part of the page that re-renders every second. */
+function LiveCountdownRing({ auction, total, status }) {
+  const now = useNow(status === "live");
+  return <CountdownRing remaining={status === "live" ? timeRemaining(auction, now) : 0} total={total} status={status} />;
 }
 
 function Stat({ icon: Icon, label, value, color }) {

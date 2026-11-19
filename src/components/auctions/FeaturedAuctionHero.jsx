@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useNow } from "@/lib/useNow";
 import { useNavigate } from "react-router-dom";
 import { Bot } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -16,11 +17,7 @@ export default function FeaturedAuctionHero({ auction }) {
   const pct = Math.min(100, Math.round((filled / max) * 100));
   const isLive = status === "live";
 
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useNow(isLive);
 
   const remaining = isLive && auction.end_time
     ? Math.max(0, new Date(auction.end_time).getTime() - now)

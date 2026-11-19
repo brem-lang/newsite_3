@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrency, Money } from "@/lib/currency";
 import { effectiveStatus, timeRemaining, formatCountdown, formatCountdownCompact, formatDuration, displayPrice, displayPriceKey } from "@/lib/auction";
 import { useAuctionCountdown } from "@/lib/useAuctionCountdown";
+import { useNow } from "@/lib/useNow";
 import { Image } from "@/components/ui/image";
 import { SlidersHorizontal, Check, Search } from "lucide-react";
 import BottomSheet from "@/components/ui/bottom-sheet";
@@ -16,17 +17,11 @@ import { Button } from "@/components/ui/button";
 const noScroll = "[&::-webkit-scrollbar]:hidden [scrollbar-width:none]";
 
 function FeaturedLiveStrip({ auction, symbol, t, arrowCls }) {
-  const [remaining, setRemaining] = useState(() => timeRemaining(auction));
-  useEffect(() => {
-    setRemaining(timeRemaining(auction));
-    const id = setInterval(() => setRemaining(timeRemaining(auction)), 1000);
-    return () => clearInterval(id);
-  }, [auction?.id, auction?.end_time, auction?.status]);
-
   const seats = auction.subscriber_ids?.length || 0;
   const max = auction.max_subscribers || 0;
   const pct = max ? Math.min(100, Math.round((seats / max) * 100)) : 0;
   const live = effectiveStatus(auction) === "live";
+  const remaining = timeRemaining(auction, useNow(live));
   const urgent = live && remaining > 0 && remaining < 60000;
 
   return (

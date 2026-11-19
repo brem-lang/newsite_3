@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from "react";
 import { Trophy } from "lucide-react";
-import confetti from "canvas-confetti";
 import { useI18n } from "@/lib/i18n";
 import { Image } from "@/components/ui/image";
 
@@ -12,13 +11,18 @@ export default function WinnerCelebration({ status, auction, userId }) {
   useEffect(() => {
     if (won && !fired.current) {
       fired.current = true;
-      const end = Date.now() + 2200;
-      (function frame() {
-        confetti({ particleCount: 4, angle: 60, spread: 70, origin: { x: 0 }, colors: ["#2563EB", "#F97316", "#16A34A"] });
-        confetti({ particleCount: 4, angle: 120, spread: 70, origin: { x: 1 }, colors: ["#2563EB", "#F97316", "#16A34A"] });
-        if (Date.now() < end) requestAnimationFrame(frame);
-      })();
-      confetti({ particleCount: 120, spread: 100, origin: { y: 0.6 }, colors: ["#2563EB", "#F97316", "#16A34A"] });
+      // Loaded only at the moment of a win, so it isn't in any page bundle.
+      import("canvas-confetti")
+        .then(({ default: confetti }) => {
+          const end = Date.now() + 2200;
+          (function frame() {
+            confetti({ particleCount: 4, angle: 60, spread: 70, origin: { x: 0 }, colors: ["#2563EB", "#F97316", "#16A34A"] });
+            confetti({ particleCount: 4, angle: 120, spread: 70, origin: { x: 1 }, colors: ["#2563EB", "#F97316", "#16A34A"] });
+            if (Date.now() < end) requestAnimationFrame(frame);
+          })();
+          confetti({ particleCount: 120, spread: 100, origin: { y: 0.6 }, colors: ["#2563EB", "#F97316", "#16A34A"] });
+        })
+        .catch(() => {});
     }
   }, [won]);
 

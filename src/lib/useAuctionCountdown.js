@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { effectiveStatus, timeRemaining } from "@/lib/auction";
+import { useNow } from "@/lib/useNow";
 
 /**
  * Ticking countdown for a single auction.
@@ -11,27 +11,15 @@ import { effectiveStatus, timeRemaining } from "@/lib/auction";
  * Cards use this to show a real-time countdown for live auctions, the
  * "Ended" label for ended ones, and the round length for open ones — instead
  * of always printing the raw duration_minutes.
+ *
+ * All cards share one clock (useNow), which pauses while the tab is hidden.
  */
 export function useAuctionCountdown(auction) {
-  const [remaining, setRemaining] = useState(() => timeRemaining(auction));
-
-  useEffect(() => {
-    setRemaining(timeRemaining(auction));
-    if (effectiveStatus(auction) !== "live") return;
-    const id = setInterval(() => setRemaining(timeRemaining(auction)), 1000);
-    return () => clearInterval(id);
-  }, [
-    auction?.id,
-    auction?.status,
-    auction?.end_time,
-    auction?.min_participants,
-    auction?.max_subscribers,
-    auction?.subscriber_ids,
-  ]);
-
+  const live = effectiveStatus(auction) === "live";
+  const now = useNow(live);
   return {
-    status: effectiveStatus(auction),
-    remaining,
+    status: effectiveStatus(auction, now),
+    remaining: timeRemaining(auction, now),
     durationMinutes: Number(auction?.duration_minutes || 0),
   };
 }

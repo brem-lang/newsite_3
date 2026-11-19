@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
+import { LazyMotion } from "framer-motion";
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/AuthContext";
@@ -136,11 +137,16 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// framer-motion's animation code loads after first paint; m.* components render
+// statically until it arrives.
+const loadMotionFeatures = () => import("@/lib/motion-features").then((mod) => mod.default);
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
+      <LazyMotion features={loadMotionFeatures}>
       <AuthProvider>
         <I18nProvider>
           <CurrencyProvider>
@@ -153,6 +159,7 @@ function RootComponent() {
           </CurrencyProvider>
         </I18nProvider>
       </AuthProvider>
+      </LazyMotion>
       <Toaster />
       <SonnerToaster position="top-center" richColors />
     </QueryClientProvider>

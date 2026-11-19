@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
-import { effectiveStatus, formatCountdownRing, timeRemaining } from "@/lib/auction";
+import { effectiveStatus } from "@/lib/auction";
+import LiveCountdown from "@/components/auction/LiveCountdown";
 import { selectHomeAuctions } from "@/lib/homeShowcase";
 import { Image } from "@/components/ui/image";
 import BottomNav from "@/components/BottomNav";
@@ -25,17 +26,11 @@ import { cn } from "@/lib/utils";
 
 export default function MobileHome({ auctions, loading, authed, userName, withNav = true }) {
   const { t, dir } = useI18n();
-  const [, tick] = useState(0);
   const [dbCategories, setDbCategories] = useState([]);
   const list = selectHomeAuctions(auctions);
   const featured = list[0];
   const trending = list.slice(1, 3);
   const ArrowIcon = ChevronRight;
-
-  useEffect(() => {
-    const id = window.setInterval(() => tick((value) => value + 1), 1000);
-    return () => window.clearInterval(id);
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -194,7 +189,7 @@ export default function MobileHome({ auctions, loading, authed, userName, withNa
                   <div className="p-2.5">
                     <span className="timer-glow inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-extrabold text-primary tabular-nums">
                       <Clock className="h-3 w-3" />
-                      {effectiveStatus(auction) === "live" ? formatCountdownRing(timeRemaining(auction)) : t.auction.statusOpen}
+                      <LiveCountdown auction={auction} fallback={t.auction.statusOpen} />
                     </span>
                     <p className="mt-1.5 truncate text-[11px] font-extrabold">{auction.title}</p>
                     <div className="mt-1 flex items-center justify-between gap-1">

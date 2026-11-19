@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   Users, Clock, TrendingUp, ArrowLeft, AlertTriangle, Zap,
   Heart, Share2, Plus, Minus, Trophy, X
@@ -9,7 +9,8 @@ import { Image } from "@/components/ui/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
-import { formatCountdown, formatCountdownCompact, formatDuration } from "@/lib/auction";
+import { formatCountdown, formatCountdownCompact, formatDuration, timeRemaining } from "@/lib/auction";
+import { useNow } from "@/lib/useNow";
 import MyBidsCard from "@/components/auction/MyBidsCard";
 import PullToRefresh from "@/components/PullToRefresh";
 import BottomSheet from "@/components/ui/bottom-sheet";
@@ -47,14 +48,14 @@ function MiniCountdown({ remaining, total, status, t, seatsFull = true }) {
   return (
      <div role="timer" aria-label={a11y} className="timer-glow min-w-0 rounded-lg px-3 py-2 text-center">
       <p className="text-[10px] font-bold uppercase text-muted-foreground">{t.auction.timeRemaining}</p>
-      <motion.p
+      <m.p
         aria-live="off"
         animate={urgent ? { opacity: [1, 0.55, 1] } : { opacity: 1 }}
         transition={urgent ? { duration: 1, repeat: Infinity } : { duration: 0.2 }}
          className={cn("mt-1 font-mono text-xl font-extrabold tabular-nums text-primary", urgent && "text-destructive")}
       >
         {text || (ended ? t.auction.statusEnded : t.auction.statusOpen)}
-      </motion.p>
+      </m.p>
       <span role="status" className={cn("mt-1 inline-flex items-center gap-1.5 text-[10px] font-bold", ended ? "text-muted-foreground" : idle ? "text-success" : urgent ? "text-destructive" : "text-primary")}>
         <span className="h-1.5 w-1.5 rounded-full bg-current" />{statusLabel}
       </span>
@@ -66,7 +67,10 @@ function MiniCountdown({ remaining, total, status, t, seatsFull = true }) {
 
 
 /** Screen 06 auction room clock: three gold-bordered segments. */
-function RoomCountdown({ remaining, status, t }) {
+function RoomCountdown({ auction, status, t }) {
+  // Reads the shared clock itself, so only this clock re-renders every second.
+  const now = useNow(status === "live");
+  const remaining = status === "live" ? timeRemaining(auction, now) : 0;
   const total = Math.max(0, Math.floor(remaining / 1000));
   const days = Math.floor(total / 86400);
   const hours = Math.floor((total % 86400) / 3600);
@@ -166,7 +170,7 @@ function StatCell({ icon: Icon, label, value }) {
 }
 
 export default function MobileAuctionDetail({
-  auction, bids, user, status, remaining, totalMs, nextBid,
+  auction, bids, user, status, totalMs, nextBid,
   bidAmount, setBidAmount, maxBid, setMaxBid, onBid, onJoin,
   actionLoading, subscribed, watched, onWatch, onShare, outbid,
   filled, seatsLeft, symbol, backTo, onRefresh, sealed: sealedProp, bidState,
@@ -291,7 +295,7 @@ export default function MobileAuctionDetail({
           </div>
 
           <div className="mt-3">
-            <RoomCountdown remaining={remaining} status={status} t={t} />
+            <RoomCountdown auction={auction} status={status} t={t} />
           </div>
 
           <div className="mt-4 flex items-end justify-between gap-3">
@@ -353,14 +357,14 @@ export default function MobileAuctionDetail({
               aria-valuetext={`${filled} / ${auction.max_subscribers}`}
               className="h-2.5 overflow-hidden rounded-full bg-muted"
             >
-              <motion.div
+              <m.div
                 className="relative h-full rounded-full bg-primary"
                 initial={false}
                 animate={{ width: `${auction.max_subscribers ? Math.min(100, (filled / auction.max_subscribers) * 100) : 0}%` }}
                 transition={{ type: "spring", stiffness: 120, damping: 20 }}
               >
                 {seatsLeft > 0 && (
-                  <motion.span
+                  <m.span
                     className="absolute inset-0 rounded-full bg-primary-foreground/25"
                     animate={{ x: ["-100%", "100%"] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
@@ -368,7 +372,7 @@ export default function MobileAuctionDetail({
                     aria-hidden="true"
                   />
                 )}
-              </motion.div>
+              </m.div>
             </div>
           </section>
           )}
@@ -430,12 +434,12 @@ export default function MobileAuctionDetail({
       {/* Claim overlay sheet (no page scroll) */}
       <AnimatePresence>
         {claimOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 z-50 bg-background/80 flex items-end"
             onClick={() => setClaimOpen(false)}
           >
-            <motion.div
+            <m.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 28, stiffness: 280 }}
               onClick={(e) => e.stopPropagation()}
               className="w-full max-h-[85%] bg-card rounded-t-3xl overflow-hidden flex flex-col border-t border-border"
@@ -449,8 +453,8 @@ export default function MobileAuctionDetail({
               <div className="overflow-y-auto p-4">
                 <WinnerClaim auction={auction} user={user} />
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
 
