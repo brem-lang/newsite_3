@@ -1,26 +1,23 @@
-# First Look Insights
+# Mazady
 
-check this and lets start here see what we have in this file
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://discover-the-code.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/be9c76bc-91e8-426a-984b-3a907668ef19).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+Auction web app: TanStack Start (static SPA) + Supabase.
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Requires Node.js and [Bun](https://bun.sh) (`bun.lock` is the lockfile).
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+bun install
+bun run dev      # http://localhost:8080
 ```
+
+Copy `.env.example` to `.env` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
+In development, Supabase calls are proxied through the dev server. Set `VITE_SUPABASE_DEV_PROXY=false` to call Supabase directly.
+
+## Build
+
+```sh
+bun run build    # static output in dist/client
+```
+
+`dist/client` can be served by any static host (Apache/cPanel).
