@@ -5,22 +5,26 @@ Source: `Optimization-Report.pdf` (19 Nov 2026, `main` @ `40b224e`). Section num
 **How to use:** tick a box when it's merged to `main`. Put the owner in `@name` and the PR number in `#123` after the item.
 Priority: 🔴 High · 🟠 Medium · 🟢 Low · ➖ Not applicable
 
-Work so far is on branch `perf/optimization` (not merged yet).
+## Status: main work done ✅
 
-## ⚠️ Before merging
+Merged to `main` in PR #1 and deployed (19 Nov 2026). Checked by the owner on the live site; working well.
+The top 5 actions from the report are live. Everything left below is optional.
 
-- [ ] **Apply the migration** `supabase/migrations/20261119000000_my_wallet_balance.sql` on the Supabase database. The app falls back to summing in the browser until it exists, so the order doesn't matter, but the balance bug is only fixed once it's applied.
-- [ ] **Test signed in** (couldn't be done during the work, no test account):
-  - [ ] Auction page: open the same auction in two browsers, place bids, check price, bid list, leaderboard and countdown update live in both
-  - [ ] Join an auction, then get outbid from another account → the "bid changed" toast still appears
-  - [ ] Wallet: deposit/charge shows up without reload; balance matches the Wallet page
-  - [ ] Notifications bell, auction chat and winner claim still update live
-  - [ ] Animations: activity feed, bottom sheet drag-to-dismiss, countdown ring
-  - [ ] Winning an auction still fires confetti
+### Still to confirm
+- [ ] **Wallet migration applied on production:** `supabase/migrations/20261119000000_my_wallet_balance.sql`. Without it the app falls back to summing in the browser, so it works, but balances are still wrong for users with more than 200 transactions.
+
+### Optional next steps (in order of value)
+1. [ ] Cache headers + compression in the server `.htaccess` (snippet under §3.10). ~5 min, returning visitors stop re-downloading files after each deploy
+2. [ ] Compress `public/icon-512.png` and the other icons (§3.10). ~5 min
+3. [ ] Auction page skeleton + prefetch on card hover/touch (§3.9). Feels faster to open
+4. [ ] Fewer columns for lists, database tuning (§3.7, §4). Only if auctions get busy or Supabase usage climbs
+5. [ ] Admin screens' realtime/timers, splitting the edge function (§3.1, §3.6, §3.11). Low impact
+
+Do these only if traffic grows or something feels slow.
 
 ## Baseline vs now
 
-| Metric | Baseline | Target | Now (branch) |
+| Metric | Baseline | Target | Now (live) |
 |---|---|---|---|
 | Main chunk `index-*.js` (gzip) | 227 KB (773 KB raw) | ≤ 120 KB | **161 KB** (556 KB raw) + React 59 KB and Radix 42 KB in separately cached chunks |
 | framer-motion on first load | 42 KB (`useSwipe` chunk) | lazy | **lazy** (`motion-features` chunk, after first paint) |
@@ -52,14 +56,14 @@ Work so far is on branch `perf/optimization` (not merged yet).
 ### 🔴 §3.4 Wallet balance in Postgres
 - [x] Migration `my_wallet_balance()`: sums the signed-in user's own rows (`auth.uid()`), no user-id argument so it can't read other wallets
 - [x] `useWallet` fetches only the balance; transactions only on Wallet and Dashboard (`useWallet(id, true)`)
-- [ ] Apply the migration (see top)
+- [ ] Apply the migration on production (see "Still to confirm" at the top)
 
 ### 🔴 Duplicate loads
 - [x] `AuctionDetail` no longer loads the auction twice on mount; `syncAuction` (every 15 s, skipped in hidden tabs) only triggers a reload when the server reports a status/end-time change
 
 ---
 
-## Week 2: Fetching layer (partly done)
+## Week 2: Fetching layer ✅ (core done; rest optional)
 
 ### 🔴 §3.3 React Query
 - [x] Wallet: one shared query for all 7 `useWallet` callers, 60 s safety poll, paused in background, refetch on focus
@@ -97,7 +101,7 @@ Work so far is on branch `perf/optimization` (not merged yet).
 
 ---
 
-## Week 4: Polish (partly done)
+## Week 4: Polish (partly done; rest optional)
 
 ### 🟠 §3.9 Auction page loading and first paint
 - [x] Removed the early `setLoading(false)`; the page waits for the auction query
@@ -152,6 +156,6 @@ Work so far is on branch `perf/optimization` (not merged yet).
 |---|---|---|---|---|---|
 | Baseline | ✅ | 227 KB | ~3 | not measured | |
 | Week 1 | ✅ | | 0 + 1 throttled | | filtered realtime, wallet RPC |
-| Week 2 | partial | | | | wallet/auction on React Query |
+| Week 2 | ✅ | | | | wallet/auction on React Query |
 | Week 3 | ✅ | 161 KB | | | + 59 KB React, 42 KB Radix cached separately |
-| Week 4 | partial | | | | |
+| Week 4 | partial (optional) | | | | |
