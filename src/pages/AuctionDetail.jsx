@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useOutletContext, Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Users, Clock, TrendingUp, ArrowLeft, AlertTriangle, Trophy, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
@@ -33,9 +34,19 @@ export default function AuctionDetail() {
   const { balance, refresh: refreshWallet } = useWallet(user?.id);
   const isMobile = useMediaQueryLess640();
 
-  const [auction, setAuction] = useState(null);
-  const [bids, setBids] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+  const { data: auction = null } = useQuery({
+    queryKey: ["auction", id],
+    queryFn: () => base44.entities.Auction.get(id),
+    enabled: !!id,
+    staleTime: 10_000,
+  });
+  const { data: bids = EMPTY } = useQuery({
+    queryKey: ["bids", id],
+    queryFn: () => base44.entities.Bid.filter({ auction_id: id, archived: false }, "-created_date", BID_PAGE),
+    enabled: !!id,
+    staleTime: 10_000,
+  });
   const [now, setNow] = useState(Date.now());
   const [actionLoading, setActionLoading] = useState(false);
   const [bidAmount, setBidAmount] = useState(0);
@@ -50,9 +61,9 @@ export default function AuctionDetail() {
   const hittingBid = useRef(false);
 
   const load = useCallback(() => {
-    base44.entities.Auction.get(id).then(setAuction);
-    base44.entities.Bid.filter({ auction_id: id, archived: false }, "-created_date", 50).then(setBids);
-  }, [id]);
+    qc.invalidateQueries({ queryKey: ["auction", id] });
+    qc.invalidateQueries({ queryKey: ["bids", id] });
+  }, [qc, id]);
 
   // Sealed mode: burned numbers + the caller's own numbers come from the server
   // (other participants' active numbers are never sent to the client).
@@ -63,26 +74,65 @@ export default function AuctionDetail() {
       .catch(() => {});
   }, [id]);
 
+  // Busy auctions produce many bid events per second; refresh the bid state at
+  // most once per window instead of once per bid.
+  const bidStateTimer = useRef(null);
+  const loadBidStateSoon = useCallback(() => {
+    if (bidStateTimer.current) return;
+    bidStateTimer.current = setTimeout(() => {
+      bidStateTimer.current = null;
+      loadBidState();
+    }, BID_STATE_THROTTLE_MS);
+  }, [loadBidState]);
+  useEffect(() => () => clearTimeout(bidStateTimer.current), []);
+
   // The auction clock lives in the database: ask the server to promote a due
   // auction to live (or settle an expired one) so bidding matches what is shown.
+  // Only re-read the auction when the server says its state actually changed;
+  // otherwise the realtime stream already has us up to date.
   const sync = useCallback(async () => {
     try {
-      await base44.functions.invoke("syncAuction", { auction_id: id });
-      load();
+      const res = await base44.functions.invoke("syncAuction", { auction_id: id });
+      const server = res?.data;
+      const cur = qc.getQueryData(["auction", id]);
+      if (!server || server.error || !cur) return;
+      const sameEnd = timeOrNull(server.end_time) === timeOrNull(cur.end_time);
+      if (server.status !== cur.status || !sameEnd) load();
     } catch {
       /* the countdown keeps rendering from the last known row */
     }
-  }, [id, load]);
+  }, [id, qc, load]);
+
+  // Pull-to-refresh (mobile): an explicit full reload.
+  const refreshAll = useCallback(async () => {
+    await sync();
+    load();
+    loadBidState();
+  }, [sync, load, loadBidState]);
 
   useEffect(() => {
-    load();
+    if (!id) return;
     sync();
-    setLoading(false);
-    const poll = setInterval(sync, 15000);
-    const u1 = base44.entities.Auction.subscribe((ev) => { if (ev.id === id) load(); });
-    const u2 = base44.entities.Bid.subscribe((ev) => { if (ev.data?.auction_id === id) { load(); loadBidState(); } });
+    const poll = setInterval(() => { if (!document.hidden) sync(); }, 15000);
+    // Only this auction's rows are streamed; each event is applied directly to
+    // the cached data instead of triggering a re-fetch.
+    const resync = () => { load(); loadBidState(); };
+    const u1 = base44.entities.Auction.subscribe(
+      (ev) => {
+        if (ev.type === "delete") return;
+        qc.setQueryData(["auction", id], (prev) => mergeKnownFields(prev, ev.data));
+      },
+      { filter: `id=eq.${id}`, onReconnect: resync },
+    );
+    const u2 = base44.entities.Bid.subscribe(
+      (ev) => {
+        qc.setQueryData(["bids", id], (prev) => mergeBidEvent(prev, ev));
+        loadBidStateSoon();
+      },
+      { filter: `auction_id=eq.${id}`, onReconnect: resync },
+    );
     return () => { clearInterval(poll); u1(); u2(); };
-  }, [load, sync, id, loadBidState]);
+  }, [id, qc, sync, load, loadBidState, loadBidStateSoon]);
 
   // Bid state also carries the pace-limit status, so load it for every mode.
   useEffect(() => { if (auction?.id) loadBidState(); }, [auction?.id, auction?.mode, auction?.round, loadBidState]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -108,9 +158,10 @@ export default function AuctionDetail() {
     };
   }, [isMobile]);
 
+  // The signed-in profile (from the layout) already carries the watch list.
   useEffect(() => {
-    base44.auth.me().then((u) => setWatched((u?.watched_auction_ids || []).includes(id))).catch(() => {});
-  }, [id]);
+    setWatched((user?.watched_auction_ids || []).includes(id));
+  }, [user, id]);
 
   const status = effectiveStatus(auction, now);
   const subscribed = auction && isSubscribed(auction, user?.id);
@@ -156,6 +207,7 @@ export default function AuctionDetail() {
       if (res.data?.error) { toast.error(errorKey(res.data.error)); return; }
       refreshWallet();
       load();
+      qc.invalidateQueries({ queryKey: ["myAuctions", user.id] });
       toast.success(t.auction.subscribed);
     } catch (e) {
       toast.error(e.message || "Error");
@@ -389,7 +441,7 @@ export default function AuctionDetail() {
     }
   };
 
-  if (loading || !auction) {
+  if (!auction) {
     return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
   }
 
@@ -433,7 +485,7 @@ export default function AuctionDetail() {
         backTo="/auctions"
         t={t}
         dir={dir}
-        onRefresh={sync}
+        onRefresh={refreshAll}
       />
     );
   }
@@ -599,6 +651,37 @@ export default function AuctionDetail() {
       )}
     </div>
   );
+}
+
+const EMPTY = [];
+const BID_PAGE = 50;
+const BID_STATE_THROTTLE_MS = 1500;
+
+const timeOrNull = (v) => (v ? new Date(v).getTime() : null);
+
+/**
+ * Update the cached auction from a realtime row. Only fields the cached row
+ * already has are taken, so the stream never adds columns this visitor's own
+ * read didn't include; columns missing from the event (e.g. unchanged large
+ * values) keep their cached value.
+ */
+function mergeKnownFields(prev, row) {
+  if (!prev || !row) return prev;
+  const next = { ...prev };
+  for (const key of Object.keys(row)) if (key in prev) next[key] = row[key];
+  return next;
+}
+
+/** Apply one realtime bid event to the cached list (newest first, capped). */
+function mergeBidEvent(prev = EMPTY, ev) {
+  const row = ev.data || {};
+  if (!row.id) return prev;
+  const without = prev.filter((b) => b.id !== row.id);
+  if (ev.type === "delete" || row.archived) return without;
+  const existing = prev.find((b) => b.id === row.id);
+  const next = [existing ? { ...existing, ...row } : row, ...without];
+  next.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
+  return next.slice(0, BID_PAGE);
 }
 
 function Stat({ icon: Icon, label, value, color }) {

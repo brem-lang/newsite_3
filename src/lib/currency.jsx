@@ -28,7 +28,14 @@ export function CurrencyProvider({ children }) {
         })
         .catch(() => {});
     read();
-    const unsub = base44.entities.SiteSettings.subscribe(() => read());
+    // A settings change carries the new row: read the currency straight from it.
+    const unsub = base44.entities.SiteSettings.subscribe(
+      ({ data }) => {
+        const isGlobal = data?.key === "global" || !data?.key;
+        if (isGlobal && data?.active_currency && active) setCode(data.active_currency);
+      },
+      { onReconnect: read },
+    );
     return () => { active = false; try { if (typeof unsub === "function") unsub(); } catch (_) {} };
   }, []);
 

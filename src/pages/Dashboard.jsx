@@ -22,7 +22,7 @@ import { useIsMobileView } from "@/lib/useIsMobileView";
 export default function Dashboard() {
   const { t, dir } = useI18n();
   const { user } = useOutletContext();
-  const { balance, transactions, loading: walletLoading } = useWallet(user?.id);
+  const { balance, transactions, loading: walletLoading } = useWallet(user?.id, true);
   const isMobile = useIsMobileView();
 
   const [auctions, setAuctions] = useState([]);

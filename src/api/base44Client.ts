@@ -61,6 +61,29 @@ const TABLES: Record<string, string> = {
 const db = (): any =>
   typeof window !== "undefined" && window.location.pathname.startsWith("/admin") ? supabaseAdmin : supabase;
 
+/**
+ * Whether `client` has a session. Kept in memory from auth events so data reads
+ * don't each pay a getSession() call; falls back to asking until the first
+ * event has arrived.
+ */
+const sessionState = new Map<unknown, { known: boolean; signedIn: boolean }>();
+
+async function hasSession(client: Row): Promise<boolean> {
+  let state = sessionState.get(client);
+  if (!state) {
+    const created = { known: false, signedIn: false };
+    sessionState.set(client, created);
+    client.auth.onAuthStateChange((_event: string, session: Row) => {
+      created.known = true;
+      created.signedIn = !!session;
+    });
+    state = created;
+  }
+  if (state.known) return state.signedIn;
+  const { data } = await client.auth.getSession();
+  return !!data?.session;
+}
+
 /** "-created_date" -> desc, "display_order" -> asc, "" -> no ordering */
 function applySort(query: any, sort?: string | number, limit?: number) {
   // list(sort, limit) but some call sites do list(limit)
@@ -144,15 +167,13 @@ function makeEntity(name: string) {
    */
   async function source() {
     if (!isAuction) return table;
-    const { data } = await db().auth.getSession();
-    return data?.session ? "auctions" : "auctions_public";
+    return (await hasSession(db())) ? "auctions" : "auctions_public";
   }
 
   /** True when the table needs a session the visitor does not have. */
   async function readBlocked() {
     if (!isBid) return false;
-    const { data } = await db().auth.getSession();
-    return !data?.session;
+    return !(await hasSession(db()));
   }
 
   const finish = async (rows: Row[]) => {
@@ -180,6 +201,14 @@ function makeEntity(name: string) {
     async listFields(fields: string, sort?: string | number, limit?: number) {
       if (await readBlocked()) return [] as Row[];
       const { data, error } = await applySort(db().from(await source()).select(fields), sort, limit);
+      if (error) throw error;
+      return (data || []) as Row[];
+    },
+    /** Same as filter() but transfers only the named columns. */
+    async filterFields(fields: string, where: Row = {}, sort?: string | number, limit?: number) {
+      if (await readBlocked()) return [] as Row[];
+      const query = applyWhere(db().from(await source()).select(fields), where);
+      const { data, error } = await applySort(query, sort, limit);
       if (error) throw error;
       return (data || []) as Row[];
     },
@@ -251,23 +280,76 @@ function makeEntity(name: string) {
       clearReadCache(table);
       return { ok: true };
     },
-    /** Realtime: cb({ id, data, event, type }) — returns an unsubscribe function. */
-    subscribe(cb: (event: { id?: string; data: Row; event: string; type: string }) => void) {
-      const TYPES: Record<string, string> = { INSERT: "create", UPDATE: "update", DELETE: "delete" };
-      const client = db();
-      const channel = client
-        .channel(`rt-${table}-${Math.random().toString(36).slice(2)}`)
-        .on("postgres_changes", { event: "*", schema: "public", table }, (payload: Row) => {
+    /**
+     * Realtime: cb({ id, data, event, type }) — returns an unsubscribe function.
+     *
+     * opts.filter narrows the stream on the server (Supabase syntax, one column:
+     * `auction_id=eq.<id>`, `id=in.(a,b)`), so the browser only receives the rows
+     * it shows. opts.onReconnect runs when a dropped channel comes back, which is
+     * the moment to re-fetch anything that may have been missed.
+     *
+     * Subscribers with the same table + filter share one channel.
+     */
+    subscribe(
+      cb: (event: { id?: string; data: Row; event: string; type: string }) => void,
+      opts: { filter?: string; onReconnect?: () => void } = {},
+    ) {
+      return subscribeShared(db(), table, opts.filter, { cb, onReconnect: opts.onReconnect });
+    },
+  };
+}
+
+/* ------------------------------- realtime ------------------------------- */
+
+type RealtimeEvent = { id?: string; data: Row; event: string; type: string };
+type Listener = { cb: (event: RealtimeEvent) => void; onReconnect?: (() => void) | undefined };
+type SharedChannel = { listeners: Set<Listener>; channel: Row; client: Row; joined: boolean; dropped: boolean };
+
+const REALTIME_TYPES: Record<string, string> = { INSERT: "create", UPDATE: "update", DELETE: "delete" };
+const sharedChannels = new Map<string, SharedChannel>();
+
+function subscribeShared(client: Row, table: string, filter: string | undefined, listener: Listener) {
+  const area = client === supabaseAdmin ? "admin" : "site";
+  const key = `${area}|${table}|${filter || "*"}`;
+  let entry = sharedChannels.get(key);
+
+  if (!entry) {
+    const created: SharedChannel = { listeners: new Set(), channel: null, client, joined: false, dropped: false };
+    created.channel = client
+      .channel(`rt:${key}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table, ...(filter ? { filter } : {}) },
+        (payload: Row) => {
           const row = payload.new && Object.keys(payload.new).length ? payload.new : payload.old;
           const evt = String(payload.eventType || payload.type || "");
           clearReadCache(table);
-          cb({ id: row?.id, data: row || {}, event: evt, type: TYPES[evt] || evt.toLowerCase() });
-        })
-        .subscribe();
-      return () => {
-        client.removeChannel(channel);
-      };
-    },
+          const event = { id: row?.id, data: row || {}, event: evt, type: REALTIME_TYPES[evt] || evt.toLowerCase() };
+          for (const l of created.listeners) l.cb(event);
+        },
+      )
+      .subscribe((status: string) => {
+        if (status === "SUBSCRIBED") {
+          // First join is the normal start; a later one means we were cut off.
+          if (created.joined && created.dropped) for (const l of created.listeners) l.onReconnect?.();
+          created.joined = true;
+          created.dropped = false;
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          created.dropped = true;
+        }
+      });
+    sharedChannels.set(key, created);
+    entry = created;
+  }
+
+  entry.listeners.add(listener);
+  const owned = entry;
+  return () => {
+    owned.listeners.delete(listener);
+    if (owned.listeners.size === 0 && sharedChannels.get(key) === owned) {
+      sharedChannels.delete(key);
+      owned.client.removeChannel(owned.channel);
+    }
   };
 }
 
@@ -536,11 +618,19 @@ const functions = {
   },
 };
 
+/** Call a Postgres function directly (row-level security applies). */
+async function rpc(name: string, args: Row = {}) {
+  const { data, error } = await db().rpc(name, args);
+  if (error) throw error;
+  return data;
+}
+
 export const base44 = {
   entities,
   auth,
   adminAuth,
   functions,
+  rpc,
   users: {
     async inviteUser(email: string, role?: string) {
       const res = await functions.invoke("inviteUser", { email, role });

@@ -14,8 +14,20 @@ export function useContent() {
 
   useEffect(() => {
     load();
-    const unsub = base44.entities.Content.subscribe(() => load());
-    return unsub;
+    // Apply the changed row instead of re-reading every content record.
+    return base44.entities.Content.subscribe(
+      (ev) => {
+        const row = ev.data || {};
+        if (!row.id) return;
+        setContent((list) => {
+          const rest = list.filter((c) => c.id !== row.id);
+          if (ev.type === "delete") return rest;
+          const existing = list.find((c) => c.id === row.id);
+          return existing ? list.map((c) => (c.id === row.id ? { ...c, ...row } : c)) : [...rest, row];
+        });
+      },
+      { onReconnect: load },
+    );
   }, [load]);
 
   return { content, loading };

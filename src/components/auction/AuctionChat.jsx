@@ -21,10 +21,20 @@ export default function AuctionChat({ auctionId, user }) {
 
   useEffect(() => {
     load();
-    const unsub = base44.entities.AuctionMessage.subscribe((ev) => {
-      if (ev.type === "create" && ev.data?.auction_id === auctionId) load();
-    });
-    return unsub;
+    // Only this auction's messages are streamed; append each new one.
+    return base44.entities.AuctionMessage.subscribe(
+      (ev) => {
+        const m = ev.data;
+        if (!m?.id) return;
+        setMessages((list) => {
+          const rest = list.filter((x) => x.id !== m.id);
+          if (ev.type === "delete") return rest;
+          const existing = list.find((x) => x.id === m.id);
+          return existing ? list.map((x) => (x.id === m.id ? { ...x, ...m } : x)) : [...rest, m].slice(-50);
+        });
+      },
+      { filter: `auction_id=eq.${auctionId}`, onReconnect: load },
+    );
   }, [auctionId]);
 
   useEffect(() => {
