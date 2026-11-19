@@ -33,10 +33,12 @@ export default function WinnerClaim({ auction, user }) {
       .invoke("winnerPayment", { auction_id: auction.id })
       .then((res) => setPayment(res.data?.payment || null))
       .catch(() => {});
-    const u = base44.entities.Fulfilment.subscribe((ev) => {
-      if (ev.data?.auction_id === auction.id && ev.data?.winner_id === user.id) load();
-    });
-    return u;
+    return base44.entities.Fulfilment.subscribe(
+      (ev) => {
+        if (ev.data?.winner_id === user.id) load();
+      },
+      { filter: `auction_id=eq.${auction.id}`, onReconnect: load },
+    );
   }, [auction?.id, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!auction || !user || auction.winner_id !== user.id) return null;

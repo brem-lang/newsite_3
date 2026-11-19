@@ -1,19 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Flame, Gavel, Users } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Image } from "@/components/ui/image";
-import { effectiveStatus, timeRemaining, formatCountdownRing } from "@/lib/auction";
+import { effectiveStatus } from "@/lib/auction";
+import LiveCountdown from "@/components/auction/LiveCountdown";
 
 /** Horizontal snap carousel of live/open auctions — app-store style shelf. */
 export default function LiveCarousel({ title, auctions = [], loading, to = "/auctions", emptyLabel }) {
   const { t } = useI18n();
-  const [, tick] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   return (
     <section className="min-w-0">
@@ -57,7 +52,7 @@ export default function LiveCarousel({ title, auctions = [], loading, to = "/auc
                     {st === "live" ? <Flame className="w-3 h-3 text-destructive-foreground" /> : null}
                     {st === "live" ? t.auction.statusLive : t.auction.statusOpen}
                   </span>
-                  <span className="timer-glow absolute top-3 right-3 rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold text-primary tabular-nums backdrop-blur">{st === "live" ? formatCountdownRing(timeRemaining(a)) : t.auction.statusOpen}</span>
+                  <span className="timer-glow absolute top-3 right-3 rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold text-primary tabular-nums backdrop-blur"><LiveCountdown auction={a} fallback={t.auction.statusOpen} /></span>
                 </div>
                  <div className="relative -mt-5 p-4 pt-0">
                   <p className="line-clamp-1 text-[15px] font-extrabold text-foreground">{a.title}</p>

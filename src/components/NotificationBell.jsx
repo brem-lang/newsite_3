@@ -21,10 +21,18 @@ export default function NotificationBell() {
       .filter({ channel: "inapp", user_id: user.id, read: false }, "-created_date", 20)
       .then((list) => setItems((list || []).filter((n) => n.type !== "chat"))).catch(() => {});
     load();
-    const unsub = base44.entities.Notification.subscribe((ev) => {
-      if (ev.type === "create") load();
-    });
-    return unsub;
+    // Only this user's notifications are streamed; apply each one directly.
+    return base44.entities.Notification.subscribe(
+      (ev) => {
+        const n = ev.data || {};
+        setItems((list) => {
+          const rest = list.filter((x) => x.id !== n.id);
+          const show = ev.type !== "delete" && n.channel === "inapp" && !n.read && n.type !== "chat";
+          return show ? [n, ...rest].slice(0, 20) : rest;
+        });
+      },
+      { filter: `user_id=eq.${user.id}`, onReconnect: load },
+    );
   }, [user]);
 
   const markAll = async () => {

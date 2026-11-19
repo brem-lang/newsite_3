@@ -1,5 +1,5 @@
 import React from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { formatCountdownRing } from "@/lib/auction";
 import { useI18n } from "@/lib/i18n";
 
@@ -17,7 +17,7 @@ export default function CountdownRing({ remaining, total, status }) {
       <div className="relative w-32 h-32">
         <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
           <circle cx="60" cy="60" r={R} fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-          <motion.circle
+          <m.circle
             cx="60" cy="60" r={R} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
             strokeDasharray={C}
             animate={{ strokeDashoffset: C * (1 - frac) }}

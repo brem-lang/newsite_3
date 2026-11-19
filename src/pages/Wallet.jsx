@@ -21,7 +21,7 @@ export default function Wallet() {
   const { t } = useI18n();
   const { symbol, code } = useCurrency();
   const { user } = useOutletContext();
-  const { balance, transactions, loading, refresh } = useWallet(user?.id);
+  const { balance, transactions, loading, refresh } = useWallet(user?.id, true);
   const isMobile = useIsMobileView();
   const [searchParams, setSearchParams] = useSearchParams();
   const [amount, setAmount] = useState(50);

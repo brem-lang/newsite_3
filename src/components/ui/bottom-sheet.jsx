@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +47,7 @@ export default function BottomSheet({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -55,7 +55,7 @@ export default function BottomSheet({
           className="fixed inset-0 z-[70] bg-background/80 backdrop-blur-[3px] flex items-end justify-center"
           onClick={() => dismissible && onClose?.()}
         >
-          <motion.div
+          <m.div
             role="dialog"
             aria-modal="true"
             aria-label={typeof title === "string" ? title : undefined}
@@ -115,8 +115,8 @@ export default function BottomSheet({
             {footer && (
               <div className="shrink-0 border-t border-border px-5 py-3 bg-card">{footer}</div>
             )}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>,
     document.body

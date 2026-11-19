@@ -2,7 +2,7 @@
  * App bootstrap params.
  *
  * In the original Base44 hosting these came from URL query params persisted to
- * storage. On Lovable Cloud auth is handled by the platform session, so this is
+ * storage. Auth is now handled by the Supabase session, so this is
  * a thin, SSR-safe shim kept for the pages that still read it.
  */
 

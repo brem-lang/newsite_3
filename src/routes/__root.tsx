@@ -7,10 +7,10 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { LazyMotion } from "framer-motion";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/lib/AuthContext";
 import { I18nProvider } from "@/lib/i18n";
 import { CurrencyProvider } from "@/lib/currency";
@@ -46,9 +46,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -140,11 +137,16 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// framer-motion's animation code loads after first paint; m.* components render
+// statically until it arrives.
+const loadMotionFeatures = () => import("@/lib/motion-features").then((mod) => mod.default);
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
+      <LazyMotion features={loadMotionFeatures}>
       <AuthProvider>
         <I18nProvider>
           <CurrencyProvider>
@@ -157,6 +159,7 @@ function RootComponent() {
           </CurrencyProvider>
         </I18nProvider>
       </AuthProvider>
+      </LazyMotion>
       <Toaster />
       <SonnerToaster position="top-center" richColors />
     </QueryClientProvider>
