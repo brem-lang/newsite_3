@@ -37,3 +37,4 @@ dist-ssr
 !.env.example
 
 .package-lock.json
+.agents/skills/design-taste-frontend/

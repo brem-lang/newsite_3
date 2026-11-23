@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Upload, ImageIcon, Check, RefreshCw, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import SelectField from "@/components/ui/select-field";
 
 const BUCKET = "auction-images";
 const publicUrl = (path) => supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
@@ -162,14 +163,14 @@ export default function ImagePicker({ value, onChange, label = "Image" }) {
                 </button>
               )}
             </div>
-            <select
+            <SelectField
               value={sort}
               onChange={(e) => setSort(e.target.value)}
               aria-label="Sort images"
               className="h-9 rounded-md border border-input bg-background px-2 text-xs"
             >
               {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+            </SelectField>
           </div>
 
           {loading ? (

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivitySquare, AlertTriangle, CheckCircle2, Gauge, RefreshCw, ShieldAlert } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAdminData, useAdminUserMap, useAdminAuctionMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,41 +14,34 @@ const FILTERS = ["all", "error", "warning", "info"];
  * Bid observability: every bid/join/settlement attempt with its outcome,
  * latency and detected anomalies, so rare inconsistencies are debuggable.
  */
+const NONE = [];
+
+const loadSection = async () => (await base44.entities.BidEvent.list("-created_date", 300).catch(() => [])) || [];
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["bidmonitor"], loadSection), adminLookups.users(), adminLookups.auctions());
+
 export default function AdminBidMonitor() {
   const { t } = useI18n();
-  const [events, setEvents] = useState([]);
-  const [users, setUsers] = useState({});
-  const [auctions, setAuctions] = useState({});
+  const qc = useQueryClient();
   const [filter, setFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(true);
+  const users = useAdminUserMap();
+  const auctions = useAdminAuctionMap();
 
-  const load = useCallback(() => {
-    setLoading(true);
-    return Promise.all([
-      base44.entities.BidEvent.list("-created_date", 300).catch(() => []),
-      base44.entities.User.list("", 1000).catch(() => []),
-      base44.entities.Auction.list("-created_date", 200).catch(() => []),
-    ])
-      .then(([ev, us, au]) => {
-        setEvents(ev || []);
-        const um = {}; (us || []).forEach((u) => { um[u.id] = u; }); setUsers(um);
-        const am = {}; (au || []).forEach((a) => { am[a.id] = a; }); setAuctions(am);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  // Cached event log; in live mode a 30s safety poll (paused in background
+  // tabs) backs up the realtime stream below.
+  const { data: events = NONE, isFetching: loading, refresh, queryKey } = useAdminData(["bidmonitor"], loadSection, { refetchInterval: live ? 30_000 : false, refetchIntervalInBackground: false });
+  const load = useCallback(() => refresh(), [refresh]);
 
   useEffect(() => {
     if (!live) return;
-    const unsub = base44.entities.BidEvent.subscribe(({ data, event }) => {
+    // Each event carries the row: prepend it to the cache, no re-fetch.
+    return base44.entities.BidEvent.subscribe(({ data, event }) => {
       if (!data?.id || event === "DELETE") return;
-      setEvents((prev) => [data, ...prev.filter((e) => e.id !== data.id)].slice(0, 300));
-    });
-    const poll = setInterval(() => { load(); }, 30000);
-    return () => { unsub(); clearInterval(poll); };
-  }, [live, load]);
+      qc.setQueryData(queryKey, (prev = []) => [data, ...prev.filter((e) => e.id !== data.id)].slice(0, 300));
+    }, { onReconnect: () => qc.invalidateQueries({ queryKey }) });
+  }, [live, qc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stats = useMemo(() => {
     const since = Date.now() - 60 * 60 * 1000;
@@ -82,7 +77,8 @@ export default function AdminBidMonitor() {
   };
 
   return (
-    <div className="space-y-6">
+    // admin-fill / admin-table-card: the table fills the visible height (src/styles.css).
+    <div className="space-y-6 admin-fill">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -155,8 +151,8 @@ export default function AdminBidMonitor() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="admin-table-card rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="admin-table-scroll">
           <table className="w-full text-sm">
             <thead className="bg-secondary/60 text-muted-foreground">
               <tr className="text-start">
@@ -176,7 +172,7 @@ export default function AdminBidMonitor() {
                   <tr
                     key={e.id}
                     className={cn(
-                      "border-t border-border/60",
+                      "border-b border-border/60",
                       e.severity === "error" && "bg-destructive/10",
                       e.details?.anomaly && "bg-destructive/15",
                     )}
@@ -221,11 +217,11 @@ export default function AdminBidMonitor() {
               )}
             </tbody>
           </table>
-          <AdminPagination
-            page={page} pageSize={pageSize} total={rows.length}
-            onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }}
-          />
         </div>
+        <AdminPagination
+          page={page} pageSize={pageSize} total={rows.length}
+          onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }}
+        />
       </div>
     </div>
   );

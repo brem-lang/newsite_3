@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { auctionQueries, bidQueries } from "@/lib/queries/auctions";
+import { accountQueries } from "@/lib/queries/account";
 import Account from "@/pages/Account";
 
 const title = "Your account | Mazad Atna";
@@ -16,5 +18,12 @@ export const Route = createFileRoute("/_app/account")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  loader: async ({ context: { queryClient, userId } }) => {
+    await Promise.all([
+      queryClient.ensureQueryData(accountQueries.me()),
+      queryClient.ensureQueryData(bidQueries.mine(userId)),
+      queryClient.ensureQueryData(auctionQueries.list(userId)),
+    ]);
+  },
   component: Account,
 });

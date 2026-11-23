@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useRouter } from "@tanstack/react-router";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ export default function Login() {
   // with returnTo so the grant flow can resume). Same-origin paths only.
   const { t } = useI18n();
   const returnTo = postLoginDest();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,7 +34,8 @@ export default function Login() {
       }
       // Client-side navigation: a full reload re-downloaded and re-initialised
       // the whole app just to land on the same session.
-      navigate(returnTo, { replace: true });
+      // returnTo is a validated same-origin path that may carry its own query.
+      router.history.replace(returnTo);
     } catch (err) {
       setError(err.message || t.authp.invalidCreds);
     } finally {
@@ -51,7 +52,8 @@ export default function Login() {
         <>
           {t.authp.noAccount}{" "}
           <Link
-            to={"/register" + (returnTo !== "/" ? "?returnTo=" + encodeURIComponent(returnTo) : "")}
+            to="/register"
+            search={returnTo !== "/" ? { returnTo } : {}}
             className="text-primary font-medium hover:underline"
           >
             {t.authp.createOne}

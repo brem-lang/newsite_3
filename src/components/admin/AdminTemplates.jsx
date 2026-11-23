@@ -1,5 +1,5 @@
 import React from "react";
-import AdminCrudTable from "./AdminCrudTable";
+import AdminCrudTable, { prefetchCrud } from "./AdminCrudTable";
 
 const channelOpts = [
   { value: "email", label: { en: "Email" } },
@@ -16,6 +16,8 @@ const fields = [
   { key: "variables", label: { en: "Variables" } },
   { key: "active", label: { en: "Active" }, type: "boolean" },
 ];
+
+export const prefetch = prefetchCrud("Template");
 
 export default function AdminTemplates() {
   return (

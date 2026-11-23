@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { Users, Clock, ArrowRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency, Money } from "@/lib/currency";
@@ -23,9 +23,11 @@ export default function AuctionCard({ auction, yourBid }) {
       : "bg-muted text-muted-foreground border-border";
 
   return (
-    <Link to={`/auction/${auction.id}`} className="group block overflow-hidden rounded-xl border border-border bg-card shadow-[0_14px_32px_-24px_hsl(var(--accent)/0.45)] transition-all hover:-translate-y-1 hover:border-accent/45">
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+    <Link to="/auction/$id" params={{ id: auction.id }} className="group relative block overflow-hidden rounded-xl border border-border bg-card shadow-[0_14px_32px_-24px_hsl(var(--accent)/0.45)] transition-all hover:-translate-y-1 hover:border-accent/45">
+      <div className="absolute inset-0 overflow-hidden bg-muted">
         <Image src={auction.image_url} alt={auction.title} className="w-full h-full transition-transform duration-500 group-hover:scale-105" fittingType="fill" />
+      </div>
+      <div className="relative aspect-[16/9]">
         <span className={cn("absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-md border", badgeCls)}>
           {statusLabel}
         </span>
@@ -33,13 +35,13 @@ export default function AuctionCard({ auction, yourBid }) {
           {symbol}{auction.entry_fee}
         </span>
       </div>
-      <div className="p-4 space-y-3">
+      <div className="photo-fade relative -mt-10 p-4 pt-10 space-y-3">
         <h3 className="font-display font-bold text-base text-foreground leading-snug line-clamp-1">{auction.title}</h3>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-accent" />{filled}/{auction.max_subscribers}</span>
           <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-primary" />{status === "live" ? formatCountdownCompact(remaining, t) : status === "ended" ? t.auction.statusEnded : formatDuration(durationMinutes, t)}</span>
         </div>
-        <div className="flex items-end justify-between pt-3 border-t border-border">
+        <div className="flex items-end justify-between pt-3 border-t border-border/60">
           <div>
             {yourBid != null && (
               <p className="text-[10px] font-bold text-primary">{t.auction.yourBid}: {symbol}{yourBid.toFixed(2)}</p>

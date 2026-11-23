@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { parseResetPasswordSearch } from "@/lib/search";
 import ResetPassword from "@/pages/ResetPassword";
 
 export const Route = createFileRoute("/reset-password")({
@@ -13,5 +14,6 @@ export const Route = createFileRoute("/reset-password")({
     ],
   }),
   ssr: false,
+  validateSearch: parseResetPasswordSearch,
   component: ResetPassword,
 });

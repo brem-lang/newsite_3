@@ -1,41 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useAuctionChat } from "@/lib/queries/auctions";
 import { Send } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function AuctionChat({ auctionId, user }) {
   const { t } = useI18n();
-  const [messages, setMessages] = useState([]);
+  // Newest 50 (shown oldest-first), cached per auction and streamed live.
+  const { messages, send: sendMessage } = useAuctionChat(auctionId);
   const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
+  const sending = sendMessage.isPending;
   const scrollRef = useRef(null);
-
-  const load = () => {
-    // Newest 50, then shown oldest-first so the latest messages are always present.
-    base44.entities.AuctionMessage.filter({ auction_id: auctionId }, "-created_date", 50)
-      .then((rows) => setMessages([...(rows || [])].reverse()))
-      .catch(() => {});
-  };
-
-  useEffect(() => {
-    load();
-    // Only this auction's messages are streamed; append each new one.
-    return base44.entities.AuctionMessage.subscribe(
-      (ev) => {
-        const m = ev.data;
-        if (!m?.id) return;
-        setMessages((list) => {
-          const rest = list.filter((x) => x.id !== m.id);
-          if (ev.type === "delete") return rest;
-          const existing = list.find((x) => x.id === m.id);
-          return existing ? list.map((x) => (x.id === m.id ? { ...x, ...m } : x)) : [...rest, m].slice(-50);
-        });
-      },
-      { filter: `auction_id=eq.${auctionId}`, onReconnect: load },
-    );
-  }, [auctionId]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -43,20 +19,15 @@ export default function AuctionChat({ auctionId, user }) {
 
   const send = async () => {
     if (!text.trim() || !user) return;
-    setSending(true);
     try {
-      await base44.entities.AuctionMessage.create({
+      await sendMessage.mutateAsync({
         user_id: user.id,
         author_name: user.full_name || user.email || "—",
         body: text.trim(),
-        auction_id: auctionId,
       });
       setText("");
-      load();
     } catch {
       /* ignore */
-    } finally {
-      setSending(false);
     }
   };
 

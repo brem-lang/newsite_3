@@ -1,5 +1,5 @@
 import React from "react";
-import AdminCrudTable from "./AdminCrudTable";
+import AdminCrudTable, { prefetchCrud } from "./AdminCrudTable";
 
 const fields = [
   { key: "action", label: { en: "Action" }, required: true },
@@ -8,6 +8,8 @@ const fields = [
   { key: "target_id", label: { en: "Target ID" } },
   { key: "details", label: { en: "Details" }, type: "textarea", hideInTable: true },
 ];
+
+export const prefetch = prefetchCrud("ActivityLog");
 
 export default function AdminActivityLogs() {
   return (

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { parseReturnToSearch } from "@/lib/search";
 import Login from "@/pages/Login";
 
 export const Route = createFileRoute("/login")({
@@ -13,5 +14,6 @@ export const Route = createFileRoute("/login")({
     ],
   }),
   ssr: false,
+  validateSearch: parseReturnToSearch,
   component: Login,
 });

@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Settings as SettingsIcon, Clock, Mail, Wrench, UserRound, ShieldCheck, Crown, BadgeCheck, CalendarDays, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAdminData, useAdminMe, useAdminCapabilities, adminSection, adminLookups, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys, configKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PersonalDetailsCard from "@/components/account/profile/PersonalDetailsCard";
 import ChangePassword from "@/components/account/ChangePassword";
 import { toast } from "sonner";
+import SelectField from "@/components/ui/select-field";
 
 const inputCls = "h-11 w-full rounded-lg border border-accent/20 bg-background px-3 text-sm outline-none transition focus:border-accent/60 focus:ring-2 focus:ring-accent/20";
 const TIMEZONES = [
@@ -17,17 +21,21 @@ const TIMEZONES = [
   "Europe/Paris", "America/New_York", "America/Los_Angeles", "UTC"
 ];
 
+const loadSection = async () => (await base44.entities.SiteSettings.filter({ key: "global" }).catch(() => []))?.[0] || null;
+
+/** Route loader: the settings row and the signed-in staff profile. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["settings", "global"], loadSection), adminLookups.me());
+
 export default function AdminSettings() {
   const { t } = useI18n();
   // The signed-in staff member (admin session, separate from customers).
-  const [user, setUser] = useState(null);
-  const loadAdmin = useCallback(() => {
-    base44.adminAuth.me().then(setUser).catch(() => setUser(null));
-  }, []);
-  useEffect(() => { loadAdmin(); }, [loadAdmin]);
-  const [row, setRow] = useState(null);
-  const [caps, setCaps] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+  const user = useAdminMe();
+  const loadAdmin = useCallback(() => qc.invalidateQueries({ queryKey: adminKeys.section("me") }), [qc]);
+  // Capabilities: the same cached query AdminGate uses.
+  const { data: caps = null } = useAdminCapabilities();
+  const { data: row = null, isPending: loading, queryKey: rowKey } = useAdminData(["settings", "global"], loadSection);
+  const setRow = (next) => qc.setQueryData(rowKey, next);
   const [form, setForm] = useState({
     site_name: "", tagline: "", timezone: "Asia/Jerusalem",
     contact_email: "", maintenance_mode: false, maintenance_message: "",
@@ -35,15 +43,10 @@ export default function AdminSettings() {
   });
   const [saving, setSaving] = useState(false);
 
+  // Seed the form from the saved row whenever it (re)loads.
   useEffect(() => {
-    Promise.all([
-      base44.entities.SiteSettings.filter({ key: "global" }),
-      base44.functions.invoke("myAdminCapabilities", {})
-    ]).then(([rows, access]) => {
-      const r = rows?.[0];
-      setRow(r || null);
-      setCaps(access?.data || null);
-      if (r) setForm({
+    const r = row;
+    if (r) setForm({
         site_name: r.site_name || "", tagline: r.tagline || "",
         timezone: r.timezone || "Asia/Jerusalem",
         contact_email: r.contact_email || "",
@@ -51,8 +54,7 @@ export default function AdminSettings() {
         maintenance_message: r.maintenance_message || "",
         active_currency: r.active_currency || "USD"
       });
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [row]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -65,6 +67,8 @@ export default function AdminSettings() {
         const created = await base44.entities.SiteSettings.create({ key: "global", ...form });
         setRow(created || null);
       }
+      qc.invalidateQueries({ queryKey: rowKey });
+      qc.invalidateQueries({ queryKey: configKeys.settings() });
       toast.success(t.admin.settings.saved);
     } catch (e) {
       toast.error(e.message || "Error");
@@ -98,9 +102,7 @@ export default function AdminSettings() {
     return caps?.role_name || caps?.role || t.admin.settings.adminRole;
   }, [caps, user, t]);
 
-  if (loading) {
-    return <div className="grid min-h-72 place-items-center"><Loader2 className="h-7 w-7 animate-spin text-accent" /></div>;
-  }
+  if (loading) return null;
 
   return (
     <div className="space-y-5 pb-6">
@@ -172,17 +174,17 @@ export default function AdminSettings() {
           </div>
           <div className="space-y-1.5">
             <Label>{t.admin.settings.currency}</Label>
-            <select value={form.active_currency} onChange={(e) => set("active_currency", e.target.value)} className={inputCls}>
+            <SelectField value={form.active_currency} onChange={(e) => set("active_currency", e.target.value)} className={inputCls}>
               {["USD", "EUR", "GBP", "JOD", "SAR", "AED", "EGP"].map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            </SelectField>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>{t.admin.settings.timezone}</Label>
             <div className="relative">
               <Clock className="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-muted-foreground" />
-              <select value={form.timezone} onChange={(e) => set("timezone", e.target.value)} className={inputCls + " ps-9"}>
+              <SelectField value={form.timezone} onChange={(e) => set("timezone", e.target.value)} className={inputCls + " ps-9"}>
                 {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-              </select>
+              </SelectField>
             </div>
           </div>
         </div>

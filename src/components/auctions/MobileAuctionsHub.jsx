@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { Users, Clock, ArrowRight, Wallet as WalletIcon, Gavel } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency, Money } from "@/lib/currency";
@@ -26,15 +26,16 @@ function FeaturedLiveStrip({ auction, symbol, t, arrowCls }) {
 
   return (
     <Link
-      to={`/auction/${auction.id}`}
+      to="/auction/$id" params={{ id: auction.id }}
       aria-label={`${auction.title} — ${t.auction.statusLive}`}
-      className="mx-4 mb-2.5 rounded-xl bg-card border border-border p-3 flex items-center gap-3 shadow-[0_12px_30px_-24px_hsl(var(--accent)/0.5)] active:scale-[0.99] transition"
+      className="relative mx-4 mb-2.5 overflow-hidden rounded-xl bg-card border border-border flex items-center shadow-[0_12px_30px_-24px_hsl(var(--accent)/0.5)] active:scale-[0.99] transition"
     >
-      <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-muted">
+      {/* The photo fills the row; the text sits on a fade from the start side. */}
+      <div className="absolute inset-0 bg-muted">
         <Image src={auction.image_url} alt={auction.title} className="w-full h-full" fittingType="fill" />
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="photo-fade-side relative min-w-0 flex-1 py-3.5 pe-20 ps-3.5">
         <div className="flex items-center gap-1.5 mb-1">
           {live && (
             <span className="flex items-center gap-1 text-[10px] font-bold bg-destructive/15 text-destructive border border-destructive/30 px-2 py-0.5 rounded-full shrink-0">
@@ -125,7 +126,7 @@ export default function MobileAuctionsHub({
       onRefresh={onRefresh}
       scroll={false}
       dir={dir}
-      className="app-shell fixed! z-10 flex flex-col bg-bidly text-foreground page-transition"
+      className="app-shell fixed! z-10 flex flex-col bg-bidly text-foreground"
       
       innerClassName="flex flex-col flex-1 min-h-0"
     >
@@ -218,9 +219,9 @@ export default function MobileAuctionsHub({
           <div className="w-full h-full flex flex-col items-center justify-center text-center px-8">
             <div className="relative mb-6">
               <div className="absolute -inset-4 bg-accent/10 rounded-full blur-2xl" aria-hidden="true" />
-              <div className="w-28 h-28 bg-card rounded-xl flex items-center justify-center shadow-xl relative border border-border">
+              <div className="w-28 h-28 bg-card rounded-xl flex items-center justify-center relative border border-border">
                 <Gavel className="w-14 h-14 text-accent/40" strokeWidth={1} />
-                <div className="absolute w-11 h-11 bg-accent rounded-lg flex items-center justify-center shadow-lg -bottom-2 -right-2 rotate-12">
+                <div className="absolute w-11 h-11 bg-accent rounded-lg flex items-center justify-center ring-4 ring-background -bottom-2 -right-2">
                   <ArrowRight className={cn("w-5 h-5 text-accent-foreground -rotate-45", arrowCls)} strokeWidth={2.5} />
                 </div>
               </div>
@@ -298,11 +299,13 @@ function MobileTile({ auction, yourBid, symbol, t, arrowCls }) {
 
   return (
     <Link
-      to={`/auction/${auction.id}`}
-       className="native-panel flex min-h-[112px] w-full overflow-hidden rounded-xl active:scale-[0.99] transition"
+      to="/auction/$id" params={{ id: auction.id }}
+       className="native-panel relative flex min-h-[112px] w-full overflow-hidden rounded-xl active:scale-[0.99] transition"
     >
-       <div className="relative w-[112px] shrink-0 bg-muted">
+       <div className="absolute inset-0 bg-muted">
         <Image src={auction.image_url} alt={auction.title} className="w-full h-full" fittingType="fill" />
+       </div>
+       <div className="relative order-last w-[112px] shrink-0">
         <span className={cn("absolute top-2.5 left-2.5 text-[10px] font-bold px-2 py-0.5 rounded-md border backdrop-blur", badgeCls)}>
           {statusLabel}
         </span>
@@ -310,7 +313,7 @@ function MobileTile({ auction, yourBid, symbol, t, arrowCls }) {
           {symbol}{auction.entry_fee}
         </span>
       </div>
-       <div className="min-w-0 flex-1 flex flex-col p-3 gap-2">
+       <div className="photo-fade-side relative min-w-0 flex-1 flex flex-col p-3 gap-2">
         <h3 className="font-display font-bold text-sm text-foreground leading-snug line-clamp-2">{auction.title}</h3>
          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5 text-accent" />{filled}/{auction.max_subscribers}</span>

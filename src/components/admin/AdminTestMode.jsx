@@ -237,7 +237,7 @@ export default function AdminTestMode() {
               ))}
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-border">
+            <div className="admin-table-scroll rounded-xl border border-border">
               <table className="w-full text-sm">
                 <thead className="bg-secondary/60 text-xs">
                   <tr>
@@ -271,7 +271,7 @@ export default function AdminTestMode() {
               <summary className="text-sm font-semibold cursor-pointer">
                 Wallet transactions ({(recon.transactions || []).length})
               </summary>
-              <div className="mt-2 overflow-x-auto">
+              <div className="mt-2 admin-table-scroll">
                 <table className="w-full text-xs">
                   <tbody>
                     {(recon.transactions || []).map((t) => (

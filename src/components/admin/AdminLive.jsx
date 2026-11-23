@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Radio, Users, Gavel, Trophy, Square, Flame, Maximize2, Coins, Hash } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAdminUserMap, adminLookups, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
@@ -9,84 +12,109 @@ import { cn } from "@/lib/utils";
 import { formatCountdownCompact, closeQuota } from "@/lib/auction";
 import LiveAuctionMonitor, { useLiveAuctionStats } from "@/components/admin/LiveAuctionMonitor";
 
-export default function AdminLive() {
-  const { t, format } = useI18n();
-  const askConfirm = useConfirm();
-  const [auctions, setAuctions] = useState([]);
-  const [detail, setDetail] = useState({}); // auctionId -> { bids, credits, txns }
-  const [users, setUsers] = useState({});
-  const [now, setNow] = useState(Date.now());
-  const [ending, setEnding] = useState(null);
-  const [openId, setOpenId] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
+const NONE = [];
 
-  const currency = t?.common?.currency || "$";
+const liveListQuery = () => ({
+  queryKey: adminKeys.section("live", "auctions"),
+  queryFn: async () => (await base44.entities.Auction.filter({ status: "live" }, "-created_date", 50)) || [],
+  staleTime: 10_000,
+});
 
-  const loadAuctions = useCallback(() => {
-    return base44.entities.Auction.filter({ status: "live" }, "-created_date", 50).then((rows) => {
-      setAuctions(rows || []);
-      setLastUpdate(Date.now());
-      return rows || [];
-    });
-  }, []);
-
-  const loadUsers = useCallback(() => {
-    return base44.entities.User.list("", 1000).then((u) => {
-      const m = {}; (u || []).forEach((x) => { m[x.id] = x; }); setUsers(m);
-    });
-  }, []);
-
-  const loadDetail = useCallback((id) => {
-    if (!id) return;
-    Promise.all([
+const liveDetailQuery = (id) => ({
+  queryKey: adminKeys.section("live", "detail", id),
+  queryFn: async () => {
+    const [bids, credits, txns] = await Promise.all([
       base44.entities.Bid.filter({ auction_id: id }, "-created_date", 1000).catch(() => []),
       base44.entities.BidCredit.filter({ auction_id: id }, "-created_date", 500).catch(() => []),
       base44.entities.WalletTransaction.filter({ auction_id: id }, "-created_date", 1000).catch(() => []),
-    ]).then(([bids, credits, txns]) => {
-      setDetail((prev) => ({ ...prev, [id]: { bids: bids || [], credits: credits || [], txns: txns || [] } }));
-      setLastUpdate(Date.now());
-    });
-  }, []);
+    ]);
+    return { bids: bids || [], credits: credits || [], txns: txns || [] };
+  },
+  staleTime: 10_000,
+});
+
+/** Route loader: the live auctions, each one's stats, and the user lookup. */
+export const prefetch = async (qc) => {
+  const [auctions] = await warmAdmin(qc, liveListQuery(), adminLookups.users());
+  await warmAdmin(qc, ...(auctions || []).slice(0, 100).map((a) => liveDetailQuery(a.id)));
+};
+
+export default function AdminLive() {
+  const { t, format } = useI18n();
+  const askConfirm = useConfirm();
+  const qc = useQueryClient();
+  const [now, setNow] = useState(Date.now());
+  const [ending, setEnding] = useState(null);
+  const [openId, setOpenId] = useState(null);
+  const users = useAdminUserMap();
+
+  const currency = t?.common?.currency || "$";
+
+  // Live auctions: cached, 20s safety poll (paused in background tabs).
+  // Realtime row changes are merged straight into the cache.
+  const liveKey = adminKeys.section("live", "auctions");
+  const { data: auctions = NONE, dataUpdatedAt, isPending: loading } = useQuery({
+    ...liveListQuery(),
+    refetchInterval: 20_000,
+    refetchIntervalInBackground: false,
+  });
+  const loadAuctions = useCallback(() => qc.invalidateQueries({ queryKey: liveKey }), [qc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    loadAuctions();
-    loadUsers();
-
-    const unsubA = base44.entities.Auction.subscribe(({ data, event }) => {
+    return base44.entities.Auction.subscribe(({ data, event }) => {
       if (!data?.id) return;
-      setLastUpdate(Date.now());
-      if (event === "DELETE" || (data.status && data.status !== "live")) {
-        setAuctions((prev) => prev.filter((a) => a.id !== data.id));
-        return;
-      }
-      setAuctions((prev) => {
-        const i = prev.findIndex((a) => a.id === data.id);
-        if (i === -1) { loadAuctions(); return prev; }
+      qc.setQueryData(liveKey, (prev = []) => {
+        if (event === "DELETE" || (data.status && data.status !== "live")) return prev.filter((x) => x.id !== data.id);
+        const i = prev.findIndex((x) => x.id === data.id);
+        if (i === -1) {
+          // A newly live auction: re-read the list (it carries every column).
+          qc.invalidateQueries({ queryKey: liveKey }, { cancelRefetch: false });
+          return prev;
+        }
         const next = [...prev];
         next[i] = { ...next[i], ...data };
         return next;
       });
-    });
+    }, { onReconnect: loadAuctions });
+  }, [qc, loadAuctions]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const unsubB = base44.entities.Bid.subscribe(({ data }) => {
-      if (!data?.auction_id) return;
-      loadDetail(data.auction_id);
-    });
+  // Per-auction detail (bids, credits, wallet rows), one cached query each.
+  const ids = auctions.map((x) => x.id).slice(0, 100);
+  const idsKey = ids.join(",");
+  const detailQueries = useQueries({
+    queries: ids.map(liveDetailQuery),
+  });
+  const detail = {};
+  ids.forEach((id, i) => { if (detailQueries[i]?.data) detail[id] = detailQueries[i].data; });
+  const lastUpdate = Math.max(dataUpdatedAt || 0, ...detailQueries.map((q) => q.dataUpdatedAt || 0)) || Date.now();
 
-    const poll = setInterval(() => { loadAuctions(); }, 15000);
-    return () => { unsubA(); unsubB(); clearInterval(poll); };
-  }, [loadAuctions, loadUsers, loadDetail]);
+  // Bids on the live auctions only (server-side filter). A busy auction gets
+  // at most one detail re-read per 2s instead of three requests per bid.
+  useEffect(() => {
+    if (!idsKey) return;
+    const timers = new Map();
+    const refreshSoon = (id) => {
+      if (timers.has(id)) return;
+      timers.set(id, setTimeout(() => {
+        timers.delete(id);
+        qc.invalidateQueries({ queryKey: adminKeys.section("live", "detail", id) }, { cancelRefetch: false });
+      }, 2000));
+    };
+    const unsub = base44.entities.Bid.subscribe(
+      ({ data }) => { if (data?.auction_id) refreshSoon(data.auction_id); },
+      {
+        filter: `auction_id=in.(${idsKey})`,
+        onReconnect: () => qc.invalidateQueries({ queryKey: adminKeys.section("live", "detail") }),
+      },
+    );
+    return () => { unsub(); timers.forEach(clearTimeout); };
+  }, [idsKey, qc]);
 
+  // Countdown clock only (no data fetching).
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(tick);
   }, []);
-
-  const auctionIds = auctions.map((a) => a.id).join(",");
-  useEffect(() => {
-    if (!auctionIds) return;
-    auctionIds.split(",").forEach(loadDetail);
-  }, [auctionIds, loadDetail]);
 
   const endNow = async (a) => {
     if (!(await askConfirm({ title: format(t.admin.confirm.closeTitle, { title: a.title }), description: t.admin.confirm.closeLiveDesc, confirmLabel: t.admin.confirm.closeLabel, destructive: true }))) return;
@@ -121,7 +149,7 @@ export default function AdminLive() {
         </p>
       </div>
 
-      {auctions.length === 0 ? (
+      {loading ? null : auctions.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">{t.admin.live.empty}</div>
       ) : (
         <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -148,6 +176,7 @@ export default function AdminLive() {
         bids={openDetail.bids || []}
         credits={openDetail.credits || []}
         txns={openDetail.txns || []}
+        loading={!!openId && !detail[openId]}
         currency={currency}
         open={!!openId}
         onOpenChange={(v) => !v && setOpenId(null)}

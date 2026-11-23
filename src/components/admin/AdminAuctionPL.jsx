@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ArrowLeft, ArrowRight, Coins, DollarSign, Download, Gavel, Package, Percent,
   RefreshCw, Search, Ticket, TrendingDown, TrendingUp, Trophy, Wallet
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/format";
@@ -45,40 +46,34 @@ function Kpi({ icon: Icon, label, value, hint, tone = "default" }) {
  * Per-auction profitability page: deposits made by its participants, every bid,
  * the fees the platform collected, the winner and what is still owed.
  */
+const NONE = [];
+
+const loadSection = async () =>
+  (await base44.entities.Auction.listFields(
+    "id,title,status,mode,winner_id,winner_name,subscriber_ids,entry_fee,cost_price,other_cost,created_date",
+    "-created_date",
+    400,
+  )) || [];
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["auctionpl", "list"], loadSection));
+
 export default function AdminAuctionPL() {
   const { t } = useI18n();
   const { format, code } = useCurrency();
   const L = t.admin.auctionPl || {};
   const Back = ArrowLeft;
 
-  const [auctions, setAuctions] = useState([]);
-  const [listLoading, setListLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
 
-  const [detail, setDetail] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [refreshedAt, setRefreshedAt] = useState(null);
+  const { data: auctions = NONE, isPending: listLoading } = useAdminData(["auctionpl", "list"], loadSection);
 
-  const loadList = async () => {
-    setListLoading(true);
-    try {
-      const rows = await base44.entities.Auction.listFields(
-        "id,title,status,mode,winner_id,winner_name,subscriber_ids,entry_fee,cost_price,other_cost,created_date",
-        "-created_date",
-        400
-      );
-      setAuctions(rows || []);
-    } finally {
-      setListLoading(false);
-    }
-  };
-
-  useEffect(() => { loadList(); }, []);
-
-  const loadDetail = async (auctionId) => {
-    setLoading(true);
-    try {
+  // One cached P&L file per auction: reopening an auction is instant.
+  const detailQuery = useAdminData(
+    ["auctionpl", "detail", selected],
+    async () => {
+      const auctionId = selected;
       const auction = await base44.entities.Auction.get(auctionId);
       const seatIds = auction.subscriber_ids || [];
       const [bids, txns, costItems, override, winnerPays, people, deposits] = await Promise.all([
@@ -94,7 +89,7 @@ export default function AdminAuctionPL() {
           { auction_id: auctionId, type: "deposit" }, "-created_date", 3000
         ).catch(() => []),
       ]);
-      setDetail({
+      return {
         auction,
         bids: bids || [],
         txns: txns || [],
@@ -103,14 +98,14 @@ export default function AdminAuctionPL() {
         winnerPays: winnerPays || [],
         people: people || [],
         deposits: deposits || [],
-      });
-      setRefreshedAt(new Date());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { if (selected) loadDetail(selected); else setDetail(null); }, [selected]);
+      };
+    },
+    { enabled: !!selected },
+  );
+  const detail = selected ? detailQuery.data ?? null : null;
+  const loading = !!selected && detailQuery.isFetching;
+  const refreshedAt = detailQuery.dataUpdatedAt ? new Date(detailQuery.dataUpdatedAt) : null;
+  const loadDetail = () => detailQuery.refresh();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -261,11 +256,7 @@ export default function AdminAuctionPL() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          {listLoading ? (
-            <div className="p-4 space-y-2">
-              <Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" />
-            </div>
-          ) : filtered.length === 0 ? (
+          {listLoading ? null : filtered.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">{L.empty || "No auctions found."}</p>
           ) : (
             <ul className="divide-y divide-border">
@@ -408,7 +399,7 @@ export default function AdminAuctionPL() {
                 {L.perParticipantHint || "Bids placed, fees collected and wallet deposits for every seat."}
               </p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="admin-table-scroll">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs text-muted-foreground">
                   <tr>

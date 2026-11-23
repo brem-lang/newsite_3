@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { m, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence, useDragControls } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +20,15 @@ export default function BottomSheet({
   children,
   footer,
   className,
-  maxHeight = "88vh",
+  maxHeight = "88dvh",
   dismissible = true
 }) {
+  // Drag-to-dismiss starts only from the handle/title bar. Letting the whole
+  // panel listen for vertical drags made framer-motion block touch scrolling
+  // in the content (swiping a long list pulled the sheet down instead).
+  const dragControls = useDragControls();
+  const startDrag = (e) => { if (dismissible) dragControls.start(e); };
+
   // Lock background scroll while the sheet is up.
   React.useEffect(() => {
     if (!open) return;
@@ -64,6 +70,8 @@ export default function BottomSheet({
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag={dismissible ? "y" : false}
+            dragControls={dragControls}
+            dragListener={false}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.6 }}
             onDragEnd={(_, info) => {
@@ -77,13 +85,15 @@ export default function BottomSheet({
               className
             )}
           >
-            {/* grab handle */}
-            <div className="pt-2.5 pb-1 flex justify-center shrink-0 cursor-grab active:cursor-grabbing">
+            {/* Drag area: grab handle + title bar. touch-none so the browser
+                hands the gesture to the drag instead of trying to scroll. */}
+            <div onPointerDown={startDrag} className={cn("shrink-0", dismissible && "touch-none")}>
+            <div className="pt-2.5 pb-1 flex justify-center cursor-grab active:cursor-grabbing">
               <span className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
             </div>
 
             {(title || dismissible) && (
-              <div className="flex items-center justify-between gap-3 px-5 pb-3 shrink-0">
+              <div className="flex items-center justify-between gap-3 px-5 pb-3">
                 <div className="min-w-0">
                   {title && (
                     <h2 className="font-display font-bold text-base text-foreground flex items-center gap-2 truncate">
@@ -107,7 +117,9 @@ export default function BottomSheet({
                 )}
               </div>
             )}
+            </div>
 
+            {/* The only scroller: content between the title bar and footer. */}
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-4 no-scrollbar">
               {children}
             </div>

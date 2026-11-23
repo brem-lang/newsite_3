@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,21 +15,21 @@ import { cn } from "@/lib/utils";
 
 const slugify = (s) => s.toLowerCase().trim().replace(/[^\w\u0600-\u06FF\s-]/g, "").replace(/\s+/g, "-");
 
+const NONE = [];
+
+const loadSection = async () => (await base44.entities.Category.list("sort_order", 200)) || [];
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["categories"], loadSection));
+
 export default function AdminCategories() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(["categories"], loadSection);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: "", slug: "", color: "#3b82f6", icon: "", description: "", sort_order: 0, active: true });
 
-  const load = useCallback(() => {
-    base44.entities.Category.list("sort_order", 200)
-      .then(setItems)
-      .finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const openNew = () => { setEditing(null); setForm({ name: "", slug: "", color: "#3b82f6", icon: "", description: "", sort_order: 0, active: true }); setOpen(true); };
   const openEdit = (it) => {
@@ -71,9 +72,7 @@ export default function AdminCategories() {
         <Button onClick={openNew} className="gap-2"><Plus className="w-4 h-4" /> {t.admin.categories.new}</Button>
       </div>
 
-      {loading ? (
-        <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>
-      ) : items.length === 0 ? (
+      {loading ? null : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">{t.admin.categories.noCategories}</div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">

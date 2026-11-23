@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { CreditCard, Plus, Pencil, Trash2, Globe, X, Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { configKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
@@ -12,32 +15,48 @@ import { cn } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm
 } from "@/components/ui/dialog";
+import SelectField from "@/components/ui/select-field";
 
 const COMMON = ["USD", "EUR", "GBP", "JOD", "SAR", "AED", "EGP", "QAR", "KWD", "BHD", "OMR"];
+
+const NONE = [];
+
+const loadSection = async () => {
+  const [rows, settings] = await Promise.all([
+    base44.entities.PaymentMethod.list("display_order", 100),
+    base44.entities.SiteSettings.filter({ key: "global" }),
+  ]);
+  return { methods: rows || [], settings: settings?.[0] || null };
+};
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["payment_methods"], loadSection));
 
 export default function AdminPaymentMethods() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
   const m = t.admin.payments;
-  const [methods, setMethods] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+  const { data, isPending: loading, refresh } = useAdminData(["payment_methods"], loadSection);
+  const methods = data?.methods ?? NONE;
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [currency, setCurrency] = useState("USD");
   const [settingsId, setSettingsId] = useState(null);
 
-  const load = useCallback(() => {
-    Promise.all([
-      base44.entities.PaymentMethod.list("display_order", 100),
-      base44.entities.SiteSettings.filter({ key: "global" })
-    ]).then(([rows, settings]) => {
-      setMethods(rows || []);
-      if (settings?.[0]) { setSettingsId(settings[0].id); setCurrency(settings[0].active_currency || "USD"); }
-    }).finally(() => setLoading(false));
-  }, []);
+  // Seed the editable currency field from the saved settings row.
+  useEffect(() => {
+    const s = data?.settings;
+    if (s) { setSettingsId(s.id); setCurrency(s.active_currency || "USD"); }
+  }, [data?.settings]);
 
-  useEffect(() => { load(); }, [load]);
+  // Re-read this panel and the site-wide payment-method / settings caches.
+  const load = useCallback(() => {
+    refresh();
+    qc.invalidateQueries({ queryKey: configKeys.paymentMethods() });
+    qc.invalidateQueries({ queryKey: configKeys.settings() });
+  }, [refresh, qc]);
 
   const openNew = () => { setForm(emptyForm()); setDialog(true); };
   const openEdit = (method) => {
@@ -114,11 +133,12 @@ export default function AdminPaymentMethods() {
         const created = await base44.entities.SiteSettings.create({ key: "global", active_currency: code });
         setSettingsId(created.id);
       }
+      qc.invalidateQueries({ queryKey: configKeys.settings() });
       toast.success(t.admin.payments.currencySaved || "Saved");
     } catch (e) { toast.error(e.message || "Error"); }
   };
 
-  if (loading) return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
+  if (loading) return null;
 
   const typeLabel = (type) => ({
     live_gateway: m.typeLive, manual: m.typeManual, transfer: m.typeTransfer, cod: m.typeCod
@@ -191,10 +211,10 @@ export default function AdminPaymentMethods() {
               </Field>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label={m.methodType}>
-                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
+                  <SelectField value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
                     {["live_gateway", "manual", "transfer", "cod"].map((tp) => <option key={tp} value={tp}>{typeLabel(tp)}</option>)}
-                  </select>
+                  </SelectField>
                 </Field>
                 <Field label={m.methodProvider}>
                   <Input value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} placeholder="stripe, paypal…" disabled={form.type !== "live_gateway"} />

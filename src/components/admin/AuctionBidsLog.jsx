@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ChevronDown, Gavel, Archive, Flame } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { auctionBidsQuery } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -8,22 +9,14 @@ import { cn } from "@/lib/utils";
  * Full bid history for one auction: current (live) round plus every archived
  * round, with the bidder identity resolved from the users map.
  */
+const NO_BIDS = [];
+
 export default function AuctionBidsLog({ auction, users = {}, defaultOpen = false, refreshKey }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(defaultOpen);
-  const [bids, setBids] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const load = useCallback(() => {
-    if (!auction?.id) return;
-    setLoading(true);
-    base44.entities.Bid.filter({ auction_id: auction.id }, "-created_date", 500)
-      .then((rows) => setBids(rows || []))
-      .catch(() => setBids([]))
-      .finally(() => setLoading(false));
-  }, [auction?.id]);
-
-  useEffect(() => { if (open) load(); }, [open, load, refreshKey]);
+  // Same cached query the results table uses for its bid counts.
+  const { data: bids = NO_BIDS, isFetching: loading } = useQuery({ ...auctionBidsQuery(auction?.id), enabled: open && !!auction?.id });
+  void refreshKey; // the parent refresh invalidates the shared query directly
 
   const groups = useMemo(() => {
     const byRound = new Map();

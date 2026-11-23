@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Search, Contact, PauseCircle, PlayCircle, Gift } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAdminMe, adminUserListQuery, adminLookups, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -18,33 +20,34 @@ const statusStyle = {
   rejected: "bg-destructive/15 text-destructive"
 };
 
+const NONE = [];
+const NO_MAP = {};
+
+/** Route loader: users (shared with the Users panel) and the staff profile. */
+export const prefetch = (qc) => warmAdmin(qc, adminUserListQuery(), adminLookups.me());
+
 export default function AdminParticipants() {
   const { t } = useI18n();
-  const [users, setUsers] = useState([]);
-  const [me, setMe] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+  const usersQuery = useQuery(adminUserListQuery());
+  const users = usersQuery.data?.users ?? NONE;
+  const loading = usersQuery.isPending;
+  // Optimistic edits go straight into the shared cache.
+  const setUsers = (update) =>
+    qc.setQueryData(adminUserListQuery().queryKey, (prev) => (prev ? { ...prev, users: update(prev.users) } : prev));
+  const me = useAdminMe();
   const [query, setQuery] = useState("");
-  const [noteCounts, setNoteCounts] = useState({});
+  const noteCounts = useMemo(() => {
+    const counts = {};
+    (usersQuery.data?.notes || []).forEach((n) => { counts[n.user_id] = (counts[n.user_id] || 0) + 1; });
+    return counts;
+  }, [usersQuery.data]);
   const [selected, setSelected] = useState(null);
   const [busyId, setBusyId] = useState(null);
 
   const isSuper = !!me?.is_super;
 
-  const load = useCallback(() => {
-    base44.functions.invoke("listUsers").then((res) => {
-      const uList = res.data?.users || [];
-      const notes = res.data?.notes || [];
-      setUsers(uList);
-      const counts = {};
-      notes.forEach((n) => { counts[n.user_id] = (counts[n.user_id] || 0) + 1; });
-      setNoteCounts(counts);
-    }).finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    base44.adminAuth.me().then((u) => setMe(u)).catch(() => {});
-    load();
-  }, [load]);
+  const load = useCallback(() => qc.invalidateQueries({ queryKey: adminUserListQuery().queryKey }), [qc]);
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -132,13 +135,13 @@ export default function AdminParticipants() {
 
 
 
-  if (loading) return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
+  if (loading) return null;
 
   const st = t.admin.participants;
   const vSt = t.admin.verification.status;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 admin-fill">
       <div>
         <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2"><Contact className="w-6 h-6" />{st.title}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{st.subtitle}</p>
@@ -196,8 +199,8 @@ export default function AdminParticipants() {
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">{st.empty}</div>
       ) : (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="admin-table-card rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 text-muted-foreground">
                 <tr>

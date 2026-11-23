@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/AuthContext";
+import { useAuctionList, useMyBids } from "@/lib/queries/auctions";
+import { useMe } from "@/lib/queries/account";
+import { accountKeys } from "@/lib/queries/keys";
 import { Trophy, Clock, XCircle, MinusCircle, Gavel, ArrowLeft, Heart, Search, Compass, Pencil, KeyRound, ShieldCheck, LogOut } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
@@ -23,56 +28,41 @@ const STATUS_META = (t) => ({
   noWinner: { label: t.account.status.noWinner, icon: MinusCircle, className: "bg-muted text-muted-foreground" }
 });
 
+const NONE = [];
+
 export default function Account() {
   const { t, dir } = useI18n();
   const { symbol } = useCurrency();
-  const { user } = useOutletContext();
+  const { user } = useAuth();
+  const qc = useQueryClient();
   const isMobile = useIsMobileView();
 
   const handleLogout = useCallback(async () => {
     await base44.auth.logout("/");
   }, []);
 
-  const [bids, setBids] = useState([]);
-  const [auctions, setAuctions] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [watched, setWatched] = useState([]);
-
-  const reload = useCallback(async () => {
-    if (!user) return;
-    const [myBids, allAuctions] = await Promise.all([
-      base44.entities.Bid.filter({ user_id: user.id }, "-created_date", 100),
-      base44.entities.Auction.list("-created_date", 100)
-    ]);
+  // My bids + the shared auction list (same cache as the hub and dashboard).
+  const bidsQuery = useMyBids(user?.id);
+  const auctionsQuery = useAuctionList(user?.id);
+  const { data: me } = useMe(!!user);
+  const bids = bidsQuery.data ?? NONE;
+  const loading = bidsQuery.isPending || auctionsQuery.isPending;
+  const auctions = useMemo(() => {
     const map = {};
-    (allAuctions || []).forEach((a) => { map[a.id] = a; });
-    setBids(myBids || []);
-    setAuctions(map);
-  }, [user]);
+    (auctionsQuery.data || []).forEach((a) => { map[a.id] = a; });
+    return map;
+  }, [auctionsQuery.data]);
+  const watched = me?.watched_auction_ids || NONE;
 
-  useEffect(() => {
-    if (!user) return;
-    let alive = true;
-    (async () => {
-      setLoading(true);
-      try {
-        await reload();
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [reload]);
-
-  useEffect(() => {
-    // Guarded so a late response after navigation never updates an unmounted page.
-    let alive = true;
-    base44.auth
-      .me()
-      .then((u) => { if (alive) setWatched(u?.watched_auction_ids || []); })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [user]);
+  const reload = useCallback(
+    () =>
+      Promise.all([
+        bidsQuery.refetch(),
+        auctionsQuery.refetch(),
+        qc.invalidateQueries({ queryKey: accountKeys.me() }),
+      ]),
+    [bidsQuery, auctionsQuery, qc],
+  );
 
 
   const watchlist = watched.map((wid) => auctions[wid]).filter(Boolean);
@@ -179,9 +169,9 @@ export default function Account() {
     };
   }, [isMobile]);
 
-  if (loading) {
-    return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
-  }
+  // The route loader waits for bids + auctions, so this only happens if the
+  // cache was dropped mid-visit; render nothing rather than empty stats.
+  if (loading) return null;
 
   if (isMobile) {
     return (
@@ -230,7 +220,7 @@ export default function Account() {
           <h2 className="font-heading text-lg font-semibold flex items-center gap-2"><Heart className="w-4 h-4 text-destructive" /> {t.account.watchlist}</h2>
           <div className="flex flex-wrap gap-3">
             {watchlist.map((a) => (
-              <Link key={a.id} to={`/auction/${a.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-background p-2 pr-3 hover:shadow-sm transition-shadow">
+              <Link key={a.id} to="/auction/$id" params={{ id: a.id }} className="flex items-center gap-3 rounded-xl border border-border bg-background p-2 pr-3 hover:shadow-sm transition-shadow">
                 {a.image_url ? <Image src={a.image_url} alt={a.title} className="w-10 h-10 rounded-lg shrink-0" fittingType="fill" /> : <div className="w-10 h-10 rounded-lg bg-muted grid place-items-center"><Gavel className="w-4 h-4 text-muted-foreground/50" /></div>}
                 <div className="min-w-0">
                   <p className="text-sm font-semibold line-clamp-1">{a.title}</p>
@@ -313,7 +303,7 @@ export default function Account() {
                 </div>
                 <div className="flex-1 p-5 flex flex-col gap-3">
                   <div className="flex items-start justify-between gap-3">
-                    <Link to={`/auction/${p.auction.id}`} className="font-heading text-lg font-semibold hover:underline">
+                    <Link to="/auction/$id" params={{ id: p.auction.id }} className="font-heading text-lg font-semibold hover:underline">
                       {p.auction.title}
                     </Link>
                     {outcome === "won" ? (
@@ -330,7 +320,7 @@ export default function Account() {
                     <Field label={t.account.highest} value={`${cur}${p.highest.toFixed(2)}`} />
                     <Field label={t.account.currentPrice} value={`${cur}${(p.auction.current_price || 0).toFixed(2)}`} />
                   </div>
-                  <Link to={`/auction/${p.auction.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline self-start mt-1">
+                  <Link to="/auction/$id" params={{ id: p.auction.id }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline self-start mt-1">
                     {t.account.viewAuction}
                   </Link>
                 </div>

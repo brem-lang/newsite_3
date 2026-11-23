@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
+import { useSiteSettings, pickGlobalSettings } from "@/lib/queries/config";
 import { cn } from "@/lib/utils";
 
 const SYMBOLS = { USD: "$", JOD: "JOD", SAR: "SAR", EUR: "€", GBP: "£" };
@@ -16,28 +16,12 @@ export function CurrencyProvider({ children }) {
     setHydrated(true);
   }, []);
 
+  // Shares the one cached, realtime-backed site_settings query with AuthContext.
+  const { data: settingsRows } = useSiteSettings();
+  const serverCode = pickGlobalSettings(settingsRows)?.active_currency;
   useEffect(() => {
-    let active = true;
-    // list() (not filter) so this shares the same cached request AuthContext
-    // already makes for site settings instead of firing a second round-trip.
-    const read = () =>
-      base44.entities.SiteSettings.list()
-        .then((rows) => {
-          const c = rows?.find((r) => r?.key === "global" || !r?.key)?.active_currency;
-          if (c && active) setCode(c);
-        })
-        .catch(() => {});
-    read();
-    // A settings change carries the new row: read the currency straight from it.
-    const unsub = base44.entities.SiteSettings.subscribe(
-      ({ data }) => {
-        const isGlobal = data?.key === "global" || !data?.key;
-        if (isGlobal && data?.active_currency && active) setCode(data.active_currency);
-      },
-      { onReconnect: read },
-    );
-    return () => { active = false; try { if (typeof unsub === "function") unsub(); } catch (_) {} };
-  }, []);
+    if (serverCode) setCode(serverCode);
+  }, [serverCode]);
 
   useEffect(() => { if (hydrated) localStorage.setItem("ascend_currency", code); }, [code, hydrated]);
 

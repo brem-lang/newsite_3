@@ -15,7 +15,9 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { I18nProvider } from "@/lib/i18n";
 import { CurrencyProvider } from "@/lib/currency";
 import ScrollToTop from "@/components/ScrollToTop";
+import RouteProgressBar from "@/components/RouteProgressBar";
 import SiteThemeLoader from "@/components/SiteThemeLoader";
+import OverlayScrollbar from "@/components/OverlayScrollbar";
 import SplashScreen from "@/components/SplashScreen";
 import OnboardingScreen from "@/components/OnboardingScreen";
 import { Toaster } from "@/components/ui/toaster";
@@ -124,8 +126,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // data-look="flat": no glow shadows, half radius, app-wide (src/styles.css).
   return (
-    <html lang="en">
+    <html lang="en" data-look="flat">
       <head>
         <HeadContent />
       </head>
@@ -152,6 +155,7 @@ function RootComponent() {
           <CurrencyProvider>
             <ScrollToTop />
             <SiteThemeLoader />
+            <OverlayScrollbar />
             <SplashScreen />
             <OnboardingScreen />
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
@@ -160,6 +164,7 @@ function RootComponent() {
         </I18nProvider>
       </AuthProvider>
       </LazyMotion>
+      <RouteProgressBar />
       <Toaster />
       <SonnerToaster position="top-center" richColors />
     </QueryClientProvider>

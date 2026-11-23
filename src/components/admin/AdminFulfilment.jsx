@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { PackageCheck, Truck, MapPin, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, useAdminUserMap, toMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,28 +17,30 @@ const STATUS_CLS = {
   delivered: "bg-info/15 text-info", collected: "bg-info/15 text-info", confirmed: "bg-success/15 text-success"
 };
 
+const NONE = [];
+const NO_MAP = {};
+
+const loadSection = async () => {
+  const [o, a] = await Promise.all([
+    base44.entities.Fulfilment.list("-created_date", 500),
+    base44.entities.Auction.list("-created_date", 500),
+  ]);
+  return { orders: o || [], auctions: toMap(a) };
+};
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["fulfilment"], loadSection), adminLookups.users());
+
 export default function AdminFulfilment() {
   const { t } = useI18n();
-  const [orders, setOrders] = useState([]);
-  const [auctions, setAuctions] = useState({});
-  const [users, setUsers] = useState({});
-  const [loading, setLoading] = useState(true);
+  const { data, isPending: loading, refresh: load } = useAdminData(["fulfilment"], loadSection);
+  const orders = data?.orders ?? NONE;
+  const auctions = data?.auctions ?? NO_MAP;
+  const users = useAdminUserMap();
   const [advance, setAdvance] = useState(null);
   const [form, setForm] = useState({ carrier: "", tracking_number: "", notes: "" });
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => {
-    Promise.all([
-      base44.entities.Fulfilment.list("-created_date", 500),
-      base44.entities.Auction.list("-created_date", 500),
-      base44.entities.User.list("", 500)
-    ]).then(([o, a, u]) => {
-      setOrders(o || []);
-      const am = {}; (a || []).forEach((x) => { am[x.id] = x; }); setAuctions(am);
-      const um = {}; (u || []).forEach((x) => { um[x.id] = x; }); setUsers(um);
-    }).finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const nextStatus = (o) => {
     const steps = o.method === "pickup" ? PICKUP : SHIPPING;
@@ -83,7 +86,7 @@ export default function AdminFulfilment() {
     }
   };
 
-  if (loading) return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
+  if (loading) return null;
 
   const stats = {
     pending: orders.filter((o) => o.status === "pending").length,
@@ -99,7 +102,7 @@ export default function AdminFulfilment() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 admin-fill">
       <div>
         <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2"><PackageCheck className="w-6 h-6" />{t.admin.fulfilment.title}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t.admin.fulfilment.subtitle}</p>
@@ -114,8 +117,8 @@ export default function AdminFulfilment() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="admin-table-card rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="admin-table-scroll">
           <table className="w-full text-sm">
             <thead className="bg-secondary/50 text-muted-foreground">
               <tr>

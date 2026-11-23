@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -8,6 +8,7 @@ import {
   RefreshCw, Download, ChevronDown, ChevronRight, Percent, DollarSign
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/format";
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import AuctionFinancePanel from "@/components/admin/AuctionFinancePanel";
+import SelectField from "@/components/ui/select-field";
 
 /**
  * Revenue model, per auction and in total.
@@ -44,41 +46,37 @@ const RANGES = [
   { id: "all", days: null }
 ];
 
+const NONE = [];
+
+const loadSection = async () => {
+  const [a, x, ci, ov] = await Promise.all([
+    base44.entities.Auction.list("-created_date", 500),
+    base44.entities.WalletTransaction.list("-created_date", 5000),
+    base44.entities.AuctionCostItem.list("-created_date", 2000).catch(() => []),
+    base44.entities.AuctionFinanceOverride.list("-created_date", 1000).catch(() => []),
+  ]);
+  return { auctions: a || [], txns: x || [], costItems: ci || [], overrides: ov || [] };
+};
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["revenue"], loadSection));
+
 export default function AdminRevenue() {
   const { t } = useI18n();
   const { format, code } = useCurrency();
-  const [auctions, setAuctions] = useState([]);
-  const [txns, setTxns] = useState([]);
-  const [costItems, setCostItems] = useState([]);
-  const [overrides, setOverrides] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // One cached snapshot of the ledger; filters/sorting below are in-memory.
+  const { data, isPending: loading, isFetching: refreshing, refresh, dataUpdatedAt } = useAdminData(["revenue"], loadSection);
+  const auctions = data?.auctions ?? NONE;
+  const txns = data?.txns ?? NONE;
+  const costItems = data?.costItems ?? NONE;
+  const overrides = data?.overrides ?? NONE;
   const [range, setRange] = useState("30");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("net");
   const [expanded, setExpanded] = useState(null);
-  const [refreshedAt, setRefreshedAt] = useState(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [a, x, ci, ov] = await Promise.all([
-        base44.entities.Auction.list("-created_date", 500),
-        base44.entities.WalletTransaction.list("-created_date", 5000),
-        base44.entities.AuctionCostItem.list("-created_date", 2000).catch(() => []),
-        base44.entities.AuctionFinanceOverride.list("-created_date", 1000).catch(() => [])
-      ]);
-      setAuctions(a || []);
-      setTxns(x || []);
-      setCostItems(ci || []);
-      setOverrides(ov || []);
-      setRefreshedAt(new Date());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
+  const refreshedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+  const load = () => refresh();
 
   const since = useMemo(() => {
     const r = RANGES.find((x) => x.id === range);
@@ -292,8 +290,8 @@ export default function AdminRevenue() {
               </button>
             ))}
           </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={cn("w-4 h-4 me-1.5", loading && "animate-spin")} />
+          <Button variant="outline" size="sm" onClick={load} disabled={refreshing}>
+            <RefreshCw className={cn("w-4 h-4 me-1.5", refreshing && "animate-spin")} />
             {t.common.refresh || "Refresh"}
           </Button>
           <Button variant="outline" size="sm" onClick={exportCsv}>
@@ -389,7 +387,7 @@ export default function AdminRevenue() {
             placeholder={L.searchPlaceholder || "Search auction, ID or winner"}
             className="max-w-xs h-9"
           />
-          <select
+          <SelectField
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-9 rounded-xl border border-border bg-background px-3 text-sm"
@@ -398,8 +396,8 @@ export default function AdminRevenue() {
             <option value="open">{t.auction.statusOpen}</option>
             <option value="live">{t.auction.statusLive}</option>
             <option value="ended">{t.auction.statusEnded}</option>
-          </select>
-          <select
+          </SelectField>
+          <SelectField
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="h-9 rounded-xl border border-border bg-background px-3 text-sm"
@@ -408,10 +406,10 @@ export default function AdminRevenue() {
             <option value="income">{L.sortIncome || "Highest income"}</option>
             <option value="margin">{L.sortMargin || "Best margin"}</option>
             <option value="recent">{L.sortRecent || "Newest"}</option>
-          </select>
+          </SelectField>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="admin-table-scroll">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr className="text-start">

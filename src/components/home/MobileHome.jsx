@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import React from "react";
+import { Link } from "@tanstack/react-router";
 import {
   Bell,
   Building2,
@@ -15,7 +15,9 @@ import {
   Users,
   Watch,
 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { useCategories } from "@/lib/queries/config";
+
+const NO_CATEGORIES = [];
 import { useI18n } from "@/lib/i18n";
 import { effectiveStatus } from "@/lib/auction";
 import LiveCountdown from "@/components/auction/LiveCountdown";
@@ -23,22 +25,37 @@ import { selectHomeAuctions } from "@/lib/homeShowcase";
 import { Image } from "@/components/ui/image";
 import BottomNav from "@/components/BottomNav";
 import { cn } from "@/lib/utils";
+import { homeHighlights, feedAuctionIds } from "@/lib/homeHighlights";
+import { useRecentBids } from "@/lib/queries/auctions";
+import RecentActivity from "@/components/home/dashboard/RecentActivity";
+import MyAuctionsStrip from "@/components/home/dashboard/MyAuctionsStrip";
+import WalletCard from "@/components/home/dashboard/WalletCard";
+import MyBidsList from "@/components/home/dashboard/MyBidsList";
+import SpotlightHero from "@/components/home/dashboard/SpotlightHero";
+import PulseStrip from "@/components/home/dashboard/PulseStrip";
+import NextStepCard from "@/components/home/dashboard/NextStepCard";
+import FillingFast from "@/components/home/dashboard/FillingFast";
 
-export default function MobileHome({ auctions, loading, authed, userName, withNav = true }) {
+export default function MobileHome({ auctions, loading, authed, userName, userId = null, balance = 0, transactions = null, walletLoading = false, mine = null, wallet = null, endingSoon = null, withNav = true }) {
   const { t, dir } = useI18n();
-  const [dbCategories, setDbCategories] = useState([]);
+  const { data: dbCategories = NO_CATEGORIES } = useCategories();
   const list = selectHomeAuctions(auctions);
-  const featured = list[0];
-  const trending = list.slice(1, 3);
+  // Spotlight, live pulse, "filling fast" and (signed in) the next step.
+  const highlights = React.useMemo(
+    () => homeHighlights(auctions || [], { userId: authed ? userId : null, balance }),
+    [auctions, authed, userId, balance]
+  );
+  const { spotlight } = highlights;
+  // Live bid feed (public-bid live auctions only; signed out it reads nothing).
+  const feedIds = React.useMemo(() => feedAuctionIds(auctions || []), [auctions]);
+  const { data: recentBids = NO_CATEGORIES } = useRecentBids(authed ? userId : null, feedIds);
+  const auctionsById = React.useMemo(() => Object.fromEntries((auctions || []).map((a) => [a.id, a])), [auctions]);
+  // Trending leaves out the auction already in the spotlight.
+  const rest = list.filter((a) => a.id !== spotlight?.id);
+  const featured = rest[0] || (spotlight ? null : list[0]);
+  const trending = rest.slice(1, 3);
   const ArrowIcon = ChevronRight;
 
-  useEffect(() => {
-    let active = true;
-    base44.entities.Category.list("sort_order", 20)
-      .then((rows) => { if (active) setDbCategories(rows || []); })
-      .catch(() => {});
-    return () => { active = false; };
-  }, []);
 
   const copy = {
         greeting: userName ? `Welcome ${userName}` : "Welcome to MIZAD",
@@ -126,7 +143,7 @@ export default function MobileHome({ auctions, loading, authed, userName, withNa
       </header>
 
       <main className="space-y-5 px-4 pt-4">
-        <section className="grid grid-cols-4 gap-2">
+        <section className="grid grid-cols-4 gap-2" aria-label="Categories">
           {categories.map(({ icon: Icon, label, tone, to, key }) => (
             <Link key={key} to={to} className="flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-1 py-3">
               <Icon className={cn("h-5 w-5", tone)} />
@@ -135,8 +152,42 @@ export default function MobileHome({ auctions, loading, authed, userName, withNa
           ))}
         </section>
 
-        {/* Screen 04 hero banner: big product shot, headline and gold CTA. */}
-        <section className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-[0_26px_60px_-38px_hsl(var(--accent)/0.8)]">
+        {authed ? <NextStepCard step={highlights.nextStep} /> : null}
+
+        {authed && mine ? <MyAuctionsStrip items={mine} /> : null}
+
+        {spotlight ? <SpotlightHero auction={spotlight} userId={authed ? userId : null} compact /> : null}
+
+        <PulseStrip pulse={highlights.pulse} compact />
+
+        {/* Signed in: balance and the live auctions ending first, above the activity. */}
+        {authed && wallet ? <WalletCard balance={wallet.balance} joined={wallet.joined} activeBids={wallet.activeBids} /> : null}
+
+        {authed && endingSoon?.length ? (
+          <section className="min-w-0">
+            <div className="mb-2.5 flex items-center gap-2">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-destructive/10 text-destructive"><Clock className="h-3.5 w-3.5" /></span>
+              <h2 className="text-[15px] font-extrabold text-foreground">{t.dash.endingSoon}</h2>
+            </div>
+            <MyBidsList items={endingSoon} loading={false} row moving />
+          </section>
+        ) : null}
+
+        {authed || recentBids.length > 0 ? (
+          <RecentActivity
+            bids={recentBids}
+            auctionsById={auctionsById}
+            userId={authed ? userId : null}
+            transactions={transactions || []}
+            walletLoading={walletLoading}
+            showWallet={authed && Array.isArray(transactions)}
+            limit={5}
+          />
+        ) : null}
+
+        {/* No auction to put in the spotlight: the generic banner instead. */}
+        {!spotlight ? (
+        <section className="relative overflow-hidden rounded-2xl border border-border bg-card">
           <div className="relative h-[170px] bg-muted">
             {featured ? (
               <Image src={featured.image_url} alt={featured.title} className="h-full w-full" fittingType="fill" />
@@ -151,7 +202,12 @@ export default function MobileHome({ auctions, loading, authed, userName, withNa
             </Link>
           </div>
         </section>
+        ) : null}
 
+        <FillingFast auctions={highlights.fillingFast.slice(0, 2)} compact />
+
+        {/* Hidden when the spotlight is the only running auction. */}
+        {featured || loading || !spotlight ? (
         <section className="min-w-0">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -175,18 +231,19 @@ export default function MobileHome({ auctions, loading, authed, userName, withNa
               {[featured, ...trending].slice(0, 2).map((auction) => (
                 <Link
                   key={auction.id}
-                  to={`/auction/${auction.id}`}
-                  className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card active:scale-[0.98]"
+                  to="/auction/$id" params={{ id: auction.id }}
+                  className="relative min-w-0 overflow-hidden rounded-2xl border border-border bg-card active:scale-[0.98]"
                 >
-                  <div className="relative h-24 bg-muted">
+                  <div className="absolute inset-0 bg-muted">
                     <Image src={auction.image_url} alt={auction.title} className="h-full w-full" fittingType="fill" />
-                    <span className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
+                  </div>
+                  <div className="relative h-20">
                     <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-[8px] font-extrabold text-destructive-foreground">
                       <Flame className="h-2.5 w-2.5" />
                       {effectiveStatus(auction) === "live" ? t.auction.statusLive : t.auction.statusOpen}
                     </span>
                   </div>
-                  <div className="p-2.5">
+                  <div className="photo-fade relative -mt-8 p-2.5 pt-8">
                     <span className="timer-glow inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-extrabold text-primary tabular-nums">
                       <Clock className="h-3 w-3" />
                       <LiveCountdown auction={auction} fallback={t.auction.statusOpen} />
@@ -208,6 +265,7 @@ export default function MobileHome({ auctions, loading, authed, userName, withNa
             <div className="rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center text-sm text-muted-foreground">{t.home.empty}</div>
           )}
         </section>
+        ) : null}
 
       </main>
 

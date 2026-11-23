@@ -1,5 +1,5 @@
 import React from "react";
-import AdminCrudTable from "./AdminCrudTable";
+import AdminCrudTable, { prefetchCrud } from "./AdminCrudTable";
 
 const fields = [
   { key: "name", label: { en: "Name" }, required: true },
@@ -10,6 +10,8 @@ const fields = [
   { key: "estimated_days", label: { en: "Days" }, type: "number" },
   { key: "active", label: { en: "Active" }, type: "boolean" },
 ];
+
+export const prefetch = prefetchCrud("ShippingMethod");
 
 export default function AdminShipping() {
   return (

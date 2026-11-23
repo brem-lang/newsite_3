@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { Sparkles, Save, Eye } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,25 +9,26 @@ import { toast } from "sonner";
 
 const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none";
 
+const NONE = [];
+
+const loadSection = async () => (await base44.entities.Content.list(50)) || [];
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["hero"], loadSection));
+
 export default function AdminHero() {
   const { t } = useI18n();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(["hero"], loadSection);
   const [saving, setSaving] = useState(false);
   const [titleEn, setTitleEn] = useState("");
   const [subEn, setSubEn] = useState("");
 
-  const load = useCallback(() => {
-    base44.entities.Content.list(50)
-      .then((list) => {
-        setItems(list);
-        const get = (key) => list.find((c) => c.key === key);
-        setTitleEn(get("hero_title")?.value_en || "");
-        setSubEn(get("hero_subtitle")?.value_en || "");
-      })
-      .finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { load(); }, [load]);
+  // Seed the form from the saved copy whenever it (re)loads.
+  useEffect(() => {
+    const get = (key) => items.find((c) => c.key === key);
+    setTitleEn(get("hero_title")?.value_en || "");
+    setSubEn(get("hero_subtitle")?.value_en || "");
+  }, [items]);
 
   const upsert = (key, label, valueEn, existing) => {
     const payload = { key, label, value_en: valueEn };
@@ -55,9 +57,7 @@ export default function AdminHero() {
   const previewTitle = titleEn;
   const previewSub = subEn;
 
-  if (loading) {
-    return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
-  }
+  if (loading) return null;
 
   return (
     <div className="space-y-6">

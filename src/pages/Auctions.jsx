@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo } from "react";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/AuthContext";
+import { useWallet } from "@/lib/useWallet";
+import { useAuctionList, useBidSummary, useSyncAuctions, useRefreshAuctionLists } from "@/lib/queries/auctions";
 import { Gavel } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { effectiveStatus } from "@/lib/auction";
 import DashboardStrip from "@/components/auctions/DashboardStrip";
@@ -11,44 +13,29 @@ import FeaturedAuctionHero from "@/components/auctions/FeaturedAuctionHero";
 import MobileAuctionsHub from "@/components/auctions/MobileAuctionsHub";
 import { useIsMobileView } from "@/lib/useIsMobileView";
 
+const route = getRouteApi("/_app/auctions");
+const EMPTY = [];
+
 export default function Auctions() {
   const { t } = useI18n();
-  const { user, walletBalance } = useOutletContext();
+  const { user } = useAuth();
+  const { balance: walletBalance } = useWallet(user?.id);
   const h = t.hub;
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [auctions, setAuctions] = useState([]);
-  const [bids, setBids] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   const isMobileView = useIsMobileView();
 
-  const tab = searchParams.get("tab") || "all";
-  const sort = searchParams.get("sort") || "newest";
-  const q = searchParams.get("q") || "";
-  const category = searchParams.get("category") || "";
+  // Tab, sort, search and category live in the URL (validated on the route).
+  const { tab = "all", sort = "newest", q = "", category = "" } = route.useSearch();
 
-  const reload = useCallback(() => {
-    setLoading(true);
-    return base44.entities.Auction.list("-created_date", 200)
-      .then((a) => setAuctions(a || []))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    // The listings render as soon as auctions arrive; bid counts stream in
-    // separately so the grid is never blocked by the heavier bid history.
-    reload();
-    base44.entities.Bid.listFields("auction_id,user_id,amount,archived", "-created_date", 1000)
-      .then((b) => { if (active) setBids(b || []); })
-      .catch(() => {});
-    // Advance every auction's clock (start due rounds, end expired ones and
-    // reopen the last ended auction when nothing is running), then refresh.
-    base44.functions
-      .invoke("syncAuctions")
-      .then(() => { if (active) reload(); })
-      .catch(() => {});
-    return () => { active = false; };
-  }, [reload]);
+  // The route loader waits for both (shared with the dashboard's cache).
+  // "loading" covers the bids too: the "mine" tab and stats depend on them, so
+  // an empty result is only shown once both are in.
+  const { data: auctions = EMPTY, isPending: auctionsLoading } = useAuctionList(user?.id);
+  const { data: bids = EMPTY, isPending: bidsLoading } = useBidSummary(user?.id);
+  const loading = auctionsLoading || bidsLoading;
+  // Advance every auction's clock on the server, then refresh the list.
+  useSyncAuctions();
+  const refreshLists = useRefreshAuctionLists();
 
 
 
@@ -159,10 +146,7 @@ export default function Auctions() {
   }, [auctions, tab, sort, q, category, bidsByAuction]);
 
   const setParam = (key, val) => {
-    const next = new URLSearchParams(searchParams);
-    if (val) next.set(key, val);
-    else next.delete(key);
-    setSearchParams(next, { replace: true });
+    navigate({ to: "/auctions", search: (prev) => ({ ...prev, [key]: val || undefined }), replace: true });
   };
 
   const tabs = [
@@ -198,15 +182,7 @@ export default function Auctions() {
         counts={counts}
         search={q}
         onSearch={(v) => setParam("q", v)}
-        onRefresh={async () => {
-          await base44.functions.invoke("syncAuctions").catch(() => {});
-          await Promise.all([
-            reload(),
-            base44.entities.Bid.listFields("auction_id,user_id,amount,archived", "-created_date", 1000)
-              .then((b) => setBids(b || []))
-              .catch(() => {}),
-          ]);
-        }}
+        onRefresh={refreshLists}
       />
     );
   }
@@ -237,13 +213,7 @@ export default function Auctions() {
         <FeaturedAuctionHero auction={featured} />
       )}
 
-      {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-64 rounded-2xl bg-card animate-pulse" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
+      {loading ? null : filtered.length === 0 ? (
         <div className="py-20 text-center text-muted-foreground">
           <Gavel className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p>{tab === "mine" ? h.emptyMine : h.empty}</p>

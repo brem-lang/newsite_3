@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Search, UserPlus, Mail, MessageCircle, Bell, ChevronDown, ChevronUp, Gavel, Wallet, Edit2, Trash2, PauseCircle, PlayCircle, ShieldCheck, KeyRound, Plus, Minus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAdminData, useAdminMe, adminUserListQuery, adminSection, adminLookups, warmAdmin } from "@/lib/queries/admin";
 import AdminPagination, { paginate } from "@/components/admin/AdminPagination";
 import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
@@ -17,14 +19,27 @@ import {
 } from "@/components/ui/dialog";
 import EditUserDialog from "@/components/admin/EditUserDialog";
 import PermissionsDialog from "@/components/admin/PermissionsDialog";
+import SelectField from "@/components/ui/select-field";
+
+const NONE = [];
+const NO_MAP = {};
+
+const loadRoles = async () => (await base44.entities.Role.list("-created_date", 1000).catch(() => [])) || [];
+
+/** Route loader: users, roles and the signed-in staff profile. */
+export const prefetch = (qc) =>
+  warmAdmin(qc, adminUserListQuery(), adminSection(["roles", "list"], loadRoles), adminLookups.me());
 
 export default function AdminUsers() {
   const { t } = useI18n();
   const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [me, setMe] = useState(null);
-  const [roles, setRoles] = useState([]);
+  // listUsers is shared with the Participants panel (same cache entry).
+  const qc = useQueryClient();
+  const usersQuery = useQuery(adminUserListQuery());
+  const users = usersQuery.data?.users ?? NONE;
+  const { data: roles = NONE, isPending: rolesLoading } = useAdminData(["roles", "list"], loadRoles);
+  const loading = usersQuery.isPending || rolesLoading;
+  const me = useAdminMe();
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(null);
   const [profile, setProfile] = useState({ bids: [], txns: [] });
@@ -45,14 +60,10 @@ export default function AdminUsers() {
   const isSuper = !!me?.is_super;
 
   const load = useCallback(() => {
-    Promise.all([
-      base44.functions.invoke("listUsers"),
-      base44.entities.Role.list("-created_date", 1000).catch(() => [])
-    ]).then(([res, rList]) => {
-      setUsers(res.data?.users || []);
-      setRoles(rList || []);
-    }).finally(() => setLoading(false));
-  }, []);
+    qc.invalidateQueries({ queryKey: adminUserListQuery().queryKey });
+    qc.invalidateQueries({ queryKey: ["admin", "roles"] });
+    qc.invalidateQueries({ queryKey: ["admin", "users", "lookup"] });
+  }, [qc]);
 
   const roleOptions = useMemo(() => {
     const list = [
@@ -65,10 +76,6 @@ export default function AdminUsers() {
     return list;
   }, [roles]);
 
-  useEffect(() => {
-    base44.adminAuth.me().then((u) => setMe(u)).catch(() => {});
-    load();
-  }, [load]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -188,7 +195,7 @@ export default function AdminUsers() {
     finally { setBusy(false); }
   };
 
-  if (loading) return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
+  if (loading) return null;
 
   return (
     <div className="space-y-6">
@@ -238,7 +245,7 @@ export default function AdminUsers() {
                     <p className="text-xs text-muted-foreground truncate">{u.email}{u.phone ? ` · ${u.phone}` : ""}</p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <select
+                    <SelectField
                       value={u.staff_role || u.role}
                       onChange={(e) => changeRole(u, e.target.value)}
                       disabled={!isSuper}
@@ -250,7 +257,7 @@ export default function AdminUsers() {
                           {r.name === "user" ? t.admin.users.roleUser : r.name === "admin" ? t.admin.users.roleAdmin : r.name}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                     <div className="flex items-center gap-1 ms-1">
                       {canEdit && <Button variant="ghost" size="icon" onClick={() => setPermsUser(u)} title={t.admin.permissions.title}><KeyRound className="w-4 h-4" /></Button>}
                       {canEdit && <Button variant="ghost" size="icon" onClick={() => setEditUser(u)} title={t.admin.users.edit}><Edit2 className="w-4 h-4" /></Button>}
@@ -333,11 +340,11 @@ export default function AdminUsers() {
               </div>
               <div>
                 <Label htmlFor="user-f2">{t.admin.users.inviteRole}</Label>
-                <select id="user-f2" value={inviteForm.role} onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                <SelectField id="user-f2" value={inviteForm.role} onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
                   className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm">
                   <option value="user">{t.admin.users.roleUser}</option>
                   {isSuper && <option value="admin">{t.admin.users.roleAdmin}</option>}
-                </select>
+                </SelectField>
                 {!isSuper && <p className="text-xs text-muted-foreground mt-1">{t.admin.users.roleSuperOnly}</p>}
               </div>
             </div>

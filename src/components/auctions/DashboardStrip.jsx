@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { Gavel, Trophy, Users, Plus, UserCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency, Money } from "@/lib/currency";
@@ -41,14 +41,14 @@ export default function DashboardStrip({ user, balance, stats }) {
           </div>
           <div className="flex flex-row lg:flex-col items-stretch gap-2 shrink-0">
             <Button
-              onClick={() => navigate("/wallet")}
+              onClick={() => navigate({ to: "/wallet" })}
               className="gap-2 h-10 px-4"
             >
               <Plus className="w-4 h-4" /> {h.topUp}
             </Button>
             <Button
               variant="outline"
-              onClick={() => navigate("/account")}
+              onClick={() => navigate({ to: "/account" })}
               className="gap-2 h-10 px-4"
             >
               <UserCircle className="w-4 h-4" /> {h.account}

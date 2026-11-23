@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import SelectField from "@/components/ui/select-field";
 
 export default function EditUserDialog({ user, actorIsSuper, open, onOpenChange, onSaved }) {
   const { t } = useI18n();
@@ -58,25 +59,25 @@ export default function EditUserDialog({ user, actorIsSuper, open, onOpenChange,
             </div>
             <div>
               <Label htmlFor="edit-user-f2">{t.admin.users.verification}</Label>
-              <select id="edit-user-f2"
+              <SelectField id="edit-user-f2"
                 value={form.verification_status}
                 onChange={(e) => setForm({ ...form, verification_status: e.target.value })}
                 className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="pending">{t.admin.verification.status.pending}</option>
                 <option value="verified">{t.admin.verification.status.verified}</option>
                 <option value="rejected">{t.admin.verification.status.rejected}</option>
-              </select>
+              </SelectField>
             </div>
             <div>
               <Label htmlFor="edit-user-f3">{t.admin.users.role}</Label>
-              <select id="edit-user-f3"
+              <SelectField id="edit-user-f3"
                 value={form.role}
                 disabled={!actorIsSuper}
                 onChange={(e) => setForm({ ...form, role: e.target.value })}
                 className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-60">
                 <option value="user">{t.admin.users.roleUser}</option>
                 <option value="admin">{t.admin.users.roleAdmin}</option>
-              </select>
+              </SelectField>
               {!actorIsSuper && <p className="text-xs text-muted-foreground mt-1">{t.admin.users.roleSuperOnly}</p>}
             </div>
           </div>

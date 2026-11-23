@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { configQueries } from "@/lib/queries/config";
+import { walletQueries } from "@/lib/queries/wallet";
 import Deposit from "@/pages/Deposit";
 
 export const Route = createFileRoute("/_app/deposit")({
@@ -12,5 +14,11 @@ export const Route = createFileRoute("/_app/deposit")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  loader: async ({ context: { queryClient, userId } }) => {
+    await Promise.all([
+      queryClient.ensureQueryData(walletQueries.balance(userId)),
+      queryClient.ensureQueryData(configQueries.paymentMethods()),
+    ]);
+  },
   component: Deposit,
 });

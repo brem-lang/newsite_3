@@ -2,6 +2,7 @@ import React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
+import SelectField from "@/components/ui/select-field";
 
 const SIZES = [25, 50, 100];
 
@@ -23,7 +24,7 @@ export default function AdminPagination({ page, pageSize, total, onPage, onPageS
 
       <div className="flex items-center gap-3">
         {onPageSize && (
-          <select
+          <SelectField
             value={pageSize}
             onChange={(e) => onPageSize(Number(e.target.value))}
             className="h-8 rounded-md border border-input bg-background px-2 text-xs"
@@ -32,7 +33,7 @@ export default function AdminPagination({ page, pageSize, total, onPage, onPageS
             {SIZES.map((s) => (
               <option key={s} value={s}>{`${s} / page`}</option>
             ))}
-          </select>
+          </SelectField>
         )}
         <div className="flex items-center gap-1">
           <Button

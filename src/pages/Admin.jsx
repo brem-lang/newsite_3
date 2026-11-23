@@ -1,69 +1,25 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import React, { lazy, Suspense, useMemo, useState } from "react";
+import { Link, useParams, useNavigate } from "@tanstack/react-router";
+import { AppShellSkeleton } from "@/components/skeletons/PageSkeleton";
 import { LogOut, Menu, Search, ChevronRight } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminCommandPalette from "@/components/admin/AdminCommandPalette";
+import AdminSystemEvents from "@/components/admin/AdminSystemEvents";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ConfirmProvider } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
+import { PANEL_IMPORTS, preloadPanel } from "@/lib/adminPanels";
 import { GROUPS, SECTIONS, SECTION_IDS, DEFAULT_SECTION, groupOfSection, sectionLabel } from "@/lib/adminNav";
 
 const BASE_PATH = "/admin";
 
-/** Every panel is code-split: opening /admin no longer downloads all 29 screens. */
-const PANELS = {
-  analytics: lazy(() => import("@/components/admin/AdminAnalytics")),
-  live: lazy(() => import("@/components/admin/AdminLive")),
-  auctions: lazy(() => import("@/components/admin/AdminAuctions")),
-  results: lazy(() => import("@/components/admin/AdminResults")),
-  fulfilment: lazy(() => import("@/components/admin/AdminFulfilment")),
-  categories: lazy(() => import("@/components/admin/AdminCategories")),
-  brands: lazy(() => import("@/components/admin/AdminBrands")),
-  winnerpayments: lazy(() => import("@/components/admin/AdminWinnerPayments")),
-  auctionpl: lazy(() => import("@/components/admin/AdminAuctionPL")),
-  revenue: lazy(() => import("@/components/admin/AdminRevenue")),
-  payments: lazy(() => import("@/components/admin/AdminPayments")),
-  payment_methods: lazy(() => import("@/components/admin/AdminPaymentMethods")),
-  refunds: lazy(() => import("@/components/admin/AdminRefunds")),
-  coupons: lazy(() => import("@/components/admin/AdminCoupons")),
-  users: lazy(() => import("@/components/admin/AdminUsers")),
-  participants: lazy(() => import("@/components/admin/AdminParticipants")),
-  verification: lazy(() => import("@/components/admin/AdminVerification")),
-  roles: lazy(() => import("@/components/admin/AdminRoles")),
-  hero: lazy(() => import("@/components/admin/AdminHero")),
-  content: lazy(() => import("@/components/admin/AdminContent")),
-  pages: lazy(() => import("@/components/admin/AdminPages")),
-  design: lazy(() => import("@/components/admin/AdminDesign")),
-  broadcast: lazy(() => import("@/components/admin/AdminBroadcast")),
-  notifications: lazy(() => import("@/components/admin/AdminNotifications")),
-  templates: lazy(() => import("@/components/admin/AdminTemplates")),
-  support: lazy(() => import("@/components/admin/AdminSupport")),
-  system: lazy(() => import("@/components/admin/AdminSystem")),
-  bidmonitor: lazy(() => import("@/components/admin/AdminBidMonitor")),
-  activitylog: lazy(() => import("@/components/admin/AdminActivityLogs")),
-  apikeys: lazy(() => import("@/components/admin/AdminApiKeys")),
-  reports: lazy(() => import("@/components/admin/AdminReports")),
-  testmode: lazy(() => import("@/components/admin/AdminTestMode")),
-  settings: lazy(() => import("@/components/admin/AdminSettings")),
-  shipping: lazy(() => import("@/components/admin/AdminShipping")),
-};
+const PANELS = Object.fromEntries(Object.entries(PANEL_IMPORTS).map(([id, load]) => [id, lazy(load)]));
 
-function PanelSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-56" />
-      <Skeleton className="h-4 w-80" />
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" />
-      </div>
-      <Skeleton className="h-64" />
-    </div>
-  );
-}
+// preloadPanel (on hover/focus/touch of a section link) and the route loader
+// download a panel's code ahead of render; see src/lib/adminPanels.js.
 
 /** Admin section -> database capability that unlocks it. */
 const SECTION_CAPABILITY = {
@@ -105,23 +61,14 @@ const SECTION_CAPABILITY = {
 
 export default function Admin({ caps: capsProp = null, onSignedOut }) {
   const { t, dir } = useI18n();
-  const { section } = useParams();
+  // Both /admin and /admin/$section render this page.
+  const { section } = useParams({ strict: false });
   const navigate = useNavigate();
-  
-  const [caps, setCaps] = useState(capsProp);
+
+  // Capabilities come from the cached query in AdminGate.
+  const caps = capsProp;
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
-
-  useEffect(() => {
-    if (capsProp) {
-      setCaps(capsProp);
-      return;
-    }
-    base44.functions
-      .invoke("myAdminCapabilities", {})
-      .then((r) => setCaps(r?.data?.error ? null : r?.data || null))
-      .catch(() => {});
-  }, [capsProp]);
 
   // The database role hierarchy decides which admin sections are reachable.
   // Super admins hold every capability, so nothing is filtered for them.
@@ -146,17 +93,11 @@ export default function Admin({ caps: capsProp = null, onSignedOut }) {
   // Signs out of the staff session only; the customer site is unaffected.
   const logout = async () => {
     await base44.adminAuth.logout();
-    navigate("/admin");
+    navigate({ to: "/admin" });
     onSignedOut?.();
   };
 
-  if (!caps) {
-    return (
-      <div className="min-h-screen grid place-items-center">
-        <div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (!caps) return <AppShellSkeleton />;
 
 
   const firstAllowed = groups[0]?.items?.[0] || DEFAULT_SECTION;
@@ -165,11 +106,13 @@ export default function Admin({ caps: capsProp = null, onSignedOut }) {
   const group = groups.find((g) => g.items.includes(active)) || groupOfSection(active);
   const Panel = PANELS[active];
 
+  // lg+: the shell is one window tall; only <main> scrolls (src/styles.css, .admin-main).
   return (
-    <div className="min-h-screen flex overflow-x-hidden bg-background" dir={dir}>
+    <div className="min-h-screen flex overflow-x-hidden bg-background lg:h-dvh lg:overflow-hidden" dir={dir}>
       <AdminSidebar
         groups={groups}
         basePath={BASE_PATH}
+        onPreload={preloadPanel}
         active={active}
         activeGroup={group.id}
         onLogout={logout}
@@ -184,6 +127,7 @@ export default function Admin({ caps: capsProp = null, onSignedOut }) {
           <AdminSidebar
             groups={groups}
             basePath={BASE_PATH}
+            onPreload={preloadPanel}
             active={active}
             activeGroup={group.id}
             onLogout={logout}
@@ -194,8 +138,8 @@ export default function Admin({ caps: capsProp = null, onSignedOut }) {
         </SheetContent>
       </Sheet>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="native-chrome sticky top-0 z-30 border-b">
+      <div className="flex-1 flex flex-col min-w-0 lg:min-h-0">
+        <header className="native-chrome sticky top-0 z-30 shrink-0 border-b">
           <div className="h-16 px-3 sm:px-6 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setDrawer(true)} aria-label={t.admin.panelTitle}>
@@ -211,6 +155,7 @@ export default function Admin({ caps: capsProp = null, onSignedOut }) {
               <Button variant="ghost" size="icon" onClick={() => setPalette(true)} aria-label={t.admin.searchPlaceholder || "Search"}>
                 <Search className="w-4 h-4" />
               </Button>
+              <AdminSystemEvents />
               <Button variant="ghost" size="icon" onClick={logout} title={t.common.logout}><LogOut className="w-4 h-4" /></Button>
             </div>
           </div>
@@ -222,7 +167,11 @@ export default function Admin({ caps: capsProp = null, onSignedOut }) {
                 return (
                   <Link
                     key={id}
-                    to={`${BASE_PATH}/${id}`}
+                    to="/admin/$section"
+                    params={{ section: id }}
+                    onMouseEnter={() => preloadPanel(id)}
+                    onFocus={() => preloadPanel(id)}
+                    onTouchStart={() => preloadPanel(id)}
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors",
                         active === id ? "bg-accent/10 text-accent ring-1 ring-accent/30" : "text-muted-foreground hover:bg-secondary/60 hover:text-accent"
@@ -237,10 +186,15 @@ export default function Admin({ caps: capsProp = null, onSignedOut }) {
           )}
         </header>
 
-        <main className="flex-1 min-w-0 p-3 sm:p-6">
-          <div className="max-w-7xl mx-auto">
+        {/* key: a new section starts at the top of the scroll area.
+            lg+: the top padding lives on the inner div, not on the scroll area,
+            so sticky panel headers (top-0) meet the very top edge with no gap. */}
+        <main key={active} className="admin-main flex-1 min-w-0 p-3 sm:p-6 lg:pt-0">
+          <div className="max-w-7xl mx-auto lg:pt-6">
             <ConfirmProvider>
-              <Suspense fallback={<PanelSkeleton />}>
+              {/* The route loader already downloaded this panel's code (the top bar
+                  covered the wait), so this fallback is at most one blank frame. */}
+              <Suspense fallback={null}>
                 {Panel ? <Panel /> : null}
               </Suspense>
             </ConfirmProvider>

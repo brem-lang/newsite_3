@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import SelectField from "@/components/ui/select-field";
 
 const PAGE_SIZE = 20;
 
@@ -26,6 +26,19 @@ const csvCell = (v) => {
   const s = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
+
+/** One entity's rows, shared by the table and its route prefetch. */
+const crudQuery = (entity) => ({
+  queryKey: ["admin-entity", entity],
+  queryFn: async () => {
+    const res = await base44.entities[entity].list();
+    return Array.isArray(res) ? res : res?.items || [];
+  },
+  staleTime: 30_000,
+});
+
+/** A panel's route prefetch: `export const prefetch = prefetchCrud("Brand")`. */
+export const prefetchCrud = (entity) => (qc) => qc.ensureQueryData(crudQuery(entity)).catch(() => undefined);
 
 export default function AdminCrudTable({ entity, title, subtitle, addLabel, emptyLabel, fields, readOnly }) {
   
@@ -43,14 +56,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
   const { t } = useI18n();
   const askConfirm = useConfirm();
 
-  const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
-    queryKey: ["admin-entity", entity],
-    queryFn: async () => {
-      const res = await base44.entities[entity].list();
-      return Array.isArray(res) ? res : res?.items || [];
-    },
-    staleTime: 30_000,
-  });
+  const { data, isLoading, isError, error, isFetching, refetch } = useQuery(crudQuery(entity));
   const rows = data || [];
   const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-entity", entity] });
 
@@ -134,7 +140,8 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
   const set = (k, v) => setForm((s) => ({ ...s, [k]: v }));
 
   return (
-    <div className="space-y-4">
+    // admin-fill / admin-table-card: the table fills the visible height (src/styles.css).
+    <div className="space-y-4 admin-fill">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h2 className="font-display text-xl font-semibold">{L(title)}</h2>
@@ -170,11 +177,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
         </span>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" />
-        </div>
-      ) : isError ? (
+      {isLoading ? null : isError ? (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center space-y-3">
           <AlertTriangle className="w-6 h-6 text-destructive mx-auto" />
           <p className="text-sm text-destructive">{error?.message || "Failed to load data."}</p>
@@ -185,8 +188,8 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
           {query ? "No matching records." : L(emptyLabel)}
         </div>
       ) : (
-        <>
-          <div className="overflow-x-auto rounded-xl border bg-card">
+        <div className="admin-table-card rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
@@ -230,7 +233,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
           </div>
 
           {pageCount > 1 && (
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-border">
               <span className="text-xs text-muted-foreground">
                 {"Page"} {current + 1} / {pageCount}
               </span>
@@ -244,7 +247,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
 
@@ -265,13 +268,13 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
                   ) : f.type === "textarea" || f.type === "json" ? (
                     <Textarea rows={f.rows || 4} value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} className="font-mono" />
                   ) : f.type === "select" ? (
-                    <select
+                    <SelectField
                       className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                       value={form[f.key] ?? ""}
                       onChange={(e) => set(f.key, e.target.value)}
                     >
                       {(f.options || []).map((o) => (<option key={o.value} value={o.value}>{L(o.label)}</option>))}
-                    </select>
+                    </SelectField>
                   ) : f.type === "boolean" ? (
                     <div className="flex items-center gap-2">
                       <Switch checked={!!form[f.key]} onCheckedChange={(v) => set(f.key, v)} />

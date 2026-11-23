@@ -10,6 +10,9 @@ import { toast } from "sonner";
 import { hoursToMinutes, minutesToHours, formatDuration } from "@/lib/auction";
 import ImagePicker from "@/components/admin/ImagePicker";
 import { useDiscardGuard } from "@/components/admin/ConfirmDialog";
+import SelectField from "@/components/ui/select-field";
+import { allowedStatuses, actionFor, runLifecycle, LOCKED_WHILE_LIVE } from "@/lib/auctionLifecycle";
+import AuctionHistory from "@/components/admin/AuctionHistory";
 
 const inputCls = "w-full rounded-lg border border-accent/20 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
@@ -30,6 +33,8 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
   const { t } = useI18n();
   const { markDirty, guard } = useDiscardGuard(open);
   const isEdit = !!auction;
+  // Price, duration, seats and fees are frozen while live (guard_auction_writes).
+  const live = isEdit && auction.status === "live";
   const [form, setForm] = useState({
     title: "", description: "", image_url: "",
     entry_fee: 10, max_subscribers: 10, min_participants: 0, start_price: 0,
@@ -99,11 +104,23 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
   }, [auction, open]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const statusOptions = [
-    { value: "open", label: t.auction.statusOpen },
-    { value: "live", label: t.auction.statusLive },
-    { value: "ended", label: t.auction.statusEnded }
-  ];
+  const L = t.admin.lifecycle;
+  // Status changes run a lifecycle action on save; only allowed moves are offered.
+  const storedStatus = isEdit ? auction.status || "open" : "open";
+  const statusName = {
+    open: t.auction.statusOpen, live: t.auction.statusLive, ended: t.auction.statusEnded,
+    voided: L.voided, voiding: L.voided, archived: L.archived
+  };
+  const moveName = {
+    startAuction: t.admin.confirm.startLabel,
+    closeAuction: t.admin.live?.endNow || t.admin.confirm.closeLabel,
+    relaunchAuction: L.relaunch,
+    archiveAuction: L.archive
+  };
+  const statusOptions = allowedStatuses(storedStatus).map((s) => ({
+    value: s,
+    label: s === storedStatus ? statusName[s] : moveName[actionFor(storedStatus, s)] || statusName[s]
+  }));
 
   const modeOptions = [
     { value: "highest", label: t.admin.fields.modeHighest || "Highest bid" },
@@ -131,11 +148,9 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
         // No maximum exists: the single configured number is the minimum target.
         min_participants: Number(form.max_subscribers) || 0,
         start_price: Number(form.start_price),
-        current_price: Number(isEdit ? auction.current_price : form.start_price),
         bid_increment: Number(form.bid_increment),
         duration_minutes: hoursToMinutes(form.duration_hours),
         scheduled_start_time: form.scheduled_start_time ? new Date(form.scheduled_start_time).toISOString() : null,
-        status: form.status,
         mode: form.mode,
         target_price: form.mode === "closest" ? Number(form.target_price) || 0 : null,
         bid_fee: form.mode === "closest" ? Math.max(0, effectiveBidFee) : 0,
@@ -151,17 +166,21 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
         cost_price: Math.max(0, Number(form.cost_price) || 0),
         other_cost: Math.max(0, Number(form.other_cost) || 0)
       };
-      // A live auction needs a running timer; set it on first go-live.
-      if (payload.status === "live" && !auction?.start_time) {
-        payload.start_time = new Date().toISOString();
-        payload.end_time = new Date(Date.now() + hoursToMinutes(form.duration_hours) * 60000).toISOString();
-      }
+      // Status, timer, round and price are the server's. A live auction only
+      // takes its unlocked fields (the database refuses the rest anyway).
+      if (live) LOCKED_WHILE_LIVE.forEach((k) => delete payload[k]);
+      let id = auction?.id;
       if (isEdit) {
         await base44.entities.Auction.update(auction.id, payload);
       } else {
+        payload.status = "open";
+        payload.current_price = payload.start_price;
         payload.subscriber_ids = [];
-        await base44.entities.Auction.create(payload);
+        id = (await base44.entities.Auction.create(payload))?.id;
       }
+      // A changed status runs its lifecycle action (Start, End now, Relaunch, Archive).
+      const action = actionFor(storedStatus, form.status);
+      if (action && id) await runLifecycle(action, id);
       toast.success(t.admin.saved);
       onSaved();
       onOpenChange(false);
@@ -256,6 +275,9 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
             <DialogTitle>{isEdit ? t.admin.edit : t.admin.new}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
+            {live && (
+              <p className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">{L.lockedWhileLive}</p>
+            )}
             <Section title={t.admin.fields.sectionBasics || "Basics"}>
             <Field label={t.admin.fields.title}>
               <Input value={form.title} onChange={(e) => set("title", e.target.value)} />
@@ -269,13 +291,16 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
             </Section>
   
             <Section title={t.admin.fields.sectionMode || "Auction type & numbers"}>
+            <fieldset disabled={live} className="contents">
             <Field label={t.admin.fields.mode || "Auction type"}>
-              <select value={form.mode} onChange={(e) => set("mode", e.target.value)} className={inputCls}>
+              <SelectField value={form.mode} onChange={(e) => set("mode", e.target.value)} className={inputCls}>
                 {modeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              </SelectField>
             </Field>
+            </fieldset>
             {form.mode === "closest" && (
               <>
+                <fieldset disabled={live} className="contents">
                 <Field label={t.admin.fields.targetPrice || "Selling price (target)"}>
                   <Input type="number" min="0" step="0.01" value={form.target_price} onChange={(e) => set("target_price", e.target.value)} />
                 </Field>
@@ -363,6 +388,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
                         : (t.admin.fields.bidsPerParticipantHint || "Every participant gets the same amount of numbers.")}
                   </p>
                 </Field>
+                </fieldset>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label={t.admin.fields.minRoundMinutes || "Minimum round length (minutes)"}>
                     <Input type="number" min="0" step="1" value={form.min_round_minutes} onChange={(e) => set("min_round_minutes", e.target.value)} />
@@ -406,11 +432,11 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
                   <Input type="number" min="0" step="1" value={form.bid_rate_limit} onChange={(e) => set("bid_rate_limit", e.target.value)} />
                 </Field>
                 <Field label={t.admin.fields.bidRateWindow || "Time window"}>
-                  <select value={String(form.bid_rate_window_minutes)} onChange={(e) => set("bid_rate_window_minutes", e.target.value)} className={inputCls}>
+                  <SelectField value={String(form.bid_rate_window_minutes)} onChange={(e) => set("bid_rate_window_minutes", e.target.value)} className={inputCls}>
                     {[1, 5, 10, 30, 60].map((m) => (
                       <option key={m} value={m}>{formatDuration(m, t)}</option>
                     ))}
-                  </select>
+                  </SelectField>
                 </Field>
               </div>
               <p className="text-xs text-muted-foreground">{t.admin.fields.bidRateHint || "Paces bidding: a participant can place at most this many bids inside the chosen window."}</p>
@@ -434,11 +460,13 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
   
             <Section title={t.admin.fields.sectionSchedule || "Money, participants & timing"}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <fieldset disabled={live} className="contents">
               <Field label={t.admin.fields.entryFee}><Input type="number" min="0" step="0.01" value={form.entry_fee} onChange={(e) => set("entry_fee", e.target.value)} /></Field>
               <Field label={t.admin.fields.minParticipants || "Participants needed to close (minimum)"}>
                 <Input type="number" min="1" value={form.max_subscribers} onChange={(e) => set("max_subscribers", e.target.value)} />
                 <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.minParticipantsHint || "There is no maximum. Extra participants can always join; the round only closes once this many have joined and the timer has run out."}</p>
               </Field>
+              </fieldset>
               <Field label={t.admin.fields.costPrice || "Product cost (what you pay)"}>
                 <Input type="number" min="0" step="0.01" value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} />
                 <p className="mt-1 text-xs text-muted-foreground">{t.admin.fields.costPriceHint || "Used to calculate profit for this auction in the Revenue section."}</p>
@@ -446,17 +474,21 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
               <Field label={t.admin.fields.otherCost || "Other costs (shipping, fees...)"}>
                 <Input type="number" min="0" step="0.01" value={form.other_cost} onChange={(e) => set("other_cost", e.target.value)} />
               </Field>
+              <fieldset disabled={live} className="contents">
               <Field label={t.admin.fields.startPrice}><Input type="number" min="0" step="0.01" value={form.start_price} onChange={(e) => set("start_price", e.target.value)} /></Field>
               <Field label={t.admin.fields.bidIncrement}><Input type="number" min="0.01" step="0.01" value={form.bid_increment} onChange={(e) => set("bid_increment", e.target.value)} /></Field>
               <Field label={t.admin.fields.durationMinutes}><Input type="number" min="0.25" step="any" value={form.duration_hours} onChange={(e) => set("duration_hours", e.target.value)} /></Field>
+              </fieldset>
               <Field label={t.admin.fields.scheduledStart}><Input type="datetime-local" value={form.scheduled_start_time} onChange={(e) => set("scheduled_start_time", e.target.value)} /></Field>
               <Field label={t.admin.fields.status}>
-                <select value={form.status} onChange={(e) => set("status", e.target.value)} className={inputCls}>
+                <SelectField value={form.status} onChange={(e) => set("status", e.target.value)} className={inputCls} disabled={statusOptions.length < 2}>
                   {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                </SelectField>
+                <p className="mt-1 text-xs text-muted-foreground">{L.statusHint}</p>
               </Field>
             </div>
             </Section>
+            {isEdit && <AuctionHistory auctionId={auction.id} />}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => guard(onOpenChange)(false)}>{t.admin.cancel}</Button>

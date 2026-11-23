@@ -1,24 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Clock, CheckCircle2, XCircle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { useRefundRequests } from "@/lib/queries/wallet";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export default function RefundRequestsList({ userId }) {
   const { t } = useI18n();
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Same cached query the wallet page reads, so this adds no request.
+  const { data, isPending } = useRefundRequests(userId);
+  const rows = (data || []).slice(0, 50);
 
-  const load = () => {
-    if (!userId) return;
-    base44.entities.RefundRequest.filter({ user_id: userId }, "-created_date", 50)
-      .then(setRows)
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (loading) return null;
+  if (isPending) return null;
   if (rows.length === 0) return null;
 
   const statusMeta = (s) => ({

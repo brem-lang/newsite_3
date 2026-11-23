@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { ChevronRight, Flame, Gavel, Users } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Image } from "@/components/ui/image";
@@ -34,7 +34,7 @@ export default function LiveCarousel({ title, auctions = [], loading, to = "/auc
           {emptyLabel || t.home.empty}
         </div>
       ) : (
-        <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-3 min-[520px]:grid-cols-2 min-[520px]:gap-4">
+        <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-3 min-[520px]:grid-cols-2 min-[520px]:gap-4 lg:grid-cols-3">
           {auctions.map((a, index) => {
             const st = effectiveStatus(a);
             const seats = a.subscriber_ids?.length || 0;
@@ -42,19 +42,20 @@ export default function LiveCarousel({ title, auctions = [], loading, to = "/auc
             return (
               <Link
                 key={a.id}
-                to={`/auction/${a.id}`}
-                 className="group block w-full min-w-0 overflow-hidden rounded-2xl border border-border/90 bg-card shadow-[0_22px_50px_-34px_hsl(var(--accent)/0.75)] transition-transform active:scale-[0.98] lg:hover:-translate-y-1 lg:hover:border-accent/45"
+                to="/auction/$id" params={{ id: a.id }}
+                 className="group relative block w-full min-w-0 overflow-hidden rounded-2xl border border-border/90 bg-card shadow-[0_22px_50px_-34px_hsl(var(--accent)/0.75)] transition-transform active:scale-[0.98] lg:hover:-translate-y-1 lg:hover:border-accent/45"
               >
-                <div className={index === 0 ? "relative h-52 bg-muted sm:h-56" : "relative h-40 bg-muted sm:h-44"}>
+                <div className="absolute inset-0 bg-muted">
                   <Image src={a.image_url} alt={a.title} className="w-full h-full" fittingType="fill" />
-                  <span className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-card via-card/55 to-transparent" />
+                </div>
+                <div className={index === 0 ? "relative h-44 sm:h-48" : "relative h-32 sm:h-36"}>
                   <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/90 px-2.5 py-1 text-[10px] font-extrabold text-destructive-foreground shadow-[0_0_18px_hsl(var(--destructive)/0.35)] backdrop-blur">
                     {st === "live" ? <Flame className="w-3 h-3 text-destructive-foreground" /> : null}
                     {st === "live" ? t.auction.statusLive : t.auction.statusOpen}
                   </span>
                   <span className="timer-glow absolute top-3 right-3 rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold text-primary tabular-nums backdrop-blur"><LiveCountdown auction={a} fallback={t.auction.statusOpen} /></span>
                 </div>
-                 <div className="relative -mt-5 p-4 pt-0">
+                 <div className="photo-fade relative -mt-12 p-4 pt-12">
                   <p className="line-clamp-1 text-[15px] font-extrabold text-foreground">{a.title}</p>
                   <div className="mt-3 flex items-end justify-between gap-2">
                     <div>

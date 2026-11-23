@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, Search, Plus, Gavel, CircleUserRound } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -11,18 +11,18 @@ import { cn } from "@/lib/utils";
  */
 export default function BottomNav() {
   const { t } = useI18n();
-  const location = useLocation();
+  const location = useRouterState({ select: (s) => s.location });
   const nav = t.nav;
 
-  const activeTab = new URLSearchParams(location.search).get("tab");
+  const activeTab = location.search?.tab;
   const isAuctions = location.pathname === "/auctions";
 
   const tabs = [
-    { id: "home", to: "/home", search: "", label: nav.home, icon: Home },
-    { id: "auctions", to: "/auctions", search: "", label: nav.auctions, icon: Search },
-    { id: "wallet", to: "/wallet", search: "", label: nav.wallet, icon: Plus, center: true },
-    { id: "board", to: "/auctions", search: "?tab=mine", label: nav.bidboard, icon: Gavel },
-    { id: "profile", to: "/account", search: "", label: nav.profile, icon: CircleUserRound },
+    { id: "home", to: "/home", label: nav.home, icon: Home },
+    { id: "auctions", to: "/auctions", search: {}, label: nav.auctions, icon: Search },
+    { id: "wallet", to: "/wallet", label: nav.wallet, icon: Plus, center: true },
+    { id: "board", to: "/auctions", search: { tab: "mine" }, label: nav.bidboard, icon: Gavel },
+    { id: "profile", to: "/account", label: nav.profile, icon: CircleUserRound },
   ];
 
   const isActive = (id) => {
@@ -41,7 +41,8 @@ export default function BottomNav() {
         return (
           <Link
             key={tb.id}
-            to={tb.to + tb.search}
+            to={tb.to}
+            search={tb.search}
             className={cn(
               "flex-1 tap-44 flex flex-col items-center justify-center gap-1 text-[9px] font-bold transition-colors relative active:scale-95",
                active ? "text-primary" : "text-muted-foreground",

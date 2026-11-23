@@ -87,7 +87,11 @@ export function applyTheme(theme) {
     const cssValue = String(value);
     vars.forEach((v) => root.style.setProperty(v, cssValue));
   });
-  if (typeof t.radius === "number") root.style.setProperty("--radius", `${t.radius}px`);
+  if (typeof t.radius === "number") {
+    root.style.setProperty("--radius", `${t.radius}px`);
+    // The flat look halves this (src/styles.css, [data-look="flat"]).
+    root.style.setProperty("--radius-theme", `${t.radius}px`);
+  }
 }
 
 // Preview: full style object (also sets foreground/card/border/muted so the preview reads correctly on a dark canvas).
@@ -120,7 +124,8 @@ export function themeToStyle(theme) {
     "--font-heading": t.fontHeading,
     "--font-body": t.fontBody,
     "--font-display": t.fontDisplay,
-    "--radius": `${t.radius}px`,
+    // Halved like the live site (flat look, src/styles.css).
+    "--radius": `${t.radius / 2}px`,
   };
   return s;
 }

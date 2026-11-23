@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus, Minus, MessageSquarePlus, Gavel, Trophy, Wallet, Coins, Flame,
   Download, RefreshCw, KeyRound, ChevronDown, Search, ShieldCheck, CreditCard, History, Ticket
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, useAdminMe } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -36,32 +37,27 @@ function download(name, text) {
 export default function ParticipantDetailDialog({ participant, open, onOpenChange, onUpdate }) {
   const { t, dir } = useI18n();
   const d = t.admin.participants.dialog;
-  const [me, setMe] = useState(null);
-  const [payload, setPayload] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const me = useAdminMe();
   const [noteDraft, setNoteDraft] = useState("");
   const [postingNote, setPostingNote] = useState(false);
   const [adj, setAdj] = useState({ dir: "credit", amount: "", reason: "" });
   const [busyAdj, setBusyAdj] = useState(false);
   const [busyReset, setBusyReset] = useState(false);
 
-  useEffect(() => { base44.adminAuth.me().then(setMe).catch(() => {}); }, []);
-
-  const load = useCallback(async () => {
-    if (!participant?.id) return;
-    setLoading(true);
-    try {
+  // The participant file, cached per user while the dialog is open.
+  const fileQuery = useAdminData(
+    ["participant", participant?.id],
+    async () => {
       const res = await base44.functions.invoke("getParticipantFile", { user_id: participant.id });
       if (res.data?.error) throw new Error(res.data.error);
-      setPayload(res.data);
-    } catch (e) {
-      toast.error(e.message || "Error");
-    } finally {
-      setLoading(false);
-    }
-  }, [participant?.id]);
-
-  useEffect(() => { if (open) load(); else setPayload(null); }, [open, load]);
+      return res.data;
+    },
+    { enabled: open && !!participant?.id, retry: false },
+  );
+  const payload = open ? fileQuery.data ?? null : null;
+  const loading = fileQuery.isFetching;
+  const load = fileQuery.refresh;
+  useEffect(() => { if (fileQuery.error) toast.error(fileQuery.error.message || "Error"); }, [fileQuery.error]);
 
   const rollups = useMemo(() => (payload ? auctionRollups(payload) : []), [payload]);
   const money$ = useMemo(() => moneySummary(payload?.transactions || []), [payload]);
@@ -378,7 +374,7 @@ function BidTable({ rows, title, d, currency }) {
     <div>
       <p className="text-xs font-semibold text-muted-foreground mb-1">{title} ({rows.length})</p>
       {rows.length === 0 ? <p className="text-sm text-muted-foreground">{d.empty}</p> : (
-        <div className="rounded-lg border border-border overflow-hidden overflow-x-auto">
+        <div className="rounded-lg border border-border overflow-hidden admin-table-scroll">
           <table className="w-full text-sm">
             <thead className="bg-secondary/50 text-muted-foreground">
               <tr><Th>{d.date}</Th><Th>{d.round}</Th><Th>{d.amount}</Th><Th>{d.state}</Th></tr>
@@ -464,7 +460,7 @@ function BidsTab({ payload, d, currency }) {
 
       {rows.length === 0 ? <Empty text={d.empty} /> : (
         <>
-          <div className="rounded-xl border border-border overflow-hidden overflow-x-auto">
+          <div className="rounded-xl border border-border overflow-hidden admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 text-muted-foreground">
                 <tr><Th>{d.date}</Th><Th>{d.auction}</Th><Th>{d.round}</Th><Th>{d.amount}</Th><Th>{d.state}</Th></tr>
@@ -540,7 +536,7 @@ function PaymentsTab({ rows, payload, d, currency }) {
 
       {filtered.length === 0 ? <Empty text={d.empty} /> : (
         <>
-          <div className="rounded-xl border border-border overflow-hidden overflow-x-auto">
+          <div className="rounded-xl border border-border overflow-hidden admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 text-muted-foreground">
                 <tr>

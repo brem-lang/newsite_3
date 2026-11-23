@@ -1,58 +1,71 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { DEFAULT_THEME, applyTheme } from "@/lib/themeDefaults";
+import { applyTheme } from "@/lib/themeDefaults";
+import { configKeys } from "@/lib/queries/keys";
 
 const list = (scope, sort = "-created_date", limit = 1) =>
   base44.entities.Theme.filter({ scope }, sort, limit).catch(() => []);
 
 const THEME_CACHE_KEY = "site_theme_published";
 
-// Applies the last known theme immediately from local storage so colors don't
-// wait on a network round-trip, then refreshes from the database.
-export async function applyPublishedThemeOnce() {
+/** Apply the last published theme saved in local storage, if any. */
+export function applyCachedTheme() {
   try {
     const cached = localStorage.getItem(THEME_CACHE_KEY);
     if (cached) applyTheme(JSON.parse(cached));
   } catch {
     /* ignore unreadable cache */
   }
+}
+
+/** Save the published theme so the next visit paints with it immediately. */
+export function rememberTheme(theme) {
   try {
-    const res = await list("published");
-    if (res && res[0] && res[0].theme) {
-      applyTheme(res[0].theme);
-      try {
-        localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(res[0].theme));
-      } catch {
-        /* storage full or blocked */
-      }
-    }
+    localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(theme));
   } catch {
-    /* fall back to built-in defaults */
+    /* storage full or blocked */
   }
 }
 
+async function fetchEditorState() {
+  const [d, p, h] = await Promise.all([list("draft"), list("published"), list("published", "-created_date", 8)]);
+  return { draft: d?.[0] || null, published: p?.[0] || null, history: h || [] };
+}
 
+const themeEditorQuery = () => ({ queryKey: configKeys.themeEditor(), queryFn: fetchEditorState, staleTime: 30_000 });
+
+/** Route prefetch for the admin Design screen. */
+export const prefetchSiteTheme = (qc) => qc.ensureQueryData(themeEditorQuery()).catch(() => undefined);
+
+/** Theme editor state for the admin Design screen. */
 export function useSiteTheme() {
-  const [draft, setDraft] = useState(null);
-  const [published, setPublished] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+  const { data, isPending } = useQuery(themeEditorQuery());
   const [saving, setSaving] = useState(false);
   const draftRef = useRef(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const [d, p, h] = await Promise.all([list("draft"), list("published"), list("published", "-created_date", 8)]);
-    draftRef.current = d && d[0] ? d[0] : null;
-    setDraft(draftRef.current);
-    setPublished(p && p[0] ? p[0] : null);
-    setHistory(h || []);
-    setLoading(false);
-  }, []);
-
+  // The latest saved draft, from the query or from our own last write.
   useEffect(() => {
-    load();
-  }, [load]);
+    if (data) draftRef.current = data.draft;
+  }, [data]);
+
+  const setDraft = useCallback(
+    (draft) => {
+      draftRef.current = draft;
+      qc.setQueryData(configKeys.themeEditor(), (prev) => (prev ? { ...prev, draft } : prev));
+    },
+    [qc],
+  );
+
+  const load = useCallback(
+    () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: configKeys.themeEditor() }),
+        qc.invalidateQueries({ queryKey: configKeys.publishedTheme() }),
+      ]),
+    [qc],
+  );
 
   // Kept in refs (not state) so saveDraft's identity never changes. If it
   // depended on `saving`, every save would recreate it, re-trigger the caller's
@@ -60,47 +73,56 @@ export function useSiteTheme() {
   const savingRef = useRef(false);
   const pendingRef = useRef(null);
 
-  const saveDraft = useCallback(async (theme) => {
-    // Nothing changed since the last save: skip the request.
-    if (draftRef.current && JSON.stringify(draftRef.current.theme) === JSON.stringify(theme)) return;
-    // A save is already in flight: remember only the latest edit and send it after.
-    if (savingRef.current) {
-      pendingRef.current = theme;
-      return;
-    }
-    savingRef.current = true;
-    setSaving(true);
-    try {
+  const writeDraft = useCallback(
+    async (theme) => {
       if (draftRef.current) {
-        const updated = await base44.entities.Theme.update(draftRef.current.id, { theme });
-        draftRef.current = updated;
-        setDraft(updated);
+        setDraft(await base44.entities.Theme.update(draftRef.current.id, { theme }));
       } else {
-        const created = await base44.entities.Theme.create({ scope: "draft", theme });
-        draftRef.current = created;
-        setDraft(created);
+        setDraft(await base44.entities.Theme.create({ scope: "draft", theme }));
       }
-    } catch (e) {
-      // ignore transient save errors; the next edit will retry
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
-    }
-    const next = pendingRef.current;
-    pendingRef.current = null;
-    if (next) saveDraft(next);
-  }, []);
+    },
+    [setDraft],
+  );
 
-  const publish = useCallback(async (theme) => {
-    setSaving(true);
-    try {
-      await base44.entities.Theme.create({ scope: "published", theme });
-      await load();
-      applyTheme(theme);
-    } finally {
-      setSaving(false);
-    }
-  }, [load]);
+  const saveDraft = useCallback(
+    async (theme) => {
+      // Nothing changed since the last save: skip the request.
+      if (draftRef.current && JSON.stringify(draftRef.current.theme) === JSON.stringify(theme)) return;
+      // A save is already in flight: remember only the latest edit and send it after.
+      if (savingRef.current) {
+        pendingRef.current = theme;
+        return;
+      }
+      savingRef.current = true;
+      setSaving(true);
+      try {
+        await writeDraft(theme);
+      } catch {
+        // ignore transient save errors; the next edit will retry
+      } finally {
+        savingRef.current = false;
+        setSaving(false);
+      }
+      const next = pendingRef.current;
+      pendingRef.current = null;
+      if (next) saveDraft(next);
+    },
+    [writeDraft],
+  );
+
+  const publish = useCallback(
+    async (theme) => {
+      setSaving(true);
+      try {
+        await base44.entities.Theme.create({ scope: "published", theme });
+        await load();
+        applyTheme(theme);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [load],
+  );
 
   const discard = useCallback(async () => {
     if (draftRef.current) {
@@ -110,22 +132,28 @@ export function useSiteTheme() {
     await load();
   }, [load]);
 
-  const restore = useCallback(async (theme) => {
-    setSaving(true);
-    try {
-      if (draftRef.current) {
-        const updated = await base44.entities.Theme.update(draftRef.current.id, { theme });
-        draftRef.current = updated;
-        setDraft(updated);
-      } else {
-        const created = await base44.entities.Theme.create({ scope: "draft", theme });
-        draftRef.current = created;
-        setDraft(created);
+  const restore = useCallback(
+    async (theme) => {
+      setSaving(true);
+      try {
+        await writeDraft(theme);
+      } finally {
+        setSaving(false);
       }
-    } finally {
-      setSaving(false);
-    }
-  }, []);
+    },
+    [writeDraft],
+  );
 
-  return { draft, published, history, loading, saving, saveDraft, publish, discard, restore, reload: load };
+  return {
+    draft: data?.draft ?? null,
+    published: data?.published ?? null,
+    history: data?.history ?? [],
+    loading: isPending,
+    saving,
+    saveDraft,
+    publish,
+    discard,
+    restore,
+    reload: load,
+  };
 }

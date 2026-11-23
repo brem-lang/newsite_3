@@ -4,7 +4,7 @@ import {
   Users, Clock, TrendingUp, ArrowLeft, AlertTriangle, Zap,
   Heart, Share2, Plus, Minus, Trophy, X
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Image } from "@/components/ui/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -220,7 +220,7 @@ export default function MobileAuctionDetail({
   // Swipe from the leading edge goes back, like a native detail screen.
   const swipeRef = useSwipe({
     onSwipeLeft: () => false,
-    onSwipeRight: () => navigate(backTo),
+    onSwipeRight: () => navigate({ to: backTo }),
     threshold: 80
   });
 
@@ -392,7 +392,7 @@ export default function MobileAuctionDetail({
           )}
           {status === "ended" && (
             <Link
-              to={`/auction/${auction.id}/results`}
+              to="/auction/$id/results" params={{ id: auction.id }}
               className="cyan-button flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[13px] font-extrabold"
             >
               <Trophy className="h-4 w-4" /> {t.auction.results || "Results"}
@@ -450,7 +450,8 @@ export default function MobileAuctionDetail({
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="overflow-y-auto p-4">
+              {/* Only the claim form scrolls; the title bar stays put. */}
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
                 <WinnerClaim auction={auction} user={user} />
               </div>
             </m.div>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { Users, Clock, ArrowRight, Gavel } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency, Money } from "@/lib/currency";
@@ -25,11 +25,13 @@ export default function HomeAuctionCard({ auction, yourBid }) {
 
   return (
     <Link
-      to={`/auction/${auction.id}`}
-      className="native-panel group block rounded-xl overflow-hidden hover:border-accent/45 hover:-translate-y-1 transition-all"
+      to="/auction/$id" params={{ id: auction.id }}
+      className="native-panel group relative block rounded-xl overflow-hidden hover:border-accent/45 hover:-translate-y-1 transition-all"
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+      <div className="absolute inset-0 overflow-hidden bg-muted">
         <Image src={auction.image_url} alt={auction.title} className="w-full h-full transition-transform duration-500 group-hover:scale-105" fittingType="fill" />
+      </div>
+      <div className="relative aspect-[16/9]">
         <span className={cn("absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-md border", badgeCls)}>
           {statusLabel}
         </span>
@@ -37,7 +39,7 @@ export default function HomeAuctionCard({ auction, yourBid }) {
           {symbol}{auction.entry_fee}
         </span>
       </div>
-      <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+      <div className="photo-fade relative -mt-10 p-3 pt-10 sm:p-4 sm:pt-10 space-y-2 sm:space-y-3">
         <h3 className="font-display font-bold text-sm sm:text-base text-foreground leading-snug line-clamp-1">{auction.title}</h3>
         <div className="flex items-center gap-3 sm:gap-4 text-[11px] sm:text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-accent" />{filled}/{auction.max_subscribers}</span>

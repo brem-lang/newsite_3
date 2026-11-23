@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import React from "react";
+import { Link, getRouteApi } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/AuthContext";
+import { auctionQueries, bidQueries } from "@/lib/queries/auctions";
 import { ArrowLeft, Trophy, Receipt, Wallet, Gavel, Ban, Crown } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { Money } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
@@ -20,15 +22,19 @@ function maskName(id, names) {
  * Shows the closed auction, every bid that was placed, the winner and the
  * payout / payment action that leads into the wallet.
  */
+const route = getRouteApi("/_app/auction/$id/results");
+const EMPTY = [];
+
 export default function AuctionResults() {
-  const { id } = useParams();
+  const { id } = route.useParams();
   const { t, dir } = useI18n();
-  const [auction, setAuction] = useState(null);
-  const [bids, setBids] = useState([]);
-  const [payment, setPayment] = useState(null);
-  const [names, setNames] = useState({});
-  const [me, setMe] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user: me } = useAuth();
+  // The auction row is the same cache entry the auction room uses.
+  const { data: auction, isPending: loading, error } = useQuery(auctionQueries.detail(id));
+  const { data: bids = EMPTY, isPending: bidsLoading } = useQuery(bidQueries.allForAuction(id));
+  const { data: bidState } = useQuery(auctionQueries.bidState(id));
+  const { data: payment = null } = useQuery(auctionQueries.winnerPayment(id));
+  const names = bidState?.names || {};
 
   const copy = {
         title: "Auction results",
@@ -47,29 +53,10 @@ export default function AuctionResults() {
         bidsCount: "Bids",
       };
 
-  const load = useCallback(() => {
-    Promise.all([
-      base44.entities.Auction.get(id).then(setAuction).catch(() => {}),
-      base44.entities.Bid.filter({ auction_id: id }, "-created_date", 300)
-        .then((rows) => setBids(rows || []))
-        .catch(() => {}),
-      base44.functions
-        .invoke("auctionBidState", { auction_id: id })
-        .then((res) => { if (res?.data && !res.data.error) setNames(res.data.names || {}); })
-        .catch(() => {}),
-      base44.functions
-        .invoke("winnerPayment", { auction_id: id })
-        .then((res) => setPayment(res?.data?.payment || null))
-        .catch(() => {}),
-      base44.auth.me().then(setMe).catch(() => {}),
-    ]).finally(() => setLoading(false));
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
-
-  if (loading || !auction) {
-    return <div className="h-64 animate-pulse rounded-2xl border border-border bg-card" />;
-  }
+  if (!loading && error) throw error;
+  // The route loader waits for the auction and its bids; this only happens if
+  // the cache was dropped mid-visit.
+  if (loading || !auction || bidsLoading) return null;
 
   const closest = isClosestMode(auction);
   const iWon = auction.winner_id && me?.id === auction.winner_id;
@@ -85,7 +72,8 @@ export default function AuctionResults() {
     <div className="mx-auto w-full max-w-3xl space-y-4 pb-24" dir={dir}>
       <div className="flex items-center gap-3">
         <Link
-          to={`/auction/${auction.id}`}
+          to="/auction/$id"
+          params={{ id: auction.id }}
           aria-label={copy.back}
           className="tap-44 grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-foreground"
         >
@@ -142,7 +130,7 @@ export default function AuctionResults() {
 
           {iWon && payment && payment.status !== "paid" ? (
             <Button asChild className="gold-button mt-3 h-12 w-full gap-2 rounded-xl font-bold">
-              <Link to={payment.token ? `/pay/${payment.token}` : "/wallet"}>
+              <Link {...(payment.token ? { to: "/pay/$token", params: { token: payment.token } } : { to: "/wallet" })}>
                 <Receipt className="h-4 w-4" /> {copy.payNow}
               </Link>
             </Button>

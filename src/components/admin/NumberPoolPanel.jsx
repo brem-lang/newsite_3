@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/lib/queries/keys";
 import { Hash, AlertTriangle, Timer, ShieldCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
@@ -10,35 +12,30 @@ const nf = (n) => Number(n || 0).toLocaleString("en-GB");
  * identical totals. Re-fetches whenever a realtime bid event bumps `revision`.
  */
 export function useNumberPool(auctionId, { enabled = true, revision = 0 } = {}) {
-  const [pool, setPool] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const alive = useRef(true);
-
-  useEffect(() => {
-    alive.current = true;
-    return () => { alive.current = false; };
-  }, []);
-
-  const refresh = useCallback(async () => {
-    if (!auctionId) return null;
-    setLoading(true);
-    try {
+  const qc = useQueryClient();
+  const queryKey = adminKeys.section("numberPool", auctionId);
+  // One cached pool per auction, shared by every surface that shows it.
+  const { data: pool = null, isFetching: loading, refetch } = useQuery({
+    queryKey,
+    queryFn: async () => {
       const res = await base44.functions.invoke("auctionNumberPool", { auction_id: auctionId });
       const data = res?.data || res;
-      if (alive.current && data && !data.error) setPool(data);
+      if (!data || data.error) throw new Error(data?.error || "pool_unavailable");
       return data;
-    } catch {
-      return null;
-    } finally {
-      if (alive.current) setLoading(false);
-    }
-  }, [auctionId]);
+    },
+    enabled: enabled && !!auctionId,
+    staleTime: 5_000,
+    retry: false,
+  });
 
+  // A realtime bid bumps `revision`: re-read (shared, never stacked).
+  const first = useRef(true);
   useEffect(() => {
-    if (!enabled || !auctionId) return;
-    refresh();
-  }, [enabled, auctionId, revision, refresh]);
+    if (first.current) { first.current = false; return; }
+    if (enabled && auctionId) qc.invalidateQueries({ queryKey: adminKeys.section("numberPool", auctionId) }, { cancelRefetch: false });
+  }, [revision]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const refresh = useCallback(async () => (await refetch()).data ?? null, [refetch]);
   return { pool, loading, refresh };
 }
 

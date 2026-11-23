@@ -130,7 +130,13 @@ export default function PullToRefresh({
       ref={rootRef}
       {...rest}
       className={cn("relative", scroll ? "overflow-y-auto" : "overflow-hidden", className)}
-      style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}
+      // No overscroll containment when this wrapper is meant to scroll: on
+      // pages where it just grows with its content (home), the page scrolls
+      // instead, and "contain" on a box that can't scroll swallowed the mouse
+      // wheel, so nothing scrolled while the cursor was over it. Rubber-band
+      // is already off for the page (body overscroll-behavior-y: none) and a
+      // pull is stopped with preventDefault.
+      style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: scroll ? undefined : "contain" }}
     >
       {/* indicator — small, pinned inside the header band */}
       <div

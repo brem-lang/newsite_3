@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { Gavel } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 

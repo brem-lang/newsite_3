@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Gavel, Ticket, Trophy, Wallet, Clock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
@@ -19,44 +20,51 @@ const DEPOSIT_TYPES = new Set(["topup", "deposit"]);
 
 const abs = (n) => Math.abs(Number(n) || 0);
 
+const NONE = [];
+
+const loadSection = async () => {
+  const [tx, au, wp] = await Promise.all([
+    base44.entities.WalletTransaction.list("-created_date", 400).catch(() => []),
+    base44.entities.Auction.listFields("id, title, status, round", "-created_date", 300).catch(() => []),
+    base44.entities.WinnerPayment.list().then((rows) => (rows || []).filter((p) => p.status !== "paid")).catch(() => []),
+  ]);
+  return { txns: tx || [], auctions: au || [], pending: wp || [] };
+};
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["revenue-stream"], loadSection));
+
 export default function AdminRevenueStream() {
   const { lang } = useI18n();
   const { format } = useCurrency();
 
-  const [txns, setTxns] = useState([]);
-  const [auctions, setAuctions] = useState([]);
-  const [pending, setPending] = useState([]);
   const [pulse, setPulse] = useState(0);
   const timer = useRef(null);
 
-  const load = useCallback(async () => {
-    const [tx, au, wp] = await Promise.all([
-      base44.entities.WalletTransaction.list("-created_date", 400).catch(() => []),
-      base44.entities.Auction.listFields("id, title, status, round", "-created_date", 300).catch(() => []),
-      base44.entities.WinnerPayment.list().then((rows) => (rows || []).filter((p) => p.status !== "paid")).catch(() => []),
-    ]);
-    setTxns(tx || []);
-    setAuctions(au || []);
-    setPending(wp || []);
-  }, []);
+  // Cached; 20s safety poll, paused while the tab is hidden.
+  const { data, isPending: loading, refresh: load } = useAdminData(["revenue-stream"], loadSection, { staleTime: 10_000, refetchInterval: 20_000, refetchIntervalInBackground: false });
+  const txns = data?.txns ?? NONE;
+  const auctions = data?.auctions ?? NONE;
+  const pending = data?.pending ?? NONE;
 
-  useEffect(() => { load(); }, [load]);
-
-  /** Realtime: any wallet movement or bid nudges a coalesced reload. */
+  /**
+   * Realtime: wallet movements (the only source of revenue rows) trigger a
+   * coalesced reload, at most one per 3s. Bids only pulse the indicator; a
+   * bid that costs money arrives as a wallet movement anyway.
+   */
   useEffect(() => {
+    const pulseOnly = () => setPulse((p) => p + 1);
     const bump = () => {
-      setPulse((p) => p + 1);
+      pulseOnly();
       if (timer.current) return;
-      timer.current = setTimeout(() => { timer.current = null; load(); }, 800);
+      timer.current = setTimeout(() => { timer.current = null; load(); }, 3000);
     };
     const unsubs = [
-      base44.entities.WalletTransaction.subscribe(bump),
-      base44.entities.Bid.subscribe(bump),
+      base44.entities.WalletTransaction.subscribe(bump, { onReconnect: load }),
+      base44.entities.Bid.subscribe(pulseOnly),
     ];
-    const poll = setInterval(load, 20000);
     return () => {
       unsubs.forEach((u) => u());
-      clearInterval(poll);
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
     };
@@ -174,7 +182,7 @@ export default function AdminRevenueStream() {
             {"Per auction"}
           </div>
           <div className="max-h-[320px] overflow-y-auto divide-y divide-border">
-            {rows.length === 0 && (
+            {!loading && rows.length === 0 && (
               <p className="p-4 text-xs text-muted-foreground">{"No auction money yet."}</p>
             )}
             {rows.map((r) => (
@@ -203,7 +211,7 @@ export default function AdminRevenueStream() {
             {"Latest movements"}
           </div>
           <div className="max-h-[320px] overflow-y-auto divide-y divide-border">
-            {feed.length === 0 && (
+            {!loading && feed.length === 0 && (
               <p className="p-4 text-xs text-muted-foreground">{"Nothing yet."}</p>
             )}
             {feed.map((x) => {

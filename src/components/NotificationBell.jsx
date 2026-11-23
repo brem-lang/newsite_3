@@ -1,45 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/AuthContext";
+import { useUnreadNotifications, useMarkAllRead } from "@/lib/queries/notifications";
 import { Bell } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 
+const NONE = [];
+
 export default function NotificationBell() {
   const { t, format } = useI18n();
   const navigate = useNavigate();
-  const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  // The signed-in profile is already resolved by AuthContext.
+  const { user } = useAuth();
+  const { data: items = NONE } = useUnreadNotifications(user?.id);
+  const markAllRead = useMarkAllRead(user?.id);
 
-  useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    const load = () => base44.entities.Notification
-      .filter({ channel: "inapp", user_id: user.id, read: false }, "-created_date", 20)
-      .then((list) => setItems((list || []).filter((n) => n.type !== "chat"))).catch(() => {});
-    load();
-    // Only this user's notifications are streamed; apply each one directly.
-    return base44.entities.Notification.subscribe(
-      (ev) => {
-        const n = ev.data || {};
-        setItems((list) => {
-          const rest = list.filter((x) => x.id !== n.id);
-          const show = ev.type !== "delete" && n.channel === "inapp" && !n.read && n.type !== "chat";
-          return show ? [n, ...rest].slice(0, 20) : rest;
-        });
-      },
-      { filter: `user_id=eq.${user.id}`, onReconnect: load },
-    );
-  }, [user]);
-
-  const markAll = async () => {
-    const snapshot = items;
-    setItems([]);
-    await Promise.all(snapshot.map((n) => base44.entities.Notification.update(n.id, { read: true }).catch(() => {})));
-  };
+  const markAll = () => markAllRead.mutate(items);
 
   if (!user) return null;
   const unread = items.length;
@@ -78,7 +57,7 @@ export default function NotificationBell() {
                 return (
                   <div
                     key={n.id}
-                    onClick={() => clickable && (setOpen(false), navigate(`/auction/${n.auction_id}`))}
+                    onClick={() => clickable && (setOpen(false), navigate({ to: "/auction/$id", params: { id: n.auction_id } }))}
                     className={`px-4 py-3 border-b border-border/60 hover:bg-secondary/30 ${clickable ? "cursor-pointer" : ""}`}
                   >
                     <p className="text-sm font-medium break-words">{displayTitle}</p>

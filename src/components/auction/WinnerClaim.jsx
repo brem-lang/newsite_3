@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { auctionQueries, useFulfilment } from "@/lib/queries/auctions";
+import { fulfilmentKeys } from "@/lib/queries/keys";
 import { Truck, PackageCheck, MapPin, Clock, CheckCircle2, Receipt } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
@@ -12,34 +15,15 @@ const PICKUP_STEPS = ["pending", "ready", "collected", "confirmed"];
 
 export default function WinnerClaim({ auction, user }) {
   const { t } = useI18n();
-  const [f, setF] = useState(null);
-  const [loadingF, setLoadingF] = useState(true);
+  const qc = useQueryClient();
+  const isWinner = !!auction?.id && !!user?.id && auction.winner_id === user.id;
+  const { data: f = null, isPending: loadingF } = useFulfilment(auction?.id, user?.id, isWinner);
+  const { data: payment = null } = useQuery({ ...auctionQueries.winnerPayment(auction?.id), enabled: isWinner });
+  const setF = (next) => qc.setQueryData(fulfilmentKeys.claim(auction.id, user.id), next);
   const [method, setMethod] = useState("shipping");
   const [addr, setAddr] = useState({ name: "", phone: "", line1: "", line2: "", city: "", country: "", zip: "" });
   const [pickupNotes, setPickupNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [payment, setPayment] = useState(null);
-
-  const load = () => {
-    base44.entities.Fulfilment.filter({ auction_id: auction.id, winner_id: user.id }, "-created_date", 5)
-      .then((rows) => setF(rows?.[0] || null))
-      .finally(() => setLoadingF(false));
-  };
-
-  useEffect(() => {
-    if (!auction?.id || !user?.id || auction.winner_id !== user.id) return;
-    load();
-    base44.functions
-      .invoke("winnerPayment", { auction_id: auction.id })
-      .then((res) => setPayment(res.data?.payment || null))
-      .catch(() => {});
-    return base44.entities.Fulfilment.subscribe(
-      (ev) => {
-        if (ev.data?.winner_id === user.id) load();
-      },
-      { filter: `auction_id=eq.${auction.id}`, onReconnect: load },
-    );
-  }, [auction?.id, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!auction || !user || auction.winner_id !== user.id) return null;
   if (loadingF) return null;

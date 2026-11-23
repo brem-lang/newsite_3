@@ -150,6 +150,69 @@ async function logAdminAction(
   }
 }
 
+/* ------------------------------ lifecycle ------------------------------ */
+/*
+ * open -> live -> ended -> (relaunch) open as the next round | archived
+ *                       \-> voided -> (relaunch) open | archived
+ * Every transition writes one activity_logs entry named after its event
+ * (auction.started / ended / voided / relaunched / archived, queue.empty).
+ * source "admin" = a staff member did it (actor recorded), "system" = the
+ * clock / tick did it. Nothing ever moves an ended auction by itself.
+ */
+
+type Source = "admin" | "system";
+
+async function logLifecycle(
+  event: string,
+  a: Row,
+  source: Source,
+  actor: Row = null,
+  details: Record<string, unknown> = {},
+) {
+  try {
+    await admin.from("activity_logs").insert({
+      action: event,
+      source,
+      actor_id: source === "admin" ? actor?.["id"] || null : null,
+      actor_name: source === "admin" ? actor?.["full_name"] || actor?.["email"] || null : "System",
+      target_type: a ? "auction" : null,
+      target_id: a ? String(a["id"]) : null,
+      details: JSON.stringify({ title: a?.["title"] ?? null, round: a ? Number(a["round"] || 1) : null, ...details }),
+    });
+  } catch {
+    /* observability is best-effort */
+  }
+}
+
+/** Keeps a finished round's result, so relaunching the row never loses it. */
+async function recordRound(a: Row, outcome: "won" | "no_winner" | "voided", extra: Row = {}) {
+  try {
+    await admin.from("auction_rounds").upsert(
+      {
+        auction_id: a["id"],
+        round: Number(a["round"] || 1),
+        outcome,
+        winner_id: outcome === "won" ? a["winner_id"] || null : null,
+        winner_name: outcome === "won" ? a["winner_name"] || null : null,
+        final_price: Number(a["current_price"] || 0),
+        start_time: a["start_time"] || null,
+        end_time: a["end_time"] || null,
+        ended_at: new Date().toISOString(),
+        subscriber_count: (a["subscriber_ids"] || []).length,
+        ...extra,
+      },
+      { onConflict: "auction_id,round", ignoreDuplicates: true },
+    );
+  } catch {
+    /* history is best-effort; the round's bids and payments are kept anyway */
+  }
+}
+
+/** Ended by the tick more than 2 minutes after its end time: the server was down. */
+function isRecoveryEnd(a: Row, source: Source) {
+  if (source !== "system" || !a?.["end_time"]) return false;
+  return Date.now() - new Date(a["end_time"]).getTime() > 2 * 60_000;
+}
 
 
 /** Maps a handler result into an audit outcome + severity. */
@@ -206,7 +269,7 @@ function closeQuota(a: Row): number {
 }
 
 async function ensureAuctionState(a: Row): Promise<Row> {
-  if (!a || a["status"] === "ended" || a["status"] === "voided" || a["status"] === "voiding") return a;
+  if (!a || ["ended", "voided", "voiding", "archived"].includes(a["status"])) return a;
 
   const now = new Date();
 
@@ -236,6 +299,10 @@ async function ensureAuctionState(a: Row): Promise<Row> {
       a = (await getRow("auctions", a["id"])) || a;
     } else {
       a = { ...a, ...patch };
+      // No admin click: the schedule hit or the first participant joined.
+      await logLifecycle("auction.started", a, "system", null, {
+        trigger: a["scheduled_start_time"] && now >= new Date(a["scheduled_start_time"]) ? "schedule" : "first_join",
+      });
     }
   }
 
@@ -299,6 +366,11 @@ async function ensureAuctionState(a: Row): Promise<Row> {
             round: Number(a["round"] || 1),
             severity: "warning",
             details: { restarts: nextCount, max_restarts: maxRestarts, refund: res ?? null },
+          });
+          await recordRound(a, "voided");
+          await logLifecycle("auction.voided", a, "system", null, {
+            reason: "not_enough_participants",
+            restarts: nextCount,
           });
         }
         return (await getRow("auctions", a["id"])) || { ...a, status: "voided" };
@@ -443,7 +515,9 @@ async function ensureWinnerPayment(a: Row, userId: string, amount: number): Prom
  * UPDATE) so concurrent clock syncs can never settle the same round twice.
  */
 
-async function settleAuction(a: Row): Promise<Row> {
+async function settleAuction(a: Row, source: Source = "system", actor: Row = null): Promise<Row> {
+  // Judged before the claim: a late end means the tick missed the end time.
+  const recovered = isRecoveryEnd(a, source);
   const { data: claimed } = await admin
     .from("auctions")
     .update({ status: "ended" })
@@ -527,7 +601,16 @@ async function settleAuction(a: Row): Promise<Row> {
     details: { paid: patch["paid"] ?? null, payment_id: paymentId, title: a["title"] || null, holds },
   });
 
-  return { ...a, ...patch };
+  const settled = { ...a, ...patch };
+  await recordRound(settled, winnerId ? "won" : "no_winner", { payment_id: paymentId, recovered });
+  await logLifecycle("auction.ended", settled, source, actor, {
+    winner_id: winnerId,
+    winner_name: patch["winner_name"] ?? null,
+    final_price: Number(settled["current_price"] || 0),
+    ...(recovered ? { recovered: true, end_time: a["end_time"] } : {}),
+  });
+
+  return settled;
 }
 
 /** Any signed-in viewer can nudge one auction's clock forward. */
@@ -537,7 +620,6 @@ async function syncAuction(_user: Row, body: Payload) {
   const a = await getRow("auctions", auctionId);
   if (!a) return fail("not_found", 404);
   const next = await ensureAuctionState(a);
-  if (next["status"] === "ended" && a["status"] !== "ended") await reopenLastEndedIfAllEnded();
   return ok({ status: next["status"], end_time: next["end_time"] || null });
 
 }
@@ -556,7 +638,7 @@ async function joinAuction(user: Row, body: Payload) {
 
   const a = await ensureAuctionState(await getRow("auctions", auctionId));
   if (!a) return fail("not_found", 404);
-  if (a["status"] === "ended") return fail("Auction ended");
+  if (["ended", "archived", "voided", "voiding"].includes(a["status"])) return fail("Auction ended");
 
 
   // Seat + entry fee are taken atomically in Postgres (row lock inside the
@@ -591,7 +673,7 @@ async function placeBid(user: Row, body: Payload) {
 
   const a = await ensureAuctionState(await getRow("auctions", auctionId));
   if (!a) return fail("not_found", 404);
-  if (a["status"] === "ended") return fail("Auction ended");
+  if (["ended", "archived", "voided", "voiding"].includes(a["status"])) return fail("Auction ended");
 
   if (a["status"] !== "live" || !a["end_time"]) return fail("not_live");
   if (Date.now() >= new Date(a["end_time"]).getTime()) return fail("Auction ended");
@@ -693,7 +775,7 @@ async function auctionBidState(user: Row, body: Payload) {
     .filter((r) => r.user_id === user["id"])
     .map((r) => ({ amount: Number(r.amount), burned: !!r.burned, created_date: r.created_date }))
     .sort((x, y) => y.amount - x.amount);
-  const ended = a["status"] === "ended";
+  const ended = a["status"] === "ended" || a["status"] === "archived";
   // Extra numbers the caller bought for this round on top of the free quota.
   const { data: creditRow } = await admin
     .from("bid_credits")
@@ -1073,19 +1155,23 @@ async function claimFulfilment(user: Row, body: Payload) {
 
   const a = await getRow("auctions", auctionId);
   if (!a) return fail("not_found", 404);
-  if (a["status"] !== "ended" && a["status"] !== "live") return fail("auction_not_ended");
+  if (!["ended", "archived", "live"].includes(a["status"])) return fail("auction_not_ended");
   if (a["winner_id"] !== user["id"]) return fail("not_winner");
 
+  // One fulfilment per round: the same user may win this auction again after
+  // a relaunch. Rows from before rounds were recorded have round = null.
+  const round = Number(a["round"] || 1);
   const { data: existing } = await admin
     .from("fulfilments")
     .select("*")
     .eq("auction_id", auctionId)
     .eq("winner_id", user["id"])
+    .or(`round.eq.${round},round.is.null`)
     .limit(1);
   if (existing?.length) return ok({ ok: true, fulfilment: existing[0], already: true });
 
   const method = body["method"] === "pickup" ? "pickup" : "shipping";
-  const values: Row = { auction_id: auctionId, winner_id: user["id"], method, status: "pending" };
+  const values: Row = { auction_id: auctionId, winner_id: user["id"], method, status: "pending", round };
 
   if (method === "shipping") {
     const addr = body["address"] || {};
@@ -1484,22 +1570,37 @@ async function sendEmail(_actor: Row, body: Payload) {
   return ok();
 }
 
-/** Starts due auctions, ends expired ones, invoices winners and notifies them. */
+/**
+ * The scheduled tick (and any viewer's list sync): starts due auctions, ends
+ * expired ones, invoices winners and notifies them. It never reopens an ended
+ * auction: when nothing is left open or live it only logs queue.empty.
+ */
 export async function finalizeAuctions() {
   const { data: auctions } = await admin
     .from("auctions")
     .select("*")
-    .neq("status", "ended")
+    .in("status", ["open", "live"])
     .order("updated_date", { ascending: false })
     .limit(500);
   const ids: string[] = [];
+  let closed = 0;
 
   for (const a of (auctions || []) as Row[]) {
     const next = await ensureAuctionState(a);
-    if (next["status"] !== a["status"]) ids.push(a["id"]);
+    if (next["status"] !== a["status"]) {
+      ids.push(a["id"]);
+      if (["ended", "voided", "voiding"].includes(next["status"])) closed++;
+    }
   }
 
-  const reopened = await reopenLastEndedIfAllEnded();
+  // Only on the tick that closed the last one, not every minute after.
+  if (closed > 0) {
+    const { count } = await admin
+      .from("auctions")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["open", "live"]);
+    if ((count || 0) === 0) await logLifecycle("queue.empty", null, "system", null, { closed });
+  }
 
   // Automatic hold release: expired retry windows and holds left on rounds that
   // are no longer live are freed on every tick.
@@ -1511,7 +1612,34 @@ export async function finalizeAuctions() {
     holds = null;
   }
 
-  return { finalized: ids.length, ids, reopened, holds, at: new Date().toISOString() };
+  return { finalized: ids.length, ids, holds, at: new Date().toISOString() };
+}
+
+/** Admin: open -> live now (instead of waiting for the first join / schedule). */
+async function startAuction(actor: Row, body: Payload) {
+  const auctionId = body["auction_id"];
+  if (!auctionId) return fail("Missing auction_id");
+  const a = await getRow("auctions", auctionId);
+  if (!a) return fail("not_found", 404);
+  if (a["status"] !== "open" || a["start_time"]) return fail(`This auction is already ${a["status"]}.`, 409);
+
+  const now = Date.now();
+  const patch = {
+    status: "live",
+    start_time: new Date(now).toISOString(),
+    end_time: new Date(now + Number(a["duration_minutes"] || 5) * 60000).toISOString(),
+  };
+  const { data: started } = await admin
+    .from("auctions")
+    .update(patch)
+    .eq("id", auctionId)
+    .eq("status", "open")
+    .is("start_time", null)
+    .select("*");
+  if (!started?.length) return fail("This auction was started by someone else.", 409);
+
+  await logLifecycle("auction.started", started[0], "admin", actor, { trigger: "manual" });
+  return ok({ auction: started[0] });
 }
 
 /** Admin: close one live auction immediately through the normal settlement path. */
@@ -1522,8 +1650,7 @@ async function closeAuction(actor: Row, body: Payload) {
   if (!auction) return fail("not_found", 404);
   if (auction["status"] !== "live") return fail("Only a live auction can be closed", 409);
 
-  const settled = await settleAuction(auction);
-  await logAdminAction(actor, "auction_closed", "auction", String(auctionId), String(auction["title"] || ""));
+  const settled = await settleAuction(auction, "admin", actor);
   return ok({
     auction_id: settled["id"],
     status: settled["status"],
@@ -1532,29 +1659,61 @@ async function closeAuction(actor: Row, body: Payload) {
   });
 }
 
+const FULFILMENT_DONE = ["delivered", "collected", "confirmed", "cancelled"];
+
 /**
- * When every auction has ended, bring the most recently ended one back to life
- * as a fresh round so the site is never empty.
+ * Why this ended round cannot be relaunched yet, or null. A won round must be
+ * settled first: no payment request still pending, and every paid win's
+ * delivery / pickup finished (or cancelled).
  */
-async function reopenLastEndedIfAllEnded(): Promise<string | null> {
-  const { count } = await admin
-    .from("auctions")
-    .select("id", { count: "exact", head: true })
-    .not("status", "in", "(ended,voided)");
-  if ((count || 0) > 0) return null;
+async function relaunchBlocker(a: Row): Promise<string | null> {
+  if (a["status"] !== "ended" || !a["winner_id"]) return null;
+  const round = Number(a["round"] || 1);
+  const { data: payments } = await admin
+    .from("winner_payments")
+    .select("user_id, status")
+    .eq("auction_id", a["id"])
+    .eq("round", round);
+  const list = (payments || []) as Row[];
+  if (list.some((p) => p["status"] === "pending")) {
+    return "The winner's payment is still pending. Mark it paid or void the win first.";
+  }
+  for (const p of list.filter((x) => x["status"] === "paid")) {
+    const { data: orders } = await admin
+      .from("fulfilments")
+      .select("status, round")
+      .eq("auction_id", a["id"])
+      .eq("winner_id", p["user_id"]);
+    const order = ((orders || []) as Row[]).find((o) => o["round"] == null || Number(o["round"]) === round);
+    if (!order) return "The winner has paid but has not chosen delivery or pickup yet. Finish the fulfilment first.";
+    if (!FULFILMENT_DONE.includes(order["status"])) {
+      return "The winner's delivery or pickup is not finished yet. Complete the fulfilment first.";
+    }
+  }
+  return null;
+}
 
-  const { data } = await admin
-    .from("auctions")
-    .select("*")
-    .eq("status", "ended")
-    .order("end_time", { ascending: false, nullsFirst: false })
-    .limit(1);
-  const last = (data || [])[0] as Row | undefined;
-  if (!last) return null;
+/**
+ * Admin: an ended or cancelled auction goes back to Open as the next round on
+ * the same row. The finished round stays in auction_rounds, its bids are
+ * archived and its payments are keyed by round, so nothing of it is lost.
+ * Two clicks at once: only the first applies, the second gets 409.
+ */
+async function relaunchAuction(actor: Row, body: Payload) {
+  const auctionId = body["auction_id"];
+  if (!auctionId) return fail("Missing auction_id");
+  const a = await getRow("auctions", auctionId);
+  if (!a) return fail("not_found", 404);
+  if (a["status"] !== "ended" && a["status"] !== "voided") {
+    return fail(`Only an ended or cancelled auction can be relaunched (this one is ${a["status"]}).`, 409);
+  }
+  const blocker = await relaunchBlocker(a);
+  if (blocker) return fail(blocker, 422);
 
-  // Claim the reopen conditionally (still ended, still the same round) so two
-  // concurrent syncs cannot reopen the same auction twice and skip a round.
-  const { data: reopened } = await admin
+  const round = Number(a["round"] || 1);
+  await recordRound(a, a["status"] === "voided" ? "voided" : a["winner_id"] ? "won" : "no_winner");
+
+  const { data: relaunched } = await admin
     .from("auctions")
     .update({
       status: "open",
@@ -1566,28 +1725,44 @@ async function reopenLastEndedIfAllEnded(): Promise<string | null> {
       winner_notified: false,
       paid: false,
       highest_bidder_id: null,
-      current_price: Number(last["start_price"] || 0),
+      current_price: Number(a["start_price"] || 0),
       subscriber_ids: [],
-      round: Number(last["round"] || 1) + 1,
-      // min_participants stays as-is: it is the target that closes the round,
-      // not a gate that blocks it from starting.
+      round: round + 1,
+      restart_count: 0,
+      relaunch_count: Number(a["relaunch_count"] || 0) + 1,
     })
-    .eq("id", last["id"])
-    .eq("status", "ended")
-    .eq("round", Number(last["round"] || 1))
-    .select("id");
-  if (!reopened?.length) return null;
+    .eq("id", auctionId)
+    .eq("status", a["status"])
+    .eq("round", round)
+    .select("*");
+  if (!relaunched?.length) return fail("This auction was already relaunched.", 409);
 
+  // A clean leaderboard for the new round; the old bids stay for history.
+  await admin.from("bids").update({ archived: true }).eq("auction_id", auctionId).eq("archived", false);
 
-  // Archive the finished round's bids so the new round starts with a clean
-  // leaderboard / activity feed instead of showing stale amounts.
-  await admin
-    .from("bids")
-    .update({ archived: true })
-    .eq("auction_id", last["id"])
-    .eq("archived", false);
+  await logLifecycle("auction.relaunched", relaunched[0], "admin", actor, { from_round: round, to_round: round + 1 });
+  return ok({ auction: relaunched[0] });
+}
 
-  return String(last["id"]);
+/** Admin: an ended or cancelled auction leaves the active list (read-only). */
+async function archiveAuction(actor: Row, body: Payload) {
+  const auctionId = body["auction_id"];
+  if (!auctionId) return fail("Missing auction_id");
+  const a = await getRow("auctions", auctionId);
+  if (!a) return fail("not_found", 404);
+  if (a["status"] !== "ended" && a["status"] !== "voided") {
+    return fail(`Only an ended or cancelled auction can be archived (this one is ${a["status"]}).`, 409);
+  }
+  const { data: archived } = await admin
+    .from("auctions")
+    .update({ status: "archived", featured: false, featured_order: 0 })
+    .eq("id", auctionId)
+    .eq("status", a["status"])
+    .select("*");
+  if (!archived?.length) return fail("This auction changed in the meantime. Refresh and try again.", 409);
+
+  await logLifecycle("auction.archived", archived[0], "admin", actor, { from: a["status"] });
+  return ok({ auction: archived[0] });
 }
 
 
@@ -1792,7 +1967,8 @@ async function voidAuction(actor: Row, body: Payload) {
       auction_id: a["id"],
     });
   }
-  await logAdminAction(actor, "auction_voided", "auction", String(auctionId), JSON.stringify(res ?? {}));
+  await recordRound(a, "voided");
+  await logLifecycle("auction.voided", a, "admin", actor, { reason: body["reason"] || "cancelled_by_admin", refund: res ?? null });
   return ok({ refund: res ?? null });
 }
 
@@ -1914,7 +2090,10 @@ const ADMIN_HANDLERS: Record<string, (actor: Row, body: Payload) => Promise<Resu
   markWinnerPaid,
   voidWin,
   voidAuction,
+  startAuction,
   closeAuction,
+  relaunchAuction,
+  archiveAuction,
   listRoleAccess,
   saveRoleAccess,
 };
@@ -1941,7 +2120,10 @@ const ACTION_CAPABILITY: Record<string, string> = {
   updateFulfilment: "fulfilment.manage",
   sendEmail: "messaging.send",
   voidAuction: "auctions.void",
+  startAuction: "auctions.manage",
   closeAuction: "auctions.manage",
+  relaunchAuction: "auctions.manage",
+  archiveAuction: "auctions.manage",
   createTestAuction: "auctions.testmode",
   reconcileAuctionPayments: "auctions.testmode",
   finalizeAuctions: "auctions.manage",

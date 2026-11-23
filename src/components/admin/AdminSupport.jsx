@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { LifeBuoy, Send, RotateCcw, CheckCircle2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,22 +24,22 @@ const STATUS_LABEL = (t, s) => ({ open: t.admin.support.statusOpen, pending: t.a
 const PRIO_CLS = { high: "bg-destructive/10 text-destructive", normal: "bg-warning/10 text-warning", low: "bg-surface text-muted-foreground" };
 const STATUS_CLS = { open: "bg-success/10 text-success", pending: "bg-warning/10 text-warning", resolved: "bg-info/10 text-info", closed: "bg-surface text-muted-foreground" };
 
+const NONE = [];
+
+const loadSection = async () => (await base44.entities.SupportTicket.list("-created_date", 200)) || [];
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["support"], loadSection));
+
 export default function AdminSupport() {
   const { t } = useI18n();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(["support"], loadSection);
   const [filter, setFilter] = useState("all");
   const [active, setActive] = useState(null);
   const replyGuard = useDiscardGuard(!!active);
   const [reply, setReply] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(() => {
-    base44.entities.SupportTicket.list("-created_date", 200)
-      .then(setItems)
-      .finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const filtered = items.filter((it) => filter === "all" || it.status === filter);
 
@@ -97,9 +98,7 @@ export default function AdminSupport() {
         <FilterChip id="resolved" label={t.admin.support.filterResolved} />
       </div>
 
-      {loading ? (
-        <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>
-      ) : filtered.length === 0 ? (
+      {loading ? null : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
           <LifeBuoy className="w-8 h-8 mx-auto mb-3 opacity-30" />
           {t.admin.support.noTickets}

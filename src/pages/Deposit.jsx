@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useOutletContext, useNavigate, Link } from "react-router-dom";
+import React, { useMemo, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/AuthContext";
+import { usePaymentMethods } from "@/lib/queries/config";
 import {
   ArrowLeft, ArrowRight, Wallet as WalletIcon, CreditCard, Building2, Banknote,
   CheckCircle2, Clock, Loader2, ShieldCheck,
@@ -14,6 +16,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const QUICK = [25, 50, 100, 250, 500, 1000];
+const NO_METHODS = [];
 
 function methodIcon(type) {
   if (type === "transfer") return Building2;
@@ -29,26 +32,20 @@ function methodIcon(type) {
 export default function Deposit() {
   const { t } = useI18n();
   const { symbol, code } = useCurrency();
-  const { user } = useOutletContext() || {};
+  const { user } = useAuth();
   const { balance, refresh } = useWallet(user?.id);
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState(50);
-  const [methods, setMethods] = useState([]);
-  const [selected, setSelected] = useState(null);
+  // Cached for the session and shared with the wallet page.
+  const { data: methods = NO_METHODS, isPending: methodsLoading } = usePaymentMethods();
+  const [picked, setSelected] = useState(null);
+  const selected = picked ?? methods[0]?.id ?? null;
   const [reference, setReference] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null); // { status, amount }
 
-  useEffect(() => {
-    base44.entities.PaymentMethod.filter({ enabled: true }, "display_order", 50)
-      .then((rows) => {
-        setMethods(rows || []);
-        setSelected((prev) => prev || rows?.[0]?.id || null);
-      })
-      .catch(() => {});
-  }, []);
 
   const selectedMethod = useMemo(
     () => methods.find((m) => m.id === selected) || null,
@@ -61,7 +58,7 @@ export default function Deposit() {
   const Back = ArrowLeft;
 
   const submit = async () => {
-    if (!user) { navigate("/login"); return; }
+    if (!user) { navigate({ to: "/login" }); return; }
     if (numericAmount <= 0) { toast.error(t.deposit.invalidAmount); return; }
     if (!selectedMethod) { toast.error(t.wallet.chooseMethod); return; }
     setSubmitting(true);
@@ -115,7 +112,7 @@ export default function Deposit() {
           <p className="mt-1 text-xs text-muted-foreground">{selectedMethod?.name}</p>
 
           <div className="mt-6 grid gap-2">
-            <Button className="h-12 rounded-2xl" onClick={() => navigate("/wallet")}>
+            <Button className="h-12 rounded-2xl" onClick={() => navigate({ to: "/wallet" })}>
               {t.deposit.viewWallet}
             </Button>
             <Button
@@ -142,7 +139,7 @@ export default function Deposit() {
           type="button"
           variant="outline"
           size="iconSm"
-          onClick={() => (step === 1 ? navigate("/wallet") : setStep(step - 1))}
+          onClick={() => (step === 1 ? navigate({ to: "/wallet" }) : setStep(step - 1))}
           className="tap-44"
           aria-label={t.common.back || "Back"}
         >
@@ -215,8 +212,9 @@ export default function Deposit() {
       {/* step 2 — method */}
       {step === 2 && (
         <div className="space-y-5">
-          {methods.length === 0 ? (
-            <div className="rounded-[26px] border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          {/* The route loader waits for the methods; never "none" while pending. */}
+          {methodsLoading ? null : methods.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {t.wallet.noMethods}
             </div>
           ) : (
@@ -266,7 +264,7 @@ export default function Deposit() {
           )}
 
           {needsRef && (
-            <div className="rounded-[22px] border border-border bg-card p-4">
+            <div className="rounded-2xl border border-border bg-card p-4">
               <p className="text-sm font-semibold">{t.wallet.reference}</p>
               <Input
                 value={reference}

@@ -1,11 +1,24 @@
 import { useEffect } from "react";
-import { applyPublishedThemeOnce } from "@/lib/useSiteTheme";
+import { useQuery } from "@tanstack/react-query";
+import { configQueries } from "@/lib/queries/config";
+import { applyCachedTheme, rememberTheme } from "@/lib/useSiteTheme";
+import { applyTheme } from "@/lib/themeDefaults";
 
-// Fetches the published theme once on startup and injects it as CSS custom
-// properties so the existing tailwind token classes + neon utilities pick it up.
+// Applies the last known theme from local storage right away (no flash of the
+// default colors), then the published theme from the cache/database, injected
+// as CSS custom properties for the tailwind token classes.
 export default function SiteThemeLoader() {
+  const { data } = useQuery(configQueries.publishedTheme());
+
   useEffect(() => {
-    applyPublishedThemeOnce();
+    applyCachedTheme();
   }, []);
+
+  useEffect(() => {
+    if (!data?.theme) return;
+    applyTheme(data.theme);
+    rememberTheme(data.theme);
+  }, [data]);
+
   return null;
 }

@@ -115,8 +115,10 @@ function NumberChip({ bid, currency }) {
   );
 }
 
-export default function LiveAuctionMonitor({ auction, users = {}, bids = [], credits = [], txns = [], open, onOpenChange, currency = "$" }) {
+export default function LiveAuctionMonitor({ auction, users = {}, bids = [], credits = [], txns = [], loading = false, open, onOpenChange, currency = "$" }) {
   const s = useLiveAuctionStats(auction, bids, credits, txns);
+  // While this auction's bids/credits are still loading, never say "none yet".
+  const empty = (text) => <Empty text={loading ? "Loading…" : text} />;
   const [tab, setTab] = useState("participants");
   // Realtime bid events change the bid list, which re-reads the shared endpoint.
   const { pool: serverPool } = useNumberPool(auction?.id, {
@@ -236,7 +238,7 @@ export default function LiveAuctionMonitor({ auction, users = {}, bids = [], cre
 
             <TabsContent value="participants" className="mt-4">
               {s.participants.length === 0 ? (
-                <Empty text="No participants yet" />
+                empty("No participants yet")
               ) : (
                 <div className="rounded-xl border border-border divide-y divide-border/60 overflow-hidden">
                   {s.participants.map((p) => (
@@ -273,12 +275,12 @@ export default function LiveAuctionMonitor({ auction, users = {}, bids = [], cre
             </TabsContent>
 
             <TabsContent value="bids" className="mt-4">
-              {s.live.length === 0 ? <Empty text="No bids yet" /> : <BidRows rows={s.live} users={users} currency={currency} />}
+              {s.live.length === 0 ? empty("No bids yet") : <BidRows rows={s.live} users={users} currency={currency} />}
             </TabsContent>
 
             <TabsContent value="archive" className="mt-4 space-y-4">
               {archivedGroups.length === 0 ? (
-                <Empty text="No archived rounds" />
+                empty("No archived rounds")
               ) : (
                 archivedGroups.map(([round, rows]) => (
                   <div key={round} className="space-y-1.5">

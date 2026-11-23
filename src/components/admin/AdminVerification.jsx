@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { UserCheck, ShieldCheck, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -16,18 +17,20 @@ const STATUS_CLS = {
   rejected: "bg-destructive/15 text-destructive"
 };
 
+const NONE = [];
+
+const loadSection = async () => (await base44.entities.User.list("-created_date", 500)) || [];
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["verification"], loadSection));
+
 export default function AdminVerification() {
   const { t } = useI18n();
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: users = NONE, isPending: loading, refresh: load } = useAdminData(["verification"], loadSection);
   const [busy, setBusy] = useState("");
   const [rejecting, setRejecting] = useState(null);
   const [note, setNote] = useState("");
 
-  const load = useCallback(() => {
-    base44.entities.User.list("-created_date", 500).then(setUsers).finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const verify = async (u) => {
     setBusy(u.id + "v");
@@ -61,7 +64,7 @@ export default function AdminVerification() {
     }
   };
 
-  if (loading) return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
+  if (loading) return null;
 
   const members = users.filter((u) => u.role !== "admin");
   const queue = members.filter((u) => u.verification_status !== "verified" && u.verification_status !== "rejected");
@@ -93,7 +96,7 @@ export default function AdminVerification() {
         {queue.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">{t.admin.verification.empty}</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 text-muted-foreground">
                 <tr>
@@ -127,7 +130,7 @@ export default function AdminVerification() {
         <div className="space-y-3">
           <h3 className="font-heading text-lg font-semibold text-muted-foreground">{t.admin.verification.recent}</h3>
           <div className="rounded-2xl border border-border bg-card overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="admin-table-scroll">
               <table className="w-full text-sm">
                 <thead className="bg-secondary/50 text-muted-foreground">
                   <tr>

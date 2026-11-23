@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useState } from "react";
 import { Trophy, Mail, MessageCircle, CheckCircle2, Users } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, useAdminUserMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,21 +16,21 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription
 } from "@/components/ui/dialog";
 
+const NONE = [];
+
+const loadSection = async () => (await base44.entities.Auction.filter({ status: ["ended", "archived"] }, "-created_date", 100)) || [];
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["results"], loadSection), adminLookups.users());
+
 export default function AdminResults() {
   const { t } = useI18n();
-  const [ended, setEnded] = useState([]);
-  const [users, setUsers] = useState({});
-  const [loading, setLoading] = useState(true);
+  const { data: ended = NONE, isPending: loading, refresh: load } = useAdminData(["results"], loadSection);
+  const users = useAdminUserMap();
   const [contact, setContact] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState({ subject: "", body: "" });
 
-  const load = useCallback(() => {
-    base44.entities.Auction.filter({ status: "ended" }, "-created_date", 100).then(setEnded).finally(() => setLoading(false));
-    base44.entities.User.list("", 1000).then((u) => { const m = {}; u.forEach((x) => { m[x.id] = x; }); setUsers(m); });
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const markPaid = async (a) => {
     try {
@@ -60,7 +61,7 @@ export default function AdminResults() {
     }
   };
 
-  if (loading) return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
+  if (loading) return null;
 
   return (
     <div className="space-y-6">

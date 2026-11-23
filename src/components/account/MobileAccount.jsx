@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import {
   BadgeCheck,
   ChevronRight,
@@ -47,7 +47,7 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
   const activeCount = stats?.ongoing || 0;
 
   return (
-    <div className="fixed inset-x-0 top-0 z-10 flex flex-col overflow-hidden bg-background page-transition" style={{ bottom: "var(--app-tabbar-h)" }} dir={dir}>
+    <div className="fixed inset-x-0 top-0 z-10 flex flex-col overflow-hidden bg-background" style={{ bottom: "var(--app-tabbar-h)" }} dir={dir}>
       <PullToRefresh
         onRefresh={onRefresh}
         className={cn("flex-1 min-h-0 overscroll-contain", noScroll)}
@@ -89,7 +89,7 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
           <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_16px_36px_-28px_hsl(var(--accent)/0.7)]">
             <ProfileMenuRow icon={UserRound} label={"Account information"} onClick={() => setEditOpen(true)} arrow={arrow} />
             <ProfileMenuRow icon={WalletCards} label={"Wallet"} to="/wallet" arrow={arrow} accent />
-            <ProfileMenuRow icon={Gavel} label={t.account.myBids} to="/auctions?tab=mine" arrow={arrow} />
+            <ProfileMenuRow icon={Gavel} label={t.account.myBids} to="/auctions" search={{ tab: "mine" }} arrow={arrow} />
             <ProfileMenuRow icon={ShieldCheck} label={t.account.profile.securitySettings} onClick={() => setSecurityOpen(true)} arrow={arrow} />
             <ProfileMenuRow icon={KeyRound} label={t.account.profile.changePassword} onClick={() => setPwOpen(true)} arrow={arrow} />
           </section>
@@ -143,7 +143,7 @@ function ProfileStat({ icon: Icon, value, label }) {
   );
 }
 
-function ProfileMenuRow({ icon: Icon, label, to, onClick, arrow, accent = false, destructive = false }) {
+function ProfileMenuRow({ icon: Icon, label, to, search, onClick, arrow, accent = false, destructive = false }) {
   const content = (
     <>
       <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg", destructive ? "bg-destructive/12 text-destructive" : accent ? "bg-accent/12 text-accent" : "bg-secondary text-muted-foreground")}>
@@ -155,6 +155,6 @@ function ProfileMenuRow({ icon: Icon, label, to, onClick, arrow, accent = false,
   );
   const className = "flex min-h-12 w-full items-center gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0 transition active:bg-secondary/70";
 
-  if (to) return <Link to={to} className={className}>{content}</Link>;
+  if (to) return <Link to={to} search={search} className={className}>{content}</Link>;
   return <Button type="button" variant="ghost" onClick={onClick} className={cn(className, "h-auto rounded-none justify-start hover:bg-secondary/70")}>{content}</Button>;
 }

@@ -17,7 +17,9 @@ export function seatsFull(auction) {
 
 export function effectiveStatus(auction, now = Date.now()) {
   if (!auction) return "open";
-  if (auction.status === "ended") return "ended";
+  // Archived = an ended auction staff moved off the active list; bidders
+  // still see it among closed auctions. (Admin tells them apart itself.)
+  if (auction.status === "ended" || auction.status === "archived") return "ended";
   if (auction.status === "live" && auction.end_time) {
     const expired = now >= new Date(auction.end_time).getTime();
     if (!expired) return "live";

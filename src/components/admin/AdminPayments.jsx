@@ -1,7 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Wallet, Plus, Minus, Receipt, TrendingUp, SlidersHorizontal } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { base44 } from "@/api/base44Client";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/lib/queries/keys";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -11,23 +14,43 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogForm
 } from "@/components/ui/dialog";
+import SelectField from "@/components/ui/select-field";
 
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+const NONE = [];
+
+const loadSummary = async () => {
+  const [tList, uList] = await Promise.all([
+    base44.entities.WalletTransaction.listFields("id, type, amount, status, reference, user_id, created_date", "-created_date", 5000),
+    base44.entities.User.listFields("id, full_name, email", "", 2000),
+  ]);
+  return { txns: tList || [], users: uList || [] };
+};
+
+const fetchPage = (page, pageSize, typeFilter) =>
+  base44.entities.WalletTransaction.page({
+    page, pageSize, sort: "-created_date",
+    where: typeFilter === "all" ? {} : { type: typeFilter },
+  });
+
+const FIRST_PAGE = [1, 25, "all"];
+
+/** Route loader: the summary and the first table page. */
+export const prefetch = (qc) =>
+  warmAdmin(
+    qc,
+    adminSection(["payments", "summary"], loadSummary),
+    adminSection(["payments", "page", ...FIRST_PAGE], () => fetchPage(...FIRST_PAGE)),
+  );
+
 export default function AdminPayments() {
   const { t } = useI18n();
-  const [txns, setTxns] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [rows, setRows] = useState([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [typeFilter, setTypeFilter] = useState("all");
-  const [tableLoading, setTableLoading] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState([]);
   const [deciding, setDeciding] = useState("");
   const [form, setForm] = useState({ userId: "", amount: "", reason: "", dir: "credit" });
 
@@ -35,29 +58,27 @@ export default function AdminPayments() {
    * Summary/chart data uses a light projection (three columns) while the table
    * itself is paginated in Postgres, so this screen stays fast as the ledger grows.
    */
-  const load = useCallback(() => {
-    Promise.all([
-      base44.entities.WalletTransaction.listFields("id, type, amount, status, reference, user_id, created_date", "-created_date", 5000),
-      base44.entities.User.listFields("id, full_name, email", "", 2000)
-    ]).then(([tList, uList]) => {
-      setTxns(tList);
-      setUsers(uList);
-      setPending(tList.filter((x) => x.status === "pending" && x.type === "topup"));
-    }).finally(() => setLoading(false));
-  }, []);
+  const summary = useAdminData(["payments", "summary"], loadSummary);
+  const txns = summary.data?.txns ?? NONE;
+  const users = summary.data?.users ?? NONE;
+  const pending = useMemo(() => txns.filter((x) => x.status === "pending" && x.type === "topup"), [txns]);
+  const loading = summary.isPending;
 
-  const loadPage = useCallback(() => {
-    setTableLoading(true);
-    base44.entities.WalletTransaction.page({
-      page, pageSize, sort: "-created_date",
-      where: typeFilter === "all" ? {} : { type: typeFilter }
-    }).then((res) => {
-      setRows(res.rows);
-      setTotal(res.total);
-    }).finally(() => setTableLoading(false));
-  }, [page, pageSize, typeFilter]);
+  // One cached page per (page, size, type); the previous page stays on screen
+  // while the next one loads.
+  const pageQuery = useAdminData(
+    ["payments", "page", page, pageSize, typeFilter],
+    () => fetchPage(page, pageSize, typeFilter),
+    { placeholderData: keepPreviousData },
+  );
+  const rows = pageQuery.data?.rows ?? NONE;
+  const total = pageQuery.data?.total ?? 0;
+  const tableLoading = pageQuery.isFetching;
 
-  useEffect(() => { loadPage(); }, [loadPage]);
+  // Refreshes both the summary and every cached page.
+  const qc = useQueryClient();
+  const load = useCallback(() => qc.invalidateQueries({ queryKey: adminKeys.section("payments") }), [qc]);
+  const loadPage = useCallback(() => {}, []);
 
   const decide = async (txn, decision) => {
     setDeciding(txn.id);
@@ -71,8 +92,6 @@ export default function AdminPayments() {
       setDeciding("");
     }
   };
-
-  useEffect(() => { load(); }, [load]);
 
   // Money totals only count settled records: pending and failed top-ups are not income.
   const settled = useMemo(
@@ -137,7 +156,7 @@ export default function AdminPayments() {
     }
   };
 
-  if (loading) return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
+  if (loading) return null;
 
   const cards = [
     { icon: Wallet, label: t.admin.payments.totalDeposits, value: `${t.common.currency}${stats.deposits.toFixed(0)}`, tint: "bg-success/10 text-success" },
@@ -217,7 +236,7 @@ export default function AdminPayments() {
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="p-5 border-b border-border flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-heading text-lg font-semibold">{t.admin.payments.transactions}</h3>
-          <select
+          <SelectField
             value={typeFilter}
             onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
@@ -230,12 +249,12 @@ export default function AdminPayments() {
             <option value="bid_credits">bid_credits</option>
             <option value="winning_bid">winning_bid</option>
             <option value="refund">refund</option>
-          </select>
+          </SelectField>
         </div>
         {total === 0 && !tableLoading ? (
           <div className="p-8 text-center text-sm text-muted-foreground">{t.admin.payments.noTx}</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 text-muted-foreground">
                 <tr>
@@ -261,11 +280,14 @@ export default function AdminPayments() {
                 })}
               </tbody>
             </table>
-            <AdminPagination
-              page={page} pageSize={pageSize} total={total}
-              onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }}
-            />
           </div>
+        )}
+        {/* Outside the scroll box, so it stays visible under the table. */}
+        {!(total === 0 && !tableLoading) && (
+          <AdminPagination
+            page={page} pageSize={pageSize} total={total}
+            onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }}
+          />
         )}
       </div>
 
@@ -276,11 +298,11 @@ export default function AdminPayments() {
             <div className="grid gap-4">
               <div>
                 <Label htmlFor="payment-f1">{t.admin.payments.user}</Label>
-                <select id="payment-f1" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}
+                <SelectField id="payment-f1" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}
                   className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm">
                   <option value="">—</option>
                   {users.map((u) => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
-                </select>
+                </SelectField>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button type="button" variant={form.dir === "credit" ? "default" : "outline"} onClick={() => setForm({ ...form, dir: "credit" })} className="gap-2"><Plus className="w-4 h-4" />{t.admin.payments.credit}</Button>

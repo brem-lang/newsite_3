@@ -1,5 +1,5 @@
 import React from "react";
-import AdminCrudTable from "./AdminCrudTable";
+import AdminCrudTable, { prefetchCrud } from "./AdminCrudTable";
 
 const targetOpts = [
   { value: "auction", label: { en: "Auction" } },
@@ -22,6 +22,8 @@ const fields = [
   { key: "status", label: { en: "Status" }, type: "select", options: statusOpts, required: true },
   { key: "resolution_note", label: { en: "Resolution note" }, type: "textarea", hideInTable: true },
 ];
+
+export const prefetch = prefetchCrud("Report");
 
 export default function AdminReports() {
   return (

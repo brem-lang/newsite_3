@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useOutletContext, useSearchParams, Link } from "react-router-dom";
+import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/AuthContext";
+import { useRefundRequests } from "@/lib/queries/wallet";
+import { usePaymentMethods } from "@/lib/queries/config";
 import { Wallet as WalletIcon, Plus, ArrowUpCircle, Ticket, CreditCard, Clock, CheckCircle2, XCircle, Loader2, Trophy, Receipt, RotateCcw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
@@ -17,35 +20,33 @@ import ReceiptModal from "@/components/wallet/ReceiptModal";
 import MobileWallet from "@/components/wallet/MobileWallet";
 import { useIsMobileView } from "@/lib/useIsMobileView";
 
+const route = getRouteApi("/_app/wallet");
+const EMPTY = [];
+
 export default function Wallet() {
   const { t } = useI18n();
   const { symbol, code } = useCurrency();
-  const { user } = useOutletContext();
+  const { user } = useAuth();
   const { balance, transactions, loading, refresh } = useWallet(user?.id, true);
   const isMobile = useIsMobileView();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { session_id: sessionId, method_id: methodId } = route.useSearch();
+  const navigate = useNavigate();
   const [amount, setAmount] = useState(50);
-  const [methods, setMethods] = useState([]);
-  const [selected, setSelected] = useState(null);
+  const { data: methods = EMPTY, isPending: methodsLoading } = usePaymentMethods();
+  const [picked, setSelected] = useState(null);
+  // Default to the first enabled method until the user picks one.
+  const selected = picked ?? methods[0]?.id ?? null;
   const [reference, setReference] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [refundTxn, setRefundTxn] = useState(null);
   const [receiptTxn, setReceiptTxn] = useState(null);
-  const [refundReqs, setRefundReqs] = useState([]);
+  const { data: refundReqs = EMPTY, refetch: refetchRefunds } = useRefundRequests(user?.id);
 
   const quickAmounts = [25, 50, 100, 250];
 
-  useEffect(() => {
-    base44.entities.PaymentMethod.filter({ enabled: true }, "display_order", 50)
-      .then((rows) => { setMethods(rows || []); setSelected(rows?.[0]?.id || null); })
-      .catch(() => {});
-  }, []);
-
   // Handle return from a Stripe checkout redirect.
   useEffect(() => {
-    const sessionId = searchParams.get("session_id");
-    const methodId = searchParams.get("method_id");
     if (!sessionId || !methodId || confirming) return;
     setConfirming(true);
     (async () => {
@@ -63,24 +64,12 @@ export default function Wallet() {
         toast.error(e.message || "Error");
       } finally {
         setConfirming(false);
-        const next = new URLSearchParams(searchParams);
-        next.delete("session_id"); next.delete("method_id");
-        setSearchParams(next, { replace: true });
+        navigate({ to: "/wallet", search: {}, replace: true });
       }
     })();
-  }, [searchParams, t.wallet.confirmedMsg, t.wallet.failed]);
+  }, [sessionId, methodId, t.wallet.confirmedMsg, t.wallet.failed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!user) return;
-    base44.entities.RefundRequest.filter({ user_id: user.id }, "-created_date", 100)
-      .then(setRefundReqs).catch(() => {});
-  }, [user]);
-
-  const refreshRefunds = () => {
-    if (!user) return;
-    base44.entities.RefundRequest.filter({ user_id: user.id }, "-created_date", 100)
-      .then(setRefundReqs).catch(() => {});
-  };
+  const refreshRefunds = () => { refetchRefunds(); };
   const requestedIds = refundReqs.filter((r) => r.status === "pending").map((r) => r.original_transaction_id);
 
   // Lock page scroll while the no-scroll mobile wallet console is shown.
@@ -149,6 +138,7 @@ export default function Wallet() {
           transactions={transactions}
           loading={loading}
           methods={methods}
+          methodsLoading={methodsLoading}
           selected={selected}
           setSelected={setSelected}
           amount={amount}
@@ -181,9 +171,12 @@ export default function Wallet() {
             <WalletIcon className="w-4 h-4" />
             {t.wallet.balance}
           </div>
-          <p className="mt-3 font-heading text-5xl font-bold text-primary">
-            {symbol}{balance.toFixed(2)}
-          </p>
+          {/* The route loader waits for the balance; nothing (not 0.00) until it's in. */}
+          {!loading && (
+            <p className="mt-3 font-heading text-5xl font-bold text-primary">
+              {symbol}{balance.toFixed(2)}
+            </p>
+          )}
           <Link
             to="/deposit"
             className="cyan-button mt-5 inline-flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-bold transition-transform active:scale-95"
@@ -209,7 +202,7 @@ export default function Wallet() {
           {t.wallet.topUp}
         </div>
 
-        {methods.length === 0 ? (
+        {methodsLoading ? null : methods.length === 0 ? (
           <div className="rounded-xl bg-muted/40 border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
             {t.wallet.noMethods}
           </div>
@@ -272,9 +265,7 @@ export default function Wallet() {
 
       <div className="space-y-4">
         <h2 className="font-heading text-xl font-semibold">{t.wallet.history}</h2>
-        {loading ? (
-          <div className="h-20 bg-muted rounded-xl animate-pulse" />
-        ) : transactions.length === 0 ? (
+        {loading ? null : transactions.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground text-sm">{t.wallet.noHistory}</div>
         ) : (
           <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">

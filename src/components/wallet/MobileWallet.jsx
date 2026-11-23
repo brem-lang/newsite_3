@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 
 import {
   Wallet as WalletIcon, Plus, ArrowUpCircle, Ticket, CreditCard,
@@ -24,7 +24,7 @@ const TYPE_META = (t) => ({
 });
 
 export default function MobileWallet({
-  user, balance, transactions, loading, methods, selected, setSelected,
+  user, balance, transactions, loading, methods, methodsLoading = false, selected, setSelected,
   amount, setAmount, reference, setReference, onTopUp, submitting,
   onReceipt, onRefund, requestedIds, onRefresh
 }) {
@@ -63,7 +63,7 @@ export default function MobileWallet({
   };
 
   return (
-    <div className="app-shell page-transition z-10 flex flex-col overflow-hidden bg-background" dir={dir}>
+    <div className="app-shell z-10 flex flex-col overflow-hidden bg-background" dir={dir}>
       <PullToRefresh
         onRefresh={onRefresh}
         className={cn("flex-1 min-h-0 overscroll-contain pb-6", noScroll)}
@@ -113,7 +113,7 @@ export default function MobileWallet({
             {t.wallet.topUp}
           </Button>
           <Link
-            to="/auctions?tab=mine"
+            to="/auctions" search={{ tab: "mine" }}
             className="native-panel flex h-[62px] flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-bold text-foreground active:scale-95"
           >
             <Ticket className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -141,7 +141,7 @@ export default function MobileWallet({
 
           {true && (
             <div id="topup-panel" className="px-3 pb-3 border-t border-border pt-3">
-              {methods.length === 0 ? (
+              {methodsLoading ? null : methods.length === 0 ? (
                 <div className="rounded-xl bg-muted/60 border border-border p-3 flex gap-2">
                   <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" />
                   <p className="text-[12px] leading-relaxed text-muted-foreground">{t.wallet.noMethods}</p>

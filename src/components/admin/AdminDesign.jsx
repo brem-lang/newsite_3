@@ -3,7 +3,7 @@ import { Palette, Check, RotateCcw, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { useI18n } from "@/lib/i18n";
-import { useSiteTheme } from "@/lib/useSiteTheme";
+import { useSiteTheme, prefetchSiteTheme } from "@/lib/useSiteTheme";
 import { DEFAULT_THEME, FONT_OPTIONS } from "@/lib/themeDefaults";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -54,6 +54,9 @@ function SelectField({ label, value, onChange, options }) {
   );
 }
 
+/** Route loader: the draft/published theme. */
+export const prefetch = prefetchSiteTheme;
+
 export default function AdminDesign() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
@@ -80,13 +83,7 @@ export default function AdminDesign() {
     return () => clearTimeout(id);
   }, [theme, enabled, saveDraft]);
 
-  if (loading) {
-    return (
-      <div className="py-20 grid place-items-center">
-        <div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return null;
 
   const update = (patch) => setTheme((p) => ({ ...p, ...patch }));
   const updateComp = (key, value) => setTheme((p) => ({ ...p, components: { ...p.components, [key]: value } }));
@@ -256,7 +253,7 @@ export default function AdminDesign() {
         </div>
 
         <div className="lg:col-span-5">
-          <div className="lg:sticky lg:top-20 space-y-4">
+          <div className="lg:sticky lg:top-0 space-y-4">
             <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               <Sparkles className="w-3.5 h-3.5" /> {d.preview}
             </div>

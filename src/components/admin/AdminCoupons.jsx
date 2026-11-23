@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { Plus, Pencil, Trash2, Ticket, Percent, DollarSign } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
@@ -13,26 +14,27 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useConfirm, useDiscardGuard } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
+import SelectField from "@/components/ui/select-field";
 
 const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+
+const NONE = [];
+
+const loadSection = async () => (await base44.entities.Coupon.list("-created_date", 200)) || [];
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["coupons"], loadSection));
 
 export default function AdminCoupons() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
   const { symbol } = useCurrency();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(["coupons"], loadSection);
   const [open, setOpen] = useState(false);
   const { markDirty, guard } = useDiscardGuard(open);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ code: "", type: "percent", value: 10, min_amount: 0, max_uses: 100, active: true, expires_at: "", description: "" });
 
-  const load = useCallback(() => {
-    base44.entities.Coupon.list("-created_date", 200)
-      .then(setItems)
-      .finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const openNew = () => { setEditing(null); setForm({ code: "", type: "percent", value: 10, min_amount: 0, max_uses: 100, active: true, expires_at: "", description: "" }); setOpen(true); };
   const openEdit = (it) => {
@@ -86,9 +88,7 @@ export default function AdminCoupons() {
         <Button onClick={openNew} className="gap-2"><Plus className="w-4 h-4" /> {t.admin.coupons.new}</Button>
       </div>
 
-      {loading ? (
-        <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>
-      ) : items.length === 0 ? (
+      {loading ? null : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">{t.admin.coupons.noCoupons}</div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card divide-y divide-border">
@@ -135,10 +135,10 @@ export default function AdminCoupons() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="coupon-f2">{t.admin.coupons.type}</Label>
-                  <select id="coupon-f2" value={form.type} onChange={(e) => set("type", e.target.value)} className={inputCls}>
+                  <SelectField id="coupon-f2" value={form.type} onChange={(e) => set("type", e.target.value)} className={inputCls}>
                     <option value="percent">{t.admin.coupons.typePercent}</option>
                     <option value="fixed">{t.admin.coupons.typeFixed}</option>
-                  </select>
+                  </SelectField>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="coupon-f3">{t.admin.coupons.value}</Label>

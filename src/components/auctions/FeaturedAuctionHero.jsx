@@ -1,6 +1,6 @@
 import React from "react";
 import { useNow } from "@/lib/useNow";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { Bot } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
@@ -29,11 +29,14 @@ export default function FeaturedAuctionHero({ auction }) {
   return (
     <button
       type="button"
-      onClick={() => navigate(`/auction/${auction.id}`)}
-      className="native-panel group grid w-full overflow-hidden rounded-xl text-start transition-all hover:-translate-y-0.5 hover:border-accent/45 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-stretch"
+      onClick={() => navigate({ to: "/auction/$id", params: { id: auction.id } })}
+      className="native-panel group relative grid w-full overflow-hidden rounded-xl text-start transition-all hover:-translate-y-0.5 hover:border-accent/45 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-stretch"
     >
-      <div className="relative w-full aspect-[16/10] lg:aspect-auto lg:h-full lg:min-h-[320px] lg:max-h-[380px] bg-muted overflow-hidden">
+      {/* The photo fills the card; the details sit on a fade over it. */}
+      <div className="absolute inset-0 bg-muted overflow-hidden">
         <Image src={auction.image_url} alt={auction.title} fittingType="fill" className="w-full h-full transition-transform duration-500 group-hover:scale-105" />
+      </div>
+      <div className="relative w-full aspect-[16/9] lg:aspect-auto lg:h-full lg:min-h-[320px]">
         <span className="absolute top-3 right-3 text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-destructive text-destructive-foreground">
           {isLive ? t.street.live : t.auction.statusOpen}
         </span>
@@ -42,11 +45,11 @@ export default function FeaturedAuctionHero({ auction }) {
         </span>
       </div>
 
-      <div className="p-5 sm:p-6 space-y-4 lg:flex lg:flex-col lg:justify-center lg:space-y-5">
+      <div className="photo-fade lg:photo-fade-side relative -mt-12 p-5 pt-12 sm:p-6 sm:pt-12 lg:mt-0 lg:ps-16 lg:pt-6 space-y-4 lg:flex lg:flex-col lg:justify-center lg:space-y-5">
         <h3 className="font-display text-lg sm:text-xl lg:text-2xl font-extrabold text-foreground leading-snug">{auction.title}</h3>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-muted/60 border border-border p-3">
+          <div className="rounded-xl bg-muted/50 border border-border p-3 backdrop-blur-sm">
             <p className="text-[11px] font-semibold text-muted-foreground">{t.auction[displayPriceKey(auction, status)]}</p>
             <p className="font-display text-2xl font-extrabold text-primary">{symbol}{displayPrice(auction, status).toFixed(2)}</p>
           </div>

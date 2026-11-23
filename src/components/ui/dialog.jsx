@@ -41,12 +41,66 @@ const dialogSizes = cva("", {
   defaultVariants: { size: "md" },
 })
 
+const isSlot = (node, Comp) => React.isValidElement(node) && node.type === Comp
+
+/** Direct children (fragments flattened) that are header/footer, or wrap one. */
+const hasSlotChild = (children) =>
+  React.Children.toArray(children).some((c) => isSlot(c, DialogHeader) || isSlot(c, DialogFooter))
+
+/*
+ * Split children into [header] [scrolling body] [footer], so the scrollbar
+ * covers only the body and the title and actions never move.
+ *
+ * Header/footer are found among the direct children. A wrapper that holds them
+ * (DialogForm, or e.g. <Tabs className="contents">) is entered and split the
+ * same way; such wrappers must be display: contents so the three parts stay
+ * flex items of the dialog box.
+ */
+function splitDialogChildren(children, scrollClassName) {
+  const items = React.Children.toArray(children)
+  const wrapperIndex = items.findIndex(
+    (c) => React.isValidElement(c) && !isSlot(c, DialogHeader) && !isSlot(c, DialogFooter) && hasSlotChild(c.props.children)
+  )
+  if (wrapperIndex !== -1 && !items.some((c) => isSlot(c, DialogHeader) || isSlot(c, DialogFooter))) {
+    return items.map((c, i) =>
+      i === wrapperIndex ? React.cloneElement(c, undefined, splitDialogChildren(c.props.children, scrollClassName)) : c
+    )
+  }
+
+  const headers = []
+  const footers = []
+  const body = []
+  items.forEach((c) => {
+    if (isSlot(c, DialogHeader)) headers.push(c)
+    else if (isSlot(c, DialogFooter)) footers.push(c)
+    else body.push(c)
+  })
+
+  return [
+    ...headers,
+    body.length > 0 && (
+      <div
+        key="dialog-body"
+        data-slot="dialog-body"
+        className={cn(
+          "grid min-h-0 flex-1 content-start gap-4 overflow-y-auto overscroll-contain px-6",
+          headers.length ? "pt-4" : "pt-6",
+          footers.length ? "pb-4" : "pb-6",
+          scrollClassName
+        )}
+      >
+        {body}
+      </div>
+    ),
+    ...footers,
+  ]
+}
+
 /*
  * Layout: the outer box is fixed and never taller than the visible viewport
- * (dvh, so mobile toolbars and the keyboard are respected). Children render in
- * an inner scroller; DialogHeader and DialogFooter are sticky inside it, so the
- * title and the action buttons stay visible while the body scrolls. The close
- * button lives outside the scroller so it never scrolls away.
+ * (dvh, so mobile toolbars and the keyboard are respected). DialogHeader and
+ * DialogFooter sit outside the scroller; only the content between them
+ * scrolls. The close button is pinned to the box, so it never scrolls away.
  */
 const DialogContent = React.forwardRef(({ className, children, scrollClassName, size, ...props }, ref) => (
   <DialogPortal>
@@ -59,9 +113,7 @@ const DialogContent = React.forwardRef(({ className, children, scrollClassName, 
         className
       )}
       {...props}>
-      <div className={cn("grid min-h-0 flex-1 gap-4 overflow-y-auto overscroll-contain px-6 py-6 has-[[data-slot=dialog-header]]:pt-0 has-[[data-slot=dialog-footer]]:pb-0", scrollClassName)}>
-        {children}
-      </div>
+      {splitDialogChildren(children, scrollClassName)}
       <DialogPrimitive.Close
         className="absolute end-4 top-4 z-20 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/40 disabled:pointer-events-none cursor-pointer">
         <X className="h-4 w-4" />
@@ -72,19 +124,21 @@ const DialogContent = React.forwardRef(({ className, children, scrollClassName, 
 ))
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
-// Sticky at the top of the scroller; end padding keeps titles clear of the X.
-const DialogHeader = ({
+// Fixed above the scrolling body; end padding keeps titles clear of the X.
+function DialogHeader({
   className,
   ...props
-}) => (
-  <div
-    data-slot="dialog-header"
-    className={cn(
-      "sticky top-0 z-10 -mx-6 flex flex-col gap-1.5 border-b border-border bg-background px-6 pt-5 pb-4 pe-14 text-start",
-      className
-    )}
-    {...props} />
-)
+}) {
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn(
+        "flex shrink-0 flex-col gap-1.5 border-b border-border bg-background px-6 pt-5 pb-4 pe-14 text-start",
+        className
+      )}
+      {...props} />
+  )
+}
 DialogHeader.displayName = "DialogHeader"
 
 // Optional wrapper for the scrolling content between header and footer.
@@ -97,26 +151,28 @@ const DialogBody = ({
 DialogBody.displayName = "DialogBody"
 
 // Wraps header, body and footer in a real <form> so Enter submits and the
-// browser checks required/min/type. display: contents keeps the sticky
-// header/footer layout intact.
+// browser checks required/min/type. display: contents keeps the fixed
+// header / scrolling body / fixed footer layout intact.
 const DialogForm = React.forwardRef(({ className, ...props }, ref) => (
   <form ref={ref} className={cn("contents", className)} {...props} />
 ))
 DialogForm.displayName = "DialogForm"
 
-// Sticky at the bottom of the scroller, so actions are always reachable.
-const DialogFooter = ({
+// Fixed below the scrolling body, so actions are always reachable.
+function DialogFooter({
   className,
   ...props
-}) => (
-  <div
-    data-slot="dialog-footer"
-    className={cn(
-      "sticky bottom-0 z-10 -mx-6 flex flex-col-reverse gap-2 border-t border-border bg-background px-6 py-4 sm:flex-row sm:justify-end",
-      className
-    )}
-    {...props} />
-)
+}) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn(
+        "flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-background px-6 py-4 sm:flex-row sm:justify-end",
+        className
+      )}
+      {...props} />
+  )
+}
 DialogFooter.displayName = "DialogFooter"
 
 const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (

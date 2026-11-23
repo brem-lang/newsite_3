@@ -1,40 +1,42 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Activity, Database, Users, Gavel, Wallet, PackageCheck, LifeBuoy, Wrench } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
+const NONE = [];
+const NO_MAP = {};
+
+// Row counts come from Postgres (count only, one row transferred per table)
+// instead of downloading every table.
+const count = async (entity) => (await base44.entities[entity].page({ page: 1, pageSize: 1, fields: "id" })).total;
+
+const loadSection = async () => {
+  const [auctions, bids, users, transactions, fulfilment, support, settingsList] = await Promise.all([
+    count("Auction"), count("Bid"), count("User"), count("WalletTransaction"), count("Fulfilment"), count("SupportTicket"),
+    base44.entities.SiteSettings.list(),
+  ]);
+  const s = (Array.isArray(settingsList) ? settingsList : settingsList?.items)?.find((x) => x.key === "global");
+  return { counts: { auctions, bids, users, transactions, fulfilment, support }, settings: s || null };
+};
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["system"], loadSection));
+
 export default function AdminSystem() {
   const { t } = useI18n();
   const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
-  const [counts, setCounts] = useState({});
-  const [settings, setSettings] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+  const { data, isPending: loading, error: loadError, queryKey } = useAdminData(["system"], loadSection);
+  useEffect(() => { if (loadError) toast.error(loadError.message); }, [loadError]);
+  const counts = data?.counts ?? NO_MAP;
+  const settings = data?.settings ?? null;
+  const setSettings = (next) => qc.setQueryData(queryKey, (prev) => (prev ? { ...prev, settings: next } : prev));
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [auc, bids, users, tx, ful, sup, settingsList] = await Promise.all([
-        base44.entities.Auction.list(), base44.entities.Bid.list(), base44.entities.User.list(),
-        base44.entities.WalletTransaction.list(), base44.entities.Fulfilment.list(),
-        base44.entities.SupportTicket.list(), base44.entities.SiteSettings.list(),
-      ]);
-      setCounts({
-        auctions: (Array.isArray(auc) ? auc : auc?.items)?.length || 0,
-        bids: (Array.isArray(bids) ? bids : bids?.items)?.length || 0,
-        users: (Array.isArray(users) ? users : users?.items)?.length || 0,
-        transactions: (Array.isArray(tx) ? tx : tx?.items)?.length || 0,
-        fulfilment: (Array.isArray(ful) ? ful : ful?.items)?.length || 0,
-        support: (Array.isArray(sup) ? sup : sup?.items)?.length || 0,
-      });
-      const s = (Array.isArray(settingsList) ? settingsList : settingsList?.items)?.find((x) => x.key === "global");
-      setSettings(s || null);
-    } catch (e) { toast.error(e.message); }
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
 
   const toggleMaint = async (v) => {
     try {
@@ -55,7 +57,7 @@ export default function AdminSystem() {
     { icon: LifeBuoy, label: { en: "Support tickets" }, value: counts.support, tone: "text-destructive bg-destructive/10" },
   ];
 
-  if (loading) return <div className="py-10 text-center text-sm text-muted-foreground">{t.common.loading}</div>;
+  if (loading) return null;
 
   return (
     <div className="space-y-5">

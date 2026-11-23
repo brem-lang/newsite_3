@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
@@ -11,34 +11,38 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useNavigate } from "@/lib/router-compat";
-import AdminRevenueStream from "@/components/admin/AdminRevenueStream";
+import { useNavigate } from "@tanstack/react-router";
+import { keepPreviousData } from "@tanstack/react-query";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import AdminRevenueStream, { prefetch as prefetchRevenueStream } from "@/components/admin/AdminRevenueStream";
 
 
 const RANGES = [7, 30, 90, 365];
+const DEFAULT_DAYS = 30;
+
+const loadDashboard = async (days) => (await base44.functions.invoke("adminDashboard", { days })).data || null;
+
+/** Route loader: the default range's dashboard and the revenue stream below it. */
+export const prefetch = (qc) =>
+  Promise.all([
+    warmAdmin(qc, adminSection(["analytics", DEFAULT_DAYS], () => loadDashboard(DEFAULT_DAYS))),
+    prefetchRevenueStream(qc),
+  ]);
 
 export default function AdminAnalytics() {
   const { lang } = useI18n();
   const { format } = useCurrency();
   const navigate = useNavigate();
 
-  const [days, setDays] = useState(30);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async (d) => {
-    setRefreshing(true);
-    try {
-      const res = await base44.functions.invoke("adminDashboard", { days: d });
-      setData(res.data || null);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => { load(days); }, [days, load]);
+  const [days, setDays] = useState(DEFAULT_DAYS);
+  // One cached dashboard per range; switching ranges keeps the previous
+  // numbers on screen until the new ones arrive.
+  const { data = null, isPending: loading, isFetching: refreshing, refresh } = useAdminData(
+    ["analytics", days],
+    () => loadDashboard(days),
+    { placeholderData: keepPreviousData },
+  );
+  const load = () => refresh();
 
   const series = useMemo(() => (data?.series || []).map((s) => {
     const d = new Date(s.day);
@@ -59,9 +63,7 @@ export default function AdminAnalytics() {
     { label: "Winner payments", value: Number(data?.winner_payment || 0) },
   ]), [data, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) {
-    return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
-  }
+  if (loading) return null;
 
   const net = Number(data?.net || 0);
 
@@ -90,7 +92,11 @@ export default function AdminAnalytics() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* lg+: the title row stays at the top of .admin-main while the rest
+          scrolls under it. -mt-6/pt-6 take over the content's top spacing
+          (Admin.jsx) so the opaque background reaches the very top edge;
+          pb-6 + mb-0 keep the usual gap below, also opaque. */}
+      <div className="flex flex-wrap items-start justify-between gap-3 lg:sticky lg:top-0 lg:z-20 lg:-mt-6 lg:pt-6 lg:mb-0 lg:pb-6 lg:bg-background">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight flex items-center gap-2">
             <BarChart3 className="w-6 h-6" />
@@ -101,10 +107,10 @@ export default function AdminAnalytics() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button className="gold-button" onClick={() => navigate("/admin/auctions")}>
+          <Button className="gold-button" onClick={() => navigate({ to: "/admin/$section", params: { section: "auctions" } })}>
             <Plus className="w-4 h-4" />{"New auction"}
           </Button>
-          <Button variant="outline" className="border-accent/35 text-accent" onClick={() => navigate("/admin/live")}>
+          <Button variant="outline" className="border-accent/35 text-accent" onClick={() => navigate({ to: "/admin/$section", params: { section: "live" } })}>
             <RadioTower className="w-4 h-4" />{"Manage live"}
           </Button>
           <div className="inline-flex rounded-lg border border-border overflow-hidden">
@@ -147,7 +153,7 @@ export default function AdminAnalytics() {
         {ops.map((o) => (
           <button
             key={o.label}
-            onClick={() => navigate(o.to)}
+            onClick={() => navigate({ to: "/admin/$section", params: { section: o.to.replace("/admin/", "") } })}
             className={cn(
               "native-panel text-start rounded-2xl p-4 transition-all hover:border-accent/45 hover:-translate-y-0.5",
               o.alert && "border-warning/50"

@@ -1,36 +1,59 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from "react";
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useSiteSettings } from "@/lib/queries/config";
 
 const AuthContext = createContext(undefined);
 
+/** Cached data that belongs to one signed-in customer (config and staff data are kept). */
+const isUserScoped = (query) => {
+  const root = query.queryKey[0];
+  return root !== "config" && root !== "admin" && root !== "admin-entity";
+};
+
 export const AuthProvider = ({ children }) => {
+  const qc = useQueryClient();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [appPublicSettings, setAppPublicSettings] = useState(null);
+  const lastUserId = useRef(undefined);
+
+  // A different identity (sign-in, sign-out, account switch) must never see the
+  // previous one's cached wallet, bids or auctions.
+  const noteIdentity = useCallback(
+    (id) => {
+      if (lastUserId.current !== undefined && lastUserId.current !== id) {
+        qc.removeQueries({ predicate: isUserScoped });
+      }
+      lastUserId.current = id;
+    },
+    [qc],
+  );
 
   const checkUserAuth = useCallback(async (opts = {}) => {
-    // Only the very first check shows the full-screen spinner. Later refreshes
-    // (session events, profile updates) used to flip loading back on, which
-    // unmounted the current page and made it re-fetch everything from scratch.
+    // Only the very first check shows the full-screen loading state. Later
+    // refreshes (session events, profile updates) used to flip loading back on,
+    // which unmounted the current page and made it re-fetch everything.
     const silent = opts.silent === true;
     if (!silent) setIsLoadingAuth(true);
     try {
       const currentUser = await base44.auth.me();
       if (currentUser?.paused) {
         await base44.auth.logout();
+        noteIdentity(null);
         setUser(null);
         setIsAuthenticated(false);
         setAuthError({ type: "suspended", message: "Account suspended" });
       } else {
+        noteIdentity(currentUser?.id ?? null);
         setUser(currentUser);
         setIsAuthenticated(true);
         setAuthError(null);
       }
     } catch {
+      noteIdentity(null);
       setUser(null);
       setIsAuthenticated(false);
       setAuthError(null);
@@ -38,41 +61,33 @@ export const AuthProvider = ({ children }) => {
       if (!silent) setIsLoadingAuth(false);
       setAuthChecked(true);
     }
-  }, []);
+  }, [noteIdentity]);
 
+  // Site settings come from the shared config query (also used by currency).
+  const { data: settingsRows, isPending: isLoadingPublicSettings, isError: settingsFailed } = useSiteSettings();
+  const appPublicSettings = useMemo(() => {
+    if (isLoadingPublicSettings && !settingsFailed) return null;
+    return { id: "site", public_settings: settingsRows?.[0] ?? {} };
+  }, [settingsRows, isLoadingPublicSettings, settingsFailed]);
 
-  const loadPublicSettings = useCallback(async () => {
-    setIsLoadingPublicSettings(true);
-    try {
-      const settings = await base44.entities.SiteSettings.list();
-      setAppPublicSettings({ id: "site", public_settings: settings?.[0] ?? {} });
-    } catch {
-      setAppPublicSettings({ id: "site", public_settings: {} });
-    } finally {
-      setIsLoadingPublicSettings(false);
-    }
-  }, []);
-
-  // Settings and the session check are independent, so they run in parallel;
-  // gating auth behind settings made every page wait on two serial round-trips.
   const checkAppState = useCallback(async () => {
-    await Promise.all([loadPublicSettings(), checkUserAuth()]);
-  }, [loadPublicSettings, checkUserAuth]);
+    await Promise.all([qc.invalidateQueries({ queryKey: ["config", "settings"] }), checkUserAuth()]);
+  }, [qc, checkUserAuth]);
 
   useEffect(() => {
-    checkAppState();
+    checkUserAuth();
     const unsubscribe = base44.auth.onAuthStateChange((event) => {
       // A sign-out must tear the app down; other events refresh in the
       // background without blanking the current page.
       checkUserAuth({ silent: event !== "SIGNED_OUT" });
     });
     return unsubscribe;
-  }, [checkAppState, checkUserAuth]);
-
+  }, [checkUserAuth]);
 
   const logout = async (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
+    noteIdentity(null);
     await base44.auth.logout(shouldRedirect ? "/" : undefined);
   };
 

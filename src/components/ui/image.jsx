@@ -11,8 +11,18 @@ import {
   parseWixMediaUrl,
 } from "./image-helpers"
 
+// Shown for a missing or broken image: a faint picture icon on a transparent
+// 4:3 canvas, so the container's own background (bg-muted / bg-card) shows
+// through and it suits any theme. Inline, so it never costs a request or
+// fails itself. (Was a Wix stock graphic that looked like template content.)
 const FALLBACK_IMAGE_URL =
-  "https://static.wixstatic.com/media/12d367_4f26ccd17f8f4e3a8958306ea08c2332~mv2.png"
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">' +
+      '<g transform="translate(176 126)" fill="none" stroke="#94a3b8" stroke-opacity=".55" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="2" y="2" width="44" height="44" rx="6"/><circle cx="16" cy="16" r="4"/><path d="m46 32-10-10-24 24"/>' +
+      "</g></svg>"
+  )
 
 const ImageWrapper = React.forwardRef(({ aspectRatio, className, style, children }, ref) => (
   <span
@@ -146,8 +156,13 @@ const Image = React.forwardRef(
       if (nextMode === IMAGE_LOAD_MODE.FALLBACK) onError?.(event)
     }
 
+    // Plain <img> paths (Supabase storage and other non-Wix URLs) are sized by
+    // the caller's w-full/h-full; without object-fit the browser squashes the
+    // picture into that box. Crop (fill) or letterbox (fit) like the
+    // optimized path does.
     const imageProps = {
       ...props,
+      className: cn(fittingType === "fit" ? "object-contain" : "object-cover", props.className),
       onError: handleError,
     }
 

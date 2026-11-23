@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { Mail, MessageCircle, Bell, Send, Users } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { useAdminUsers, useAdminAuctions, adminLookups, warmAdmin } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,19 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { sendEmail, sendWhatsApp, sendInApp } from "@/lib/messaging";
+import SelectField from "@/components/ui/select-field";
+
+/** Route loader: the audience lists (users, auctions). */
+export const prefetch = (qc) => warmAdmin(qc, adminLookups.users(), adminLookups.auctions());
 
 export default function AdminBroadcast() {
   const { t } = useI18n();
-  const [users, setUsers] = useState([]);
-  const [auctions, setAuctions] = useState([]);
+  // Shared, cached lookups (the same reads other admin panels use).
+  const { data: users } = useAdminUsers();
+  const { data: auctions } = useAdminAuctions();
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ channel: "inapp", segment: "all", auctionId: "", subject: "", body: "" });
 
-  const load = useCallback(() => {
-    base44.entities.User.list("", 2000).then(setUsers);
-    base44.entities.Auction.list("-created_date", 200).then(setAuctions);
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   // Only auctions that are still running can be messaged; closed ones are hidden.
   const activeAuctions = auctions.filter(
@@ -95,22 +95,22 @@ export default function AdminBroadcast() {
 
             <div>
               <Label className="text-xs">{t.admin.broadcast.recipients}</Label>
-              <select value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })}
+              <SelectField value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })}
                 className="w-full mt-1.5 h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="all">{t.admin.broadcast.all}</option>
                 <option value="winners">{t.admin.broadcast.winners}</option>
                 <option value="auction">{t.admin.broadcast.auction}</option>
-              </select>
+              </SelectField>
             </div>
 
             {form.segment === "auction" && (
               <div>
                 <Label className="text-xs">{t.admin.broadcast.selectAuction}</Label>
-                <select value={form.auctionId} onChange={(e) => setForm({ ...form, auctionId: e.target.value })}
+                <SelectField value={form.auctionId} onChange={(e) => setForm({ ...form, auctionId: e.target.value })}
                   className="w-full mt-1.5 h-10 rounded-md border border-input bg-background px-3 text-sm">
                   <option value="">—</option>
                   {activeAuctions.map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
-                </select>
+                </SelectField>
               </div>
             )}
 

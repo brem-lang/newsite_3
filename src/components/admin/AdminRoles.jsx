@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Plus, Pencil, Trash2, ShieldCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,35 +27,35 @@ const CATEGORY_LABELS = {
  * (level) and an explicit allow/deny per admin capability. The server checks it
  * on every admin action, so the UI here only edits the rules.
  */
+const NONE = [];
+const NO_MAP = {};
+
+const loadSection = async () => {
+  const res = await base44.functions.invoke("listRoleAccess", {});
+  const payload = res?.data || {};
+  if (payload.error) throw new Error(payload.error);
+  return { caps: payload.capabilities || [], roles: payload.roles || [], grants: payload.grants || [] };
+};
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["roles"], loadSection));
+
 export default function AdminRoles() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
   
   const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
 
-  const [caps, setCaps] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [grants, setGrants] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isPending: loading, refresh: load, error: loadError } = useAdminData(["roles"], loadSection);
+  useEffect(() => { if (loadError) toast.error(loadError.message); }, [loadError]);
+  const caps = data?.caps ?? NONE;
+  const roles = data?.roles ?? NONE;
+  const grants = data?.grants ?? NONE;
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: "", description: "", level: 40, is_system: false, capabilities: {} });
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await base44.functions.invoke("listRoleAccess", {});
-      const payload = res?.data || {};
-      if (payload.error) throw new Error(payload.error);
-      setCaps(payload.capabilities || []);
-      setRoles(payload.roles || []);
-      setGrants(payload.grants || []);
-    } catch (e) { toast.error(e.message); }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const grantMap = useMemo(() => {
     const map = {};
@@ -159,7 +160,7 @@ export default function AdminRoles() {
   const grantedCount = (r) => caps.filter((c) => effective(r, c.key)).length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 admin-fill">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-semibold">{"Roles & access"}</h2>
@@ -175,7 +176,8 @@ export default function AdminRoles() {
       ) : roles.length === 0 ? (
         <div className="py-10 text-center text-sm text-muted-foreground border border-dashed rounded-xl">{"No roles defined yet."}</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border">
+        <div className="admin-table-card rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="admin-table-scroll">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
@@ -219,6 +221,7 @@ export default function AdminRoles() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { Shield, LogOut, X, ChevronDown, Search } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { sectionLabel, SECTIONS } from "@/lib/adminNav";
 import { Button } from "@/components/ui/button";
 
-export default function AdminSidebar({ groups, basePath, active, activeGroup, onLogout, onClose, onSearch, className }) {
+export default function AdminSidebar({ groups, basePath, onPreload, active, activeGroup, onLogout, onClose, onSearch, className }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(() => ({ [activeGroup]: true }));
 
@@ -71,7 +71,11 @@ export default function AdminSidebar({ groups, basePath, active, activeGroup, on
                     return (
                       <Link
                         key={id}
-                        to={`${basePath}/${id}`}
+                        to="/admin/$section"
+                        params={{ section: id }}
+                        onMouseEnter={() => onPreload?.(id)}
+                        onFocus={() => onPreload?.(id)}
+                        onTouchStart={() => onPreload?.(id)}
                         onClick={onClose}
                         className={cn(
                           "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",

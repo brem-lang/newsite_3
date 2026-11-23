@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { RotateCcw, Check, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, useAdminUserMap, toMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
 import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -14,28 +15,30 @@ const STATUS_CLS = {
   pending: "bg-warning/15 text-warning", approved: "bg-success/15 text-success", rejected: "bg-destructive/15 text-destructive"
 };
 
+const NONE = [];
+const NO_MAP = {};
+
+const loadSection = async () => {
+  const [r, x] = await Promise.all([
+    base44.entities.RefundRequest.list("-created_date", 500),
+    base44.entities.WalletTransaction.list("-created_date", 1000),
+  ]);
+  return { rows: r || [], txns: toMap(x) };
+};
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["refunds"], loadSection), adminLookups.users());
+
 export default function AdminRefunds() {
   const { t } = useI18n();
-  const [rows, setRows] = useState([]);
-  const [txns, setTxns] = useState({});
-  const [users, setUsers] = useState({});
-  const [loading, setLoading] = useState(true);
+  const { data, isPending: loading, refresh: load } = useAdminData(["refunds"], loadSection);
+  const rows = data?.rows ?? NONE;
+  const txns = data?.txns ?? NO_MAP;
+  const users = useAdminUserMap();
   const [busy, setBusy] = useState("");
   const [rejecting, setRejecting] = useState(null);
   const [note, setNote] = useState("");
 
-  const load = useCallback(() => {
-    Promise.all([
-      base44.entities.RefundRequest.list("-created_date", 500),
-      base44.entities.WalletTransaction.list("-created_date", 1000),
-      base44.entities.User.list("", 1000)
-    ]).then(([r, x, u]) => {
-      setRows(r || []);
-      const tm = {}; (x || []).forEach((z) => { tm[z.id] = z; }); setTxns(tm);
-      const um = {}; (u || []).forEach((z) => { um[z.id] = z; }); setUsers(um);
-    }).finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const decide = async (r, decision) => {
     setBusy(r.id + decision);
@@ -53,7 +56,7 @@ export default function AdminRefunds() {
     }
   };
 
-  if (loading) return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
+  if (loading) return null;
 
   const pending = rows.filter((r) => r.status === "pending");
   const resolved = rows.filter((r) => r.status !== "pending");
@@ -70,7 +73,7 @@ export default function AdminRefunds() {
         {pending.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">{t.admin.refunds.empty}</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 text-muted-foreground">
                 <tr>
@@ -106,7 +109,7 @@ export default function AdminRefunds() {
 
       {resolved.length > 0 && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 text-muted-foreground">
                 <tr>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, getRouteApi } from "@tanstack/react-router";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,14 @@ import { Lock, Loader2, AlertTriangle } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import { useI18n } from "@/lib/i18n";
 
+const route = getRouteApi("/reset-password");
+
 export default function ResetPassword() {
   const { t } = useI18n();
-  const [searchParams] = useSearchParams();
+  const search = route.useSearch();
   // The recovery e-mail signs the visitor in for a short window; some links
   // still carry a token in the query string. Either one is a valid entry.
-  const queryToken = searchParams.get("token") || searchParams.get("code");
+  const queryToken = search.token || search.code;
   const [ready, setReady] = useState(!!queryToken);
   const [checking, setChecking] = useState(!queryToken);
 

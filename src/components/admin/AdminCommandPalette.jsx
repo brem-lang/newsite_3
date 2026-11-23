@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import { GROUPS, SECTIONS, sectionLabel } from "@/lib/adminNav";
 import {
@@ -23,7 +23,7 @@ export default function AdminCommandPalette({ open, onOpenChange, basePath }) {
 
   const go = (id) => {
     onOpenChange(false);
-    navigate(`${basePath}/${id}`);
+    navigate({ to: "/admin/$section", params: { section: id } });
   };
 
   return (

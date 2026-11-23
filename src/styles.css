@@ -160,6 +160,18 @@
     border-color: hsl(var(--border));
   }
 
+  /* Native scrollbars are hidden everywhere so they never take up width.
+     <OverlayScrollbar /> (mounted in __root) draws a thin floating one over
+     whichever area the mouse is on, only while it's there. */
+  * {
+    scrollbar-width: none;
+  }
+  ::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -453,5 +465,228 @@ html {
   .page-transition,
   .animate-sheet-up {
     animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Flat look: the whole app (customer site and admin).                  */
+/* <html data-look="flat"> is set in RootShell (routes/__root.tsx), so   */
+/* portals (dialogs, sheets, menus, toasts) are covered too.            */
+/* No coloured glow or blurred shadow at rest; one smaller radius       */
+/* scale. Focus rings stay (they use --tw-ring-shadow, not --tw-shadow). */
+/* ------------------------------------------------------------------ */
+
+/* Half the radius set in admin > Design (applyTheme writes it to
+   --radius-theme on <html>; 10px by default, so md 3, lg 5, xl 9, 2xl 13).
+   Declared on body so <html> keeps the configured value. */
+[data-look="flat"] body {
+  --radius: calc(var(--radius-theme, 0.625rem) / 2);
+}
+
+/* Tailwind shadow-* / drop-shadow-* utilities. */
+[data-look="flat"] body * {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-drop-shadow: drop-shadow(0 0 #0000) !important;
+}
+
+/* Glow utilities from this file, and inline drop-shadow glows. */
+[data-look="flat"] .shadow-neon-lime,
+[data-look="flat"] .shadow-neon-pink,
+[data-look="flat"] .timer-glow,
+[data-look="flat"] .native-chrome {
+  box-shadow: none;
+}
+[data-look="flat"] .text-glow-lime {
+  text-shadow: none;
+}
+[data-look="flat"] [style*="drop-shadow"] {
+  filter: none !important;
+}
+
+/* Decorative blurred light blobs (not backdrop-blur surfaces). */
+[data-look="flat"] [aria-hidden="true"]:is([class^="blur-"], [class*=" blur-"]) {
+  display: none;
+}
+
+/* House surfaces keep their 1px top highlight, lose the outer glow. */
+[data-look="flat"] .native-panel,
+[data-look="flat"] .native-control {
+  box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.035);
+}
+[data-look="flat"] .gold-button,
+[data-look="flat"] .gold-button:hover,
+[data-look="flat"] .cyan-button,
+[data-look="flat"] .cyan-button:hover {
+  box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.3);
+}
+
+/* Floating layers (menus, popovers, select lists, toasts) sit over content:
+   their border plus one tight neutral shadow, no colour. */
+[data-look="flat"] [data-radix-popper-content-wrapper] > *,
+[data-look="flat"] [data-sonner-toast] {
+  box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.35) !important;
+}
+
+/* Auction cards: the photo fills the card and the details sit on this fade
+   over its lower part, so the photo still shows through behind them. */
+.photo-fade {
+  background-image: linear-gradient(
+    to top,
+    hsl(var(--card)) 38%,
+    hsl(var(--card) / 0.82) 68%,
+    hsl(var(--card) / 0)
+  );
+}
+.photo-fade-side {
+  background-image: linear-gradient(
+    to right,
+    hsl(var(--card)) 45%,
+    hsl(var(--card) / 0.75) 72%,
+    hsl(var(--card) / 0.15)
+  );
+}
+[dir="rtl"] .photo-fade-side {
+  background-image: linear-gradient(
+    to left,
+    hsl(var(--card)) 45%,
+    hsl(var(--card) / 0.75) 72%,
+    hsl(var(--card) / 0.15)
+  );
+}
+/* Fades up on phones, sideways once the card goes side by side (lg). */
+@media (min-width: 1024px) {
+  .lg\:photo-fade-side {
+    background-image: linear-gradient(to right, hsl(var(--card) / 0), hsl(var(--card) / 0.82) 28%, hsl(var(--card)) 55%);
+  }
+  [dir="rtl"] .lg\:photo-fade-side {
+    background-image: linear-gradient(to left, hsl(var(--card) / 0), hsl(var(--card) / 0.82) 28%, hsl(var(--card)) 55%);
+  }
+}
+
+/* The floating scrollbar thumb drawn by <OverlayScrollbar />. */
+.overlay-scrollbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 0;
+  border-radius: 9999px;
+  background: hsl(var(--muted-foreground) / 0.45);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+  transition: opacity 0.2s ease, background-color 0.15s ease;
+  touch-action: none;
+}
+.overlay-scrollbar:hover,
+.overlay-scrollbar[data-dragging] {
+  background: hsl(var(--muted-foreground) / 0.75);
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin tables and fixed-height layout.                                */
+/* src/pages/Admin.jsx makes the shell one window tall on lg+, so the    */
+/* header and sidebar never scroll away; <main class="admin-main"> is    */
+/* the only scroll area (phones keep normal page scrolling).             */
+/*                                                                       */
+/* Every admin table sits in .admin-table-scroll and shares one look     */
+/* (AdminBidMonitor's): same cell padding, row height, bottom border and */
+/* heading style, whatever classes the table's own markup carries.       */
+/*                                                                       */
+/* Layout:                                                               */
+/*  - .admin-fill on a panel root + .admin-table-card on its table card: */
+/*    the panel fills the visible height and the table takes what is     */
+/*    left, scrolling inside; pagination sits in the card under it.      */
+/*  - any other table: its scroll box is capped to the visible height.   */
+/* ------------------------------------------------------------------ */
+.admin-table-scroll {
+  overflow-x: auto;
+}
+.admin-table-scroll table {
+  font-size: 0.875rem;
+}
+.admin-table-scroll thead {
+  color: hsl(var(--muted-foreground));
+  /* Opaque base (rows scroll under the sticky headings) + the row tint. */
+  background-color: hsl(var(--card));
+  background-image: linear-gradient(hsl(var(--secondary) / 0.6), hsl(var(--secondary) / 0.6));
+}
+.admin-table-scroll th {
+  height: 2.5rem;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+/* One row height for every table. Full-width rows (empty states, expanded
+   details) keep their own padding. */
+.admin-table-scroll td:not([colspan]) {
+  height: 2.75rem;
+  padding: 0.25rem 1rem;
+  vertical-align: middle;
+}
+/* Controls in a row are capped at 2.25rem (admin buttons are h-11 = 2.75rem
+   elsewhere), so rows with action buttons are no taller than text rows.
+   Square icon buttons (w-11) shrink to stay square. */
+.admin-table-scroll td :is(button, input, select, [role="combobox"]) {
+  max-height: 2.25rem;
+}
+.admin-table-scroll td :is(button, [role="combobox"])[class*="w-11"] {
+  width: 2.25rem;
+  min-width: 2.25rem;
+}
+.admin-table-scroll tbody tr {
+  border-width: 0 0 1px;
+  border-style: solid;
+  border-color: hsl(var(--border) / 0.6);
+}
+/* Collapsed table borders scroll away with the rows; draw the line on th. */
+.admin-table-scroll thead th {
+  box-shadow: inset 0 -1px 0 hsl(var(--border));
+}
+
+@media (min-width: 1024px) {
+  .admin-main {
+    min-height: 0;
+    overflow-y: auto;
+    /* cqh below = this area's visible height. */
+    container-type: size;
+  }
+  /* Capped tables: room left for a toolbar above and pagination below.
+     Never shorter than 16rem, so short windows still show a useful table. */
+  .admin-table-scroll {
+    overflow: auto;
+    overscroll-behavior: contain;
+    max-height: max(16rem, calc(100cqh - var(--admin-table-room, 9.5rem)));
+  }
+  .admin-table-scroll thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  /* Fill layout. min-height (not height): the panel is at least the visible
+     height (less the 1.5rem top spacing in Admin.jsx); the card grows into
+     the space left. Its basis is 0px (a % basis would count as content
+     size here), so the table's length never stretches
+     it; if the rest of the panel is too tall, the panel simply grows. */
+  .admin-fill {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100cqh - 1.5rem);
+  }
+  .admin-fill > .admin-table-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0px;
+    min-height: 16rem;
+  }
+  .admin-fill > .admin-table-card > .admin-table-scroll {
+    flex: 1 1 0px;
+    min-height: 0;
+    max-height: none;
+  }
+  /* Tables inside dialogs: the dialog scrolls too, so keep them shorter. */
+  [role="dialog"] .admin-table-scroll {
+    max-height: 50dvh;
   }
 }

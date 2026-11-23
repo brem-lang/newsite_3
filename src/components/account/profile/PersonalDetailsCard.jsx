@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { countryList, dialCode, dialCodeList } from "@/lib/countries";
+import SelectField from "@/components/ui/select-field";
 
 const FIELDS = [
   "first_name",
@@ -142,12 +143,12 @@ export default function PersonalDetailsCard({ user, onSaved, compact = false }) 
       <div className="space-y-1.5">
         <p className={`${label} flex items-center gap-1.5`}><Phone className="w-3 h-3" /> {p.phone}</p>
         <div className="flex gap-2 min-w-0">
-          <select value={form.phone_country_code} onChange={set("phone_country_code")} className={`${selectCls} w-24 shrink-0`}>
+          <SelectField value={form.phone_country_code} onChange={set("phone_country_code")} className={`${selectCls} w-24 shrink-0`}>
             <option value="">+</option>
             {dials.map((c) => (
               <option key={c.code} value={c.dial}>{`${c.dial} ${c.code}`}</option>
             ))}
-          </select>
+          </SelectField>
           <Input value={form.phone_number} onChange={set("phone_number")} placeholder="790000000" className="h-10 flex-1 min-w-0" inputMode="tel" autoComplete="tel-national" />
         </div>
         <p className="text-[11px] text-muted-foreground">{p.phoneHint}</p>
@@ -162,12 +163,12 @@ export default function PersonalDetailsCard({ user, onSaved, compact = false }) 
         <div className="space-y-1.5">
           <p className={`${label} flex items-center gap-1.5`}><MessageCircle className="w-3 h-3" /> {p.whatsapp}</p>
           <div className="flex gap-2 min-w-0">
-            <select value={form.whatsapp_country_code} onChange={set("whatsapp_country_code")} className={`${selectCls} w-24 shrink-0`}>
+            <SelectField value={form.whatsapp_country_code} onChange={set("whatsapp_country_code")} className={`${selectCls} w-24 shrink-0`}>
               <option value="">+</option>
               {dials.map((c) => (
                 <option key={c.code} value={c.dial}>{`${c.dial} ${c.code}`}</option>
               ))}
-            </select>
+            </SelectField>
             <Input value={form.whatsapp_number} onChange={set("whatsapp_number")} placeholder="790000000" className="h-10 flex-1 min-w-0" inputMode="tel" />
           </div>
         </div>
@@ -175,12 +176,12 @@ export default function PersonalDetailsCard({ user, onSaved, compact = false }) 
 
       <div className="space-y-1.5">
         <p className={label}>{p.country}</p>
-        <select value={form.country_code} onChange={set("country_code")} className={`${selectCls} w-full`}>
+        <SelectField value={form.country_code} onChange={set("country_code")} className={`${selectCls} w-full`}>
           <option value="">—</option>
           {countries.map((c) => (
             <option key={c.code} value={c.code}>{c.name}</option>
           ))}
-        </select>
+        </SelectField>
       </div>
 
       <Button onClick={save} disabled={saving} className="w-full h-10">

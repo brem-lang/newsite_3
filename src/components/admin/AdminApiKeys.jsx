@@ -1,5 +1,5 @@
 import React from "react";
-import AdminCrudTable from "./AdminCrudTable";
+import AdminCrudTable, { prefetchCrud } from "./AdminCrudTable";
 
 const fields = [
   { key: "name", label: { en: "Name" }, required: true },
@@ -8,6 +8,8 @@ const fields = [
   { key: "last_used", label: { en: "Last used" } },
   { key: "active", label: { en: "Active" }, type: "boolean" },
 ];
+
+export const prefetch = prefetchCrud("ApiKey");
 
 export default function AdminApiKeys() {
   return (

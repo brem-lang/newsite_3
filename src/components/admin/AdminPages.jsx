@@ -1,5 +1,5 @@
 import React from "react";
-import AdminCrudTable from "./AdminCrudTable";
+import AdminCrudTable, { prefetchCrud } from "./AdminCrudTable";
 
 const fields = [
   { key: "slug", label: { en: "Slug" }, required: true },
@@ -7,6 +7,8 @@ const fields = [
   { key: "body_en", label: { en: "Body" }, type: "textarea", rows: 6, hideInTable: true },
   { key: "published", label: { en: "Published" }, type: "boolean" },
 ];
+
+export const prefetch = prefetchCrud("Page");
 
 export default function AdminPages() {
   return (

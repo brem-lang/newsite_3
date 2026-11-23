@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Receipt, Copy, CheckCircle2, XCircle, Clock, RefreshCw, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, useAdminUserMap, useAdminAuctionMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,41 +19,30 @@ const STATUSES = ["pending", "paid", "void"];
  * Admins send the link, confirm the payment by hand, or void the win so the
  * runner-up is promoted.
  */
+const NONE = [];
+const NO_MAP = {};
+
+const loadSection = async () => {
+  const res = await base44.functions.invoke("listWinnerPayments", {});
+  if (res.data?.error) throw new Error(res.data.error);
+  return res.data?.payments || [];
+};
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["winnerpayments"], loadSection), adminLookups.users(), adminLookups.auctions());
+
 export default function AdminWinnerPayments() {
   const { t } = useI18n();
-  const [rows, setRows] = useState([]);
-  const [auctions, setAuctions] = useState({});
-  const [users, setUsers] = useState({});
-  const [loading, setLoading] = useState(true);
+  const { data: rows = NONE, isPending: loading, refresh: load, error: loadError } = useAdminData(["winnerpayments"], loadSection);
+  useEffect(() => { if (loadError) toast.error(loadError.message || "Error"); }, [loadError]);
+  const auctions = useAdminAuctionMap();
+  const users = useAdminUserMap();
   const [status, setStatus] = useState("pending");
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [payDialog, setPayDialog] = useState(null);
   const [form, setForm] = useState({ reference: "", note: "" });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [res, list, people] = await Promise.all([
-        base44.functions.invoke("listWinnerPayments", {}),
-        base44.entities.Auction.list("-created_date", 500),
-        base44.entities.User.list("", 1000),
-      ]);
-      setRows(res.data?.payments || []);
-      const am = {};
-      (list || []).forEach((a) => { am[a.id] = a; });
-      setAuctions(am);
-      const um = {};
-      (people || []).forEach((u) => { um[u.id] = u; });
-      setUsers(um);
-    } catch (e) {
-      toast.error(e.message || "Error");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();

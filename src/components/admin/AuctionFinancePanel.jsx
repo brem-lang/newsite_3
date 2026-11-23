@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Save, History, Layers, Receipt, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { useAdminData, useAdminMe } from "@/lib/queries/admin";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import SelectField from "@/components/ui/select-field";
 
 const num = (v) => Number(v) || 0;
 const abs = (v) => Math.abs(num(v));
@@ -21,11 +23,32 @@ export const COST_KINDS = [
  * cost/revenue inputs, an audit trail of every change, and a per-round
  * breakdown that includes archived rounds.
  */
+const NO_ROWS = [];
+
 export default function AuctionFinancePanel({ auction, row, costItems, override, format, onChanged }) {
   const [tab, setTab] = useState("items");
-  const [me, setMe] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [rounds, setRounds] = useState(null);
+  const me = useAdminMe();
+  // Audit trail: fetched when the History tab is opened, then cached.
+  const historyQuery = useAdminData(
+    ["finance", "history", auction.id],
+    async () => (await base44.entities.AuctionFinanceChange.filter({ auction_id: auction.id }, "-created_date", 200)) || [],
+    { enabled: tab === "history" },
+  );
+  const history = historyQuery.data ?? NO_ROWS;
+  const loadHistory = () => historyQuery.refresh();
+
+  // Raw bids/credits for the per-round breakdown, fetched when that tab opens.
+  const roundsQuery = useAdminData(
+    ["finance", "rounds", auction.id],
+    async () => {
+      const [bids, credits] = await Promise.all([
+        base44.entities.Bid.filter({ auction_id: auction.id }, "created_date", 5000),
+        base44.entities.BidCredit.filter({ auction_id: auction.id }, "created_date", 2000),
+      ]);
+      return { bids: bids || [], credits: credits || [] };
+    },
+    { enabled: tab === "rounds" },
+  );
   const [busy, setBusy] = useState(false);
 
   const [draft, setDraft] = useState({ kind: "other", label: "", amount: "", notes: "" });
@@ -45,27 +68,12 @@ export default function AuctionFinancePanel({ auction, row, costItems, override,
     });
   }, [override]);
 
-  useEffect(() => {
-    base44.adminAuth.me().then(setMe).catch(() => {});
-  }, []);
-
-  const loadHistory = async () => {
-    const list = await base44.entities.AuctionFinanceChange.filter({ auction_id: auction.id }, "-created_date", 200);
-    setHistory(list || []);
-  };
-
-  useEffect(() => { if (tab === "history") loadHistory().catch(() => {}); }, [tab, auction.id]);
-
   /** Per-round income, including archived rounds. */
-  useEffect(() => {
-    if (tab !== "rounds" || rounds) return;
-    let alive = true;
-    (async () => {
-      const [bids, credits] = await Promise.all([
-        base44.entities.Bid.filter({ auction_id: auction.id }, "created_date", 5000),
-        base44.entities.BidCredit.filter({ auction_id: auction.id }, "created_date", 2000),
-      ]);
-      if (!alive) return;
+  const rounds = useMemo(() => {
+    if (roundsQuery.isError) return [];
+    if (!roundsQuery.data) return null;
+    const { bids, credits } = roundsQuery.data;
+    {
       const bidFee = num(auction.bid_fee);
       const extraPrice = num(auction.extra_bid_price);
       const map = new Map();
@@ -95,10 +103,9 @@ export default function AuctionFinancePanel({ auction, row, costItems, override,
         income: (g.round === 1 ? entryFees : 0) + g.bidFees + g.extraBids,
         isCurrent: g.round === currentRound,
       }));
-      setRounds(out);
-    })().catch(() => setRounds([]));
-    return () => { alive = false; };
-  }, [tab, rounds, auction.id, auction.bid_fee, auction.extra_bid_price, auction.round, row?.entryFees]);
+      return out;
+    }
+  }, [roundsQuery.data, roundsQuery.isError, auction.bid_fee, auction.extra_bid_price, auction.round, row?.entryFees]);
 
   const logChange = async (field, oldValue, newValue, note) => {
     await base44.entities.AuctionFinanceChange.create({
@@ -224,13 +231,13 @@ export default function AuctionFinancePanel({ auction, row, costItems, override,
         {tab === "items" && (
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-[150px_1fr_120px_auto] items-center">
-              <select
+              <SelectField
                 value={draft.kind}
                 onChange={(e) => setDraft({ ...draft, kind: e.target.value })}
                 className="h-9 rounded-xl border border-border bg-background px-3 text-sm"
               >
                 {COST_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
-              </select>
+              </SelectField>
               <Input className="h-9" placeholder="Label (e.g. shipping to winner)" value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
               <Input className="h-9" type="number" step="0.01" placeholder="Amount" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} />
               <Button size="sm" onClick={addItem} disabled={busy}><Plus className="w-4 h-4 me-1" />Add</Button>
@@ -239,7 +246,7 @@ export default function AuctionFinancePanel({ auction, row, costItems, override,
             {(costItems || []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No cost line items saved for this auction yet.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="admin-table-scroll">
                 <table className="w-full text-sm">
                   <thead className="text-muted-foreground">
                     <tr>
@@ -318,7 +325,7 @@ export default function AuctionFinancePanel({ auction, row, costItems, override,
           rounds === null ? <p className="text-sm text-muted-foreground">Loading rounds…</p>
             : rounds.length === 0 ? <p className="text-sm text-muted-foreground">No bids recorded yet.</p>
               : (
-                <div className="overflow-x-auto">
+                <div className="admin-table-scroll">
                   <table className="w-full text-sm">
                     <thead className="text-muted-foreground">
                       <tr>
@@ -360,8 +367,9 @@ export default function AuctionFinancePanel({ auction, row, costItems, override,
         )}
 
         {tab === "history" && (
-          history.length === 0 ? <p className="text-sm text-muted-foreground">No manual changes recorded for this auction.</p> : (
-            <div className="overflow-x-auto">
+          historyQuery.isPending ? <p className="text-sm text-muted-foreground">Loading history…</p>
+          : history.length === 0 ? <p className="text-sm text-muted-foreground">No manual changes recorded for this auction.</p> : (
+            <div className="admin-table-scroll">
               <table className="w-full text-sm">
                 <thead className="text-muted-foreground">
                   <tr>

@@ -1,9 +1,13 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Pencil, Trash2, Clock, Star, Trophy, Users, Flame, CheckCircle2, Search, Download, FileText, BarChart3, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, RefreshCw, Play, Square } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock, Star, Trophy, Users, Flame, CheckCircle2, Search, Download, FileText, BarChart3, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, RefreshCw, Play, Square, RotateCcw, Archive } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useAdminData, useAdminUserMap, auctionBidsQuery, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
-import { effectiveStatus, formatDuration } from "@/lib/auction";
+import { formatDuration } from "@/lib/auction";
+import { adminStatus, allowedStatuses, actionFor, canDelete, runLifecycle, LifecycleConflict } from "@/lib/auctionLifecycle";
 import AuctionFormDialog from "@/components/admin/AuctionFormDialog";
 import AuctionBidsLog from "@/components/admin/AuctionBidsLog";
 import { Button } from "@/components/ui/button";
@@ -11,20 +15,34 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { MAX_HOME_SLOTS } from "@/lib/homeShowcase";
+import SelectField from "@/components/ui/select-field";
 
 const statusStyles = {
   open: "bg-success/10 text-success",
   live: "bg-destructive/10 text-destructive",
-  ended: "bg-muted text-muted-foreground"
+  ended: "bg-muted text-muted-foreground",
+  voided: "bg-warning/10 text-warning",
+  voiding: "bg-warning/10 text-warning",
+  archived: "bg-muted text-muted-foreground"
 };
+
+const NO_AUCTIONS = [];
+
+// refresh() on ["admin","auctions"] also covers the shared ["admin","auctions","lookup"].
+const loadSection = async () => (await base44.entities.Auction.list("-created_date", 100)) || [];
+
+/** Route loader: everything this panel paints, before it opens. */
+export const prefetch = (qc) => warmAdmin(qc, adminSection(["auctions"], loadSection), adminLookups.users());
 
 export default function AdminAuctions() {
   const { t, format } = useI18n();
   const askConfirm = useConfirm();
-  const [auctions, setAuctions] = useState([]);
-  const [users, setUsers] = useState({});
+  const qc = useQueryClient();
+  const { data: auctions = NO_AUCTIONS, isPending: loading, refresh: load, queryKey } = useAdminData(["auctions"], loadSection);
+  // Optimistic edits write straight into the cache; load() re-reads after.
+  const setAuctions = (update) => qc.setQueryData(queryKey, (prev = []) => update(prev));
+  const users = useAdminUserMap();
   const [view, setView] = useState("all");
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -35,19 +53,6 @@ export default function AdminAuctions() {
     return () => clearInterval(tick);
   }, []);
 
-  const load = useCallback(() => {
-    base44.entities.Auction.list("-created_date", 100)
-      .then(setAuctions)
-      .finally(() => setLoading(false));
-    base44.entities.User.list("", 1000)
-      .then((rows) => {
-        const map = {};
-        (rows || []).forEach((u) => { map[u.id] = u; });
-        setUsers(map);
-      })
-      .catch(() => setUsers({}));
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const handleDelete = async (auction) => {
     if (!(await askConfirm({ title: t.admin.confirm.deleteAuction, description: t.admin.confirm.cannotUndo, confirmLabel: t.admin.confirm.delete, destructive: true }))) return;
@@ -64,7 +69,7 @@ export default function AdminAuctions() {
   const MAX_FEATURED = MAX_HOME_SLOTS;
   // Only auctions that can actually surface on home count toward the slots.
   const featuredList = auctions
-    .filter((a) => a.featured && a.status !== "ended" && a.status !== "voided" && a.status !== "voiding")
+    .filter((a) => a.featured && !["ended", "voided", "voiding", "archived"].includes(a.status))
     .sort((a, b) => (a.featured_order || 0) - (b.featured_order || 0));
 
   const toggleFeatured = async (auction) => {
@@ -116,70 +121,69 @@ export default function AdminAuctions() {
   const openNew = () => { setEditing(null); setDialogOpen(true); };
   const openEdit = (a) => { setEditing(a); setDialogOpen(true); };
 
-  const statusOptions = [
-    { value: "open", label: t.auction.statusOpen },
-    { value: "live", label: t.auction.statusLive },
-    { value: "ended", label: t.auction.statusEnded }
-  ];
-
-  const handleStatusChange = async (auction, newStatus) => {
-    if (newStatus === effectiveStatus(auction, now)) return;
-    if (newStatus === "ended") {
-      await closeNow(auction);
-      return;
-    }
-    if (newStatus === "live" && !(await askConfirm({ title: format(t.admin.confirm.startTitle, { title: auction.title }), description: t.admin.confirm.startDesc, confirmLabel: t.admin.confirm.startLabel }))) return;
-    try {
-      setChangingId(auction.id);
-      const patch = { status: newStatus };
-      if (newStatus === "live" && !auction.start_time) {
-        patch.start_time = new Date().toISOString();
-        patch.end_time = new Date(Date.now() + (auction.duration_minutes || 5) * 60000).toISOString();
-      }
-      if (newStatus === "open") {
-        patch.start_time = null;
-        patch.end_time = null;
-        patch.winner_id = null;
-      }
-      await base44.entities.Auction.update(auction.id, patch);
-      logAdminAction("auction.status", { targetType: "auctions", targetId: auction.id, details: `${auction.title} -> ${newStatus}` });
-      toast.success(t.admin.saved);
-      load();
-    } catch (e) {
-      toast.error(e.message || "Error");
-    } finally {
-      setChangingId(null);
-    }
+  const L = t.admin.lifecycle;
+  const statusLabel = {
+    open: t.auction.statusOpen,
+    live: t.auction.statusLive,
+    ended: t.auction.statusEnded,
+    voided: L.voided,
+    voiding: L.voided,
+    archived: L.archived
   };
 
-  const closeNow = async (auction) => {
-    if (!(await askConfirm({ title: format(t.admin.confirm.closeTitle, { title: auction.title }), description: t.admin.confirm.closeDesc, confirmLabel: t.admin.confirm.closeLabel, destructive: true }))) return;
+  // The current status reads as itself; every other option reads as its action.
+  const moveLabel = (auction, to) => {
+    if (to === auction.status) return statusLabel[to];
+    return {
+      startAuction: t.admin.confirm.startLabel,
+      closeAuction: t.admin.live?.endNow || t.admin.confirm.closeLabel,
+      relaunchAuction: L.relaunch,
+      archiveAuction: L.archive
+    }[actionFor(auction.status, to)] || statusLabel[to];
+  };
+
+  /**
+   * One status move through its server action (startAuction, closeAuction,
+   * relaunchAuction, archiveAuction). Each asks first; a 409 means someone
+   * else moved the auction already, so the list is refreshed.
+   */
+  const transition = async (auction, to) => {
+    const action = actionFor(auction.status, to);
+    if (!action) return;
+    const confirmFor = {
+      startAuction: { title: format(t.admin.confirm.startTitle, { title: auction.title }), description: t.admin.confirm.startDesc, confirmLabel: t.admin.confirm.startLabel },
+      closeAuction: { title: format(t.admin.confirm.closeTitle, { title: auction.title }), description: t.admin.confirm.closeDesc, confirmLabel: t.admin.confirm.closeLabel, destructive: true },
+      relaunchAuction: { title: format(t.admin.confirm.relaunchTitle, { title: auction.title }), description: format(t.admin.confirm.relaunchDesc, { round: Number(auction.round || 1) + 1 }), confirmLabel: t.admin.confirm.relaunchLabel },
+      archiveAuction: { title: format(t.admin.confirm.archiveTitle, { title: auction.title }), description: t.admin.confirm.archiveDesc, confirmLabel: t.admin.confirm.archiveLabel }
+    }[action];
+    if (!(await askConfirm(confirmFor))) return;
     setChangingId(auction.id);
     try {
-      const result = await base44.functions.invoke("closeAuction", { auction_id: auction.id });
-      if (result?.data?.error) throw new Error(result.data.error);
-      toast.success(t.admin.live?.ended || t.admin.saved);
-      load();
+      await runLifecycle(action, auction.id);
+      toast.success({ startAuction: L.started, closeAuction: L.ended, relaunchAuction: L.relaunched, archiveAuction: L.archivedDone }[action]);
     } catch (e) {
-      toast.error(e.message || "Error");
+      toast.error(e instanceof LifecycleConflict ? `${e.message} ${L.conflict}` : e.message || "Error");
     } finally {
       setChangingId(null);
+      load();
     }
   };
 
-  if (loading) {
-    return <div className="h-64 grid place-items-center"><div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" /></div>;
-  }
+  if (loading) return null;
 
-  const byStatus = (s) => auctions.filter((a) => effectiveStatus(a, now) === s);
+  const byStatus = (s) => auctions.filter((a) => adminStatus(a, now) === s);
   const liveAuctions = byStatus("live");
   const openAuctions = byStatus("open");
   const endedAuctions = byStatus("ended");
+  const archivedAuctions = byStatus("archived");
+  // Archived auctions are off the active list: only their own tab shows them.
+  const activeAuctions = auctions.filter((a) => a.status !== "archived");
   const stats = {
-    total: auctions.length,
+    total: activeAuctions.length,
     open: openAuctions.length,
     live: liveAuctions.length,
     ended: endedAuctions.length,
+    archived: archivedAuctions.length,
     revenue: auctions.reduce((s, a) => s + (a.subscriber_ids?.length || 0) * (a.entry_fee || 0), 0)
   };
   const statCards = [
@@ -193,12 +197,13 @@ export default function AdminAuctions() {
     { value: "all", label: t.admin.stats.total, count: stats.total },
     { value: "open", label: t.auction.statusOpen, count: stats.open },
     { value: "live", label: t.auction.statusLive, count: stats.live },
-    { value: "ended", label: t.auction.statusEnded, count: stats.ended }
+    { value: "ended", label: t.auction.statusEnded, count: stats.ended },
+    { value: "archived", label: L.archived, count: stats.archived }
   ];
-  const rows = view === "all" ? auctions : byStatus(view);
+  const rows = view === "all" ? activeAuctions : byStatus(view);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 admin-fill">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">{t.admin.title}</h1>
@@ -243,11 +248,19 @@ export default function AdminAuctions() {
         {featuredList.length === 0 && <span className="text-muted-foreground">{t.admin.featuredFallback}</span>}
       </div>
 
-      {view === "ended" ? (
-        <EndedAuctions items={endedAuctions} users={users} t={t} onEdit={openEdit} onDelete={handleDelete} onReload={load} />
+      {view === "ended" || view === "archived" ? (
+        <EndedAuctions
+          items={view === "archived" ? archivedAuctions : endedAuctions}
+          users={users}
+          t={t}
+          onEdit={openEdit}
+          onTransition={view === "archived" ? null : transition}
+          busyId={changingId}
+          onReload={load}
+        />
       ) : (
-      <div className="native-panel rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="admin-table-card native-panel rounded-2xl overflow-hidden">
+        <div className="admin-table-scroll">
           <table className="w-full text-sm">
             <thead className="bg-accent/10 text-accent">
               <tr>
@@ -266,7 +279,8 @@ export default function AdminAuctions() {
               {rows.length === 0 ? (
                 <tr><td colSpan={9} className="text-center text-muted-foreground py-10">{t.home.empty}</td></tr>
               ) : rows.map((a) => {
-                const status = effectiveStatus(a, now);
+                const status = adminStatus(a, now);
+                const moves = allowedStatuses(a.status);
                 const filled = a.subscriber_ids?.length || 0;
                 return (
                   <tr key={a.id} className="hover:bg-accent/5">
@@ -332,16 +346,19 @@ export default function AdminAuctions() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <select
-                        value={status}
-                        onChange={(e) => handleStatusChange(a, e.target.value)}
-                        disabled={changingId === a.id}
-                        className={cn("text-xs font-semibold rounded-full border-0 px-2.5 py-1 cursor-pointer focus:outline-none", statusStyles[status])}
+                      {/* Only the moves the lifecycle allows from the stored status;
+                          picking one runs its server action. */}
+                      <SelectField
+                        value={moves.includes(status) ? status : a.status}
+                        onChange={(e) => transition(a, e.target.value)}
+                        disabled={changingId === a.id || moves.length < 2}
+                        className="text-xs"
+                        triggerClassName={cn("w-auto font-semibold", statusStyles[status])}
                       >
-                        {statusOptions
-                          .filter((o) => status === "live" || o.value !== "ended")
-                          .map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
+                        {moves.map((s) => (
+                          <option key={s} value={s}>{moveLabel(a, s)}</option>
+                        ))}
+                      </SelectField>
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">{t.common.currency}{a.start_price?.toFixed(2)}</td>
                     <td className="px-4 py-3 font-semibold">{t.common.currency}{a.current_price?.toFixed(2)}</td>
@@ -354,18 +371,32 @@ export default function AdminAuctions() {
                     <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">{formatDuration(a.duration_minutes, t)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {status === "open" && (
-                          <Button variant="outline" size="sm" className="border-accent/35 text-accent" onClick={() => handleStatusChange(a, "live")} disabled={changingId === a.id}>
+                        {a.status === "open" && (
+                          <Button variant="outline" size="sm" className="border-accent/35 text-accent" onClick={() => transition(a, "live")} disabled={changingId === a.id}>
                             <Play className="w-4 h-4" />{t.auction.statusLive}
                           </Button>
                         )}
-                        {status === "live" && (
-                          <Button variant="destructive" size="sm" onClick={() => closeNow(a)} disabled={changingId === a.id}>
+                        {a.status === "live" && (
+                          <Button variant="destructive" size="sm" onClick={() => transition(a, "ended")} disabled={changingId === a.id}>
                             <Square className="w-4 h-4" />{t.admin.live?.endNow || t.auction.statusEnded}
                           </Button>
                         )}
+                        {/* Ended / cancelled rows: Relaunch and Archive replace End now. */}
+                        {(a.status === "ended" || a.status === "voided") && (
+                          <>
+                            <Button variant="outline" size="sm" className="border-accent/35 text-accent" onClick={() => transition(a, "open")} disabled={changingId === a.id}>
+                              <RotateCcw className="w-4 h-4" />{L.relaunch}
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => transition(a, "archived")} disabled={changingId === a.id}>
+                              <Archive className="w-4 h-4" />{L.archive}
+                            </Button>
+                          </>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => openEdit(a)} aria-label={t.admin.edit || "Edit"}><Pencil className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(a)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                        {/* Only never-run auctions can be deleted; the rest are archived. */}
+                        {canDelete(a) && (
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(a)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -385,7 +416,8 @@ export default function AdminAuctions() {
 const PAGE_SIZE = 10;
 
 /** Full data view for ended auctions: search, filters, pagination, export, details and revenue. */
-function EndedAuctions({ items, users, t, onEdit, onDelete, onReload }) {
+/** onTransition(a, to) runs Relaunch / Archive; null = read-only (the Archived tab). */
+function EndedAuctions({ items, users, t, onEdit, onTransition, busyId, onReload }) {
   const currency = t?.common?.currency || "$";
   const money = (n) => `${currency}${Number(n || 0).toFixed(2)}`;
   const date = (v) => (v ? new Date(v).toLocaleString("en-GB") : "—");
@@ -396,7 +428,6 @@ function EndedAuctions({ items, users, t, onEdit, onDelete, onReload }) {
   const [payment, setPayment] = useState("all");
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState(null);
-  const [bidStats, setBidStats] = useState({});
   const [exporting, setExporting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -404,18 +435,20 @@ function EndedAuctions({ items, users, t, onEdit, onDelete, onReload }) {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [intervalSec, setIntervalSec] = useState(30);
 
+  const qcEnded = useQueryClient();
   const refresh = useCallback(() => {
     setRefreshing(true);
-    setBidStats({});
+    qcEnded.invalidateQueries({ queryKey: adminKeys.section("auctionBids") });
     setRefreshKey((k) => k + 1);
     onReload?.();
     setLastRefresh(new Date());
     setTimeout(() => setRefreshing(false), 500);
-  }, [onReload]);
+  }, [onReload, qcEnded]);
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const id = setInterval(refresh, Math.max(5, intervalSec) * 1000);
+    // Skipped while the tab is hidden; the reload goes through the shared query.
+    const id = setInterval(() => { if (!document.hidden) refresh(); }, Math.max(5, intervalSec) * 1000);
     return () => clearInterval(id);
   }, [autoRefresh, intervalSec, refresh]);
 
@@ -464,15 +497,11 @@ function EndedAuctions({ items, users, t, onEdit, onDelete, onReload }) {
   const safePage = Math.min(page, pageCount);
   const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  // Bid counts for the visible page (drives bid-fee revenue).
-  useEffect(() => {
-    pageItems.forEach((a) => {
-      if (bidStats[a.id] !== undefined) return;
-      base44.entities.Bid.filter({ auction_id: a.id }, "-created_date", 500)
-        .then((rows) => setBidStats((prev) => ({ ...prev, [a.id]: (rows || []).length })))
-        .catch(() => setBidStats((prev) => ({ ...prev, [a.id]: 0 })));
-    });
-  }, [pageItems, bidStats]);
+  // Bid counts for the visible page (drives bid-fee revenue). Each auction's
+  // bids are one cached query, shared with its expanded bid log.
+  const bidQueries = useQueries({ queries: pageItems.map((a) => auctionBidsQuery(a.id)) });
+  const bidStats = {};
+  pageItems.forEach((a, i) => { if (bidQueries[i]?.data) bidStats[a.id] = bidQueries[i].data.length; });
 
   const revenueOf = (a) => {
     const seats = a.subscriber_ids?.length || 0;
@@ -542,11 +571,11 @@ function EndedAuctions({ items, users, t, onEdit, onDelete, onReload }) {
             {labels.to}
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 rounded-xl border border-border bg-background px-2 text-sm text-foreground" />
           </label>
-          <select value={payment} onChange={(e) => setPayment(e.target.value)} className="h-9 rounded-xl border border-border bg-background px-2 text-sm">
+          <SelectField value={payment} onChange={(e) => setPayment(e.target.value)} className="h-9 rounded-xl border border-border bg-background px-2 text-sm">
             <option value="all">{labels.all}</option>
             <option value="paid">{labels.paid}</option>
             <option value="unpaid">{labels.unpaid}</option>
-          </select>
+          </SelectField>
           <Button variant="outline" size="sm" onClick={() => { setQ(""); setFrom(""); setTo(""); setPayment("all"); }}>{labels.reset}</Button>
           <Button size="sm" className="gap-2" onClick={exportCsv} disabled={exporting || !filtered.length}>
             <Download className="w-4 h-4" />{labels.exportCsv}
@@ -564,7 +593,7 @@ function EndedAuctions({ items, users, t, onEdit, onDelete, onReload }) {
             <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} className="accent-primary w-4 h-4" />
             {t?.admin?.results?.autoRefresh || "Auto-refresh"}
           </label>
-          <select
+          <SelectField
             value={intervalSec}
             onChange={(e) => setIntervalSec(Number(e.target.value))}
             disabled={!autoRefresh}
@@ -574,7 +603,7 @@ function EndedAuctions({ items, users, t, onEdit, onDelete, onReload }) {
             <option value={30}>30s</option>
             <option value={60}>60s</option>
             <option value={300}>5m</option>
-          </select>
+          </SelectField>
           {lastRefresh && (
             <span className="text-[11px] text-muted-foreground">
               {(t?.admin?.results?.lastUpdated || "Updated")}: {lastRefresh.toLocaleTimeString("en-GB")}
@@ -654,7 +683,16 @@ function EndedAuctions({ items, users, t, onEdit, onDelete, onReload }) {
                     <span className="inline-flex items-center gap-1 text-xs text-success"><CheckCircle2 className="w-3.5 h-3.5" />{t.admin.results?.notified || "Notified"}</span>
                   )}
                   <Button variant="ghost" size="icon" onClick={() => onEdit(a)}><Pencil className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => onDelete(a)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                  {onTransition && (
+                    <>
+                      <Button variant="outline" size="sm" className="border-accent/35 text-accent" onClick={() => onTransition(a, "open")} disabled={busyId === a.id}>
+                        <RotateCcw className="w-4 h-4" />{t.admin.lifecycle.relaunch}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => onTransition(a, "archived")} disabled={busyId === a.id}>
+                        <Archive className="w-4 h-4" />{t.admin.lifecycle.archive}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 

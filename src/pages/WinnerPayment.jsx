@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import React from "react";
+import { Link, getRouteApi } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { auctionQueries } from "@/lib/queries/auctions";
 import { Trophy, Clock, CheckCircle2, XCircle, Mail } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 
@@ -9,33 +10,16 @@ import { Button } from "@/components/ui/button";
  * Winner payment link: the winner is never charged from their wallet, so this
  * page shows what is owed and how to settle it manually with the team.
  */
+const route = getRouteApi("/_app/pay/$token");
+
 export default function WinnerPayment() {
-  const { token } = useParams();
+  const { token } = route.useParams();
   const { t } = useI18n();
-  const [state, setState] = useState({ loading: true, error: null, payment: null, auction: null });
+  const { data, isPending, error } = useQuery(auctionQueries.paymentByToken(token));
+  const state = { error: error?.message || null, payment: data?.payment || null, auction: data?.auction || null };
 
-  useEffect(() => {
-    let alive = true;
-    base44.functions
-      .invoke("winnerPayment", { token })
-      .then((res) => {
-        if (!alive) return;
-        if (res.data?.error) setState({ loading: false, error: res.data.error, payment: null, auction: null });
-        else setState({ loading: false, error: null, payment: res.data.payment, auction: res.data.auction });
-      })
-      .catch((e) => alive && setState({ loading: false, error: e.message || "Error", payment: null, auction: null }));
-    return () => {
-      alive = false;
-    };
-  }, [token]);
-
-  if (state.loading) {
-    return (
-      <div className="h-64 grid place-items-center">
-        <div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" />
-      </div>
-    );
-  }
+  // The route loader waits for the payment (success or error) first.
+  if (isPending) return null;
 
   if (state.error || !state.payment) {
     return (
@@ -106,7 +90,7 @@ export default function WinnerPayment() {
 
         {!paid && !voided && (
           <Button asChild className="w-full gap-2">
-            <Link to={`/auction/${auction?.id || ""}`}>
+            <Link to="/auction/$id" params={{ id: auction?.id || "" }}>
               <Mail className="w-4 h-4" />
               {t.pay?.sendDetails || "Send your details"}
             </Link>

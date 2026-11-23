@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/use-toast";
 import { postLoginDest } from "@/lib/authReturnTo";
 import { useI18n } from "@/lib/i18n";
 import { countryList, countryName, detectCountryFromIp, dialCode, dialCodeList } from "@/lib/countries";
+import SelectField from "@/components/ui/select-field";
 
 export default function Register() {
   const { t, lang } = useI18n();
@@ -188,7 +189,8 @@ export default function Register() {
         <>
           {t.authp.haveAccount}{" "}
           <Link
-            to={"/login" + (postLoginDest() !== "/" ? "?returnTo=" + encodeURIComponent(postLoginDest()) : "")}
+            to="/login"
+            search={postLoginDest() !== "/" ? { returnTo: postLoginDest() } : {}}
             className="text-primary font-medium hover:underline"
           >
             {t.auth.login}
@@ -238,7 +240,7 @@ export default function Register() {
           <Label htmlFor="country">{t.authp.country}</Label>
           <div className="relative">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
-            <select
+            <SelectField
               id="country"
               value={countryCode}
               onChange={(e) => {
@@ -258,7 +260,7 @@ export default function Register() {
                   {c.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           {detecting ? (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -273,7 +275,7 @@ export default function Register() {
         <div className="space-y-2">
           <Label htmlFor="phone">{t.authp.phone}</Label>
           <div className="flex gap-2">
-            <select
+            <SelectField
               id="phoneCode"
               dir="ltr"
               aria-label={t.authp.phoneCodeLabel}
@@ -286,7 +288,7 @@ export default function Register() {
               {dials.map((c) => (
                 <option key={c.code} value={c.dial}>{`${c.dial} ${c.code}`}</option>
               ))}
-            </select>
+            </SelectField>
             <div className="relative flex-1">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
