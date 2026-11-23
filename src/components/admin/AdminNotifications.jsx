@@ -44,7 +44,7 @@ export default function AdminNotifications() {
 
   return (
     <div className="space-y-6 admin-fill">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+      <div className="admin-page-header flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2"><ListFilter className="w-6 h-6" />{t.admin.notificationsLog.title}</h1>
           <p className="text-muted-foreground mt-1 text-sm">{t.admin.notificationsLog.subtitle}</p>

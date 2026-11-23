@@ -100,7 +100,7 @@ export default function AdminTestMode() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="admin-page-header">
         <h1 className="font-display text-2xl font-bold flex items-center gap-2">
           <FlaskConical className="w-6 h-6 text-primary" /> Test mode
         </h1>

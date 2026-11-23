@@ -61,7 +61,7 @@ export default function AdminSystem() {
 
   return (
     <div className="space-y-5">
-      <div>
+      <div className="admin-page-header">
         <h2 className="font-display text-xl font-semibold">{"System health"}</h2>
         <p className="text-sm text-muted-foreground mt-0.5">{"Record counts and maintenance controls."}</p>
       </div>

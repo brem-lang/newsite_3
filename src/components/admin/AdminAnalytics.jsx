@@ -92,11 +92,8 @@ export default function AdminAnalytics() {
 
   return (
     <div className="space-y-6">
-      {/* lg+: the title row stays at the top of .admin-main while the rest
-          scrolls under it. -mt-6/pt-6 take over the content's top spacing
-          (Admin.jsx) so the opaque background reaches the very top edge;
-          pb-6 + mb-0 keep the usual gap below, also opaque. */}
-      <div className="flex flex-wrap items-start justify-between gap-3 lg:sticky lg:top-0 lg:z-20 lg:-mt-6 lg:pt-6 lg:mb-0 lg:pb-6 lg:bg-background">
+      {/* admin-page-header: sticky title with the header backdrop (src/styles.css). */}
+      <div className="admin-page-header flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight flex items-center gap-2">
             <BarChart3 className="w-6 h-6" />

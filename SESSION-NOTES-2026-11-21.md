@@ -186,3 +186,9 @@ Plan: `~/.claude/plans/effervescent-toasting-cookie-*.md`. Done, build passes, *
   Pages, Reports, Shipping, Templates), Participants, Notifications, Fulfilment, Roles, Auctions. Capped (too much above
   the table): Payments (pagination moved out of the scroll box), Revenue, Auction P&L, Refunds, Verification, Test mode,
   finance panel, participant dialog. `admin-table-fill` class is gone.
+- Sticky page titles (2026-11-23): `.admin-page-header` (src/styles.css, lg+) on the title row / title block of 26
+  admin panels (first child of the panel root): sticky top-0, with the admin header's backdrop (bg 90%,
+  blur 20px, no border), -1.5rem top/side margins into Admin.jsx content padding. Replaces AdminAnalytics' one-off classes.
+  Not on Settings (profile card). AdminDesign preview sticky offset -> lg:top-28 (clears the sticky title).
+  New admin panels: put `admin-page-header` on the title row.
+- Charts: `.recharts-tooltip-cursor` hover fill = foreground/6%, focus outline removed (src/styles.css).

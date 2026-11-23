@@ -267,7 +267,7 @@ export default function AdminRevenue() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="admin-page-header flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-semibold">{L.title || "Revenue"}</h2>
           <p className="text-sm text-muted-foreground">

@@ -80,7 +80,7 @@ export default function AdminCoupons() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="admin-page-header flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">{t.admin.coupons.title}</h1>
           <p className="text-muted-foreground mt-1 text-sm">{t.admin.coupons.subtitle}</p>

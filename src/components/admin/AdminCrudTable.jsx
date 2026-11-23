@@ -142,7 +142,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
   return (
     // admin-fill / admin-table-card: the table fills the visible height (src/styles.css).
     <div className="space-y-4 admin-fill">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+      <div className="admin-page-header flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h2 className="font-display text-xl font-semibold">{L(title)}</h2>
           <p className="text-sm text-muted-foreground mt-0.5">{L(subtitle)}</p>

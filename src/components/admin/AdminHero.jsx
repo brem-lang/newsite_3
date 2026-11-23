@@ -61,7 +61,7 @@ export default function AdminHero() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="admin-page-header">
         <h1 className="font-display text-2xl font-bold tracking-tight">{t.admin.hero.title}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t.admin.hero.subtitle}</p>
       </div>

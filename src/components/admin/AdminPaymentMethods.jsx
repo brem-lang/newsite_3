@@ -146,7 +146,7 @@ export default function AdminPaymentMethods() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+      <div className="admin-page-header flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h2 className="font-heading text-xl font-bold tracking-tight flex items-center gap-2"><CreditCard className="w-5 h-5" />{m.methods}</h2>
           <p className="text-muted-foreground mt-1 text-sm">{t.admin.payments.methodsSub}</p>

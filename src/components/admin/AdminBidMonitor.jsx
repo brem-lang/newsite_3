@@ -79,7 +79,7 @@ export default function AdminBidMonitor() {
   return (
     // admin-fill / admin-table-card: the table fills the visible height (src/styles.css).
     <div className="space-y-6 admin-fill">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="admin-page-header flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2">
             <ActivitySquare className="w-6 h-6 text-info" />

@@ -161,7 +161,7 @@ export default function AdminRoles() {
 
   return (
     <div className="space-y-4 admin-fill">
-      <div className="flex items-start justify-between gap-3">
+      <div className="admin-page-header flex items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-semibold">{"Roles & access"}</h2>
           <p className="text-sm text-muted-foreground mt-0.5">

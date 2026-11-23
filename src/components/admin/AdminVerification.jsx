@@ -77,7 +77,7 @@ export default function AdminVerification() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="admin-page-header">
         <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2"><UserCheck className="w-6 h-6" />{t.admin.verification.title}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t.admin.verification.subtitle}</p>
       </div>

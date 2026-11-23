@@ -86,7 +86,7 @@ export default function AdminSupport() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="admin-page-header">
         <h1 className="font-heading text-2xl font-bold tracking-tight">{t.admin.support.title}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t.admin.support.subtitle}</p>
       </div>

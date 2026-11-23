@@ -199,7 +199,7 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+      <div className="admin-page-header flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">{t.admin.users.title}</h1>
           <p className="text-muted-foreground mt-1 text-sm">{t.admin.users.subtitle}</p>

@@ -238,7 +238,7 @@ export default function AdminAuctionPL() {
   if (!selected) {
     return (
       <div className="space-y-5">
-        <div>
+        <div className="admin-page-header">
           <h2 className="font-display text-xl font-semibold">{L.title || "Auction profit & loss"}</h2>
           <p className="text-sm text-muted-foreground">
             {L.subtitle || "Pick an auction to see its deposits, bids, fees and winner in one place."}

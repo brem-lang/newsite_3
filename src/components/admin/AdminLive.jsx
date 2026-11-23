@@ -136,7 +136,7 @@ export default function AdminLive() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="admin-page-header">
         <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2">
           <Radio className="w-6 h-6 text-destructive animate-pulse" />{t.admin.live.title}
         </h1>
