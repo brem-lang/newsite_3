@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,12 +21,12 @@ const NONE = [];
 const loadSection = async () => (await base44.entities.Category.list("sort_order", 200)) || [];
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["categories"], loadSection));
+export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.categories(), loadSection));
 
 export default function AdminCategories() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
-  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(["categories"], loadSection);
+  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(adminKeys.categories(), loadSection);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: "", slug: "", color: "#3b82f6", icon: "", description: "", sort_order: 0, active: true });

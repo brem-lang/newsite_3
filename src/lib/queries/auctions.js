@@ -85,7 +85,7 @@ export const bidQueries = {
   /** Every bid of a closed auction, for the results screen. */
   allForAuction: (auctionId) =>
     queryOptions({
-      queryKey: [...bidKeys.byAuction(auctionId), "all"],
+      queryKey: bidKeys.byAuctionAll(auctionId),
       queryFn: async () => (await base44.entities.Bid.filter({ auction_id: auctionId }, "-created_date", 300)) || [],
       enabled: !!auctionId,
       staleTime: 60_000,
@@ -93,7 +93,7 @@ export const bidQueries = {
   /** The signed-in user's own bids (newest first). */
   mine: (userId) =>
     queryOptions({
-      queryKey: ["bids", "mine", userId],
+      queryKey: bidKeys.mine(userId),
       queryFn: async () => (await base44.entities.Bid.filter({ user_id: userId }, "-created_date", 100)) || [],
       enabled: !!userId,
       staleTime: 30_000,
@@ -186,7 +186,7 @@ export function useRefreshAuctionLists() {
     await base44.functions.invoke("syncAuctions").catch(() => {});
     await Promise.all([
       qc.invalidateQueries({ queryKey: auctionKeys.lists() }),
-      qc.invalidateQueries({ queryKey: ["bids", "summary"] }),
+      qc.invalidateQueries({ queryKey: bidKeys.summaryAll() }),
     ]);
   }, [qc]);
 }
@@ -415,7 +415,7 @@ export function useAuctionActions(auctionId, userId) {
       if (!ok(res)) return;
       refreshRoom();
       refreshBidState();
-      qc.invalidateQueries({ queryKey: ["bids", "summary"] });
+      qc.invalidateQueries({ queryKey: bidKeys.summaryAll() });
     },
   });
 

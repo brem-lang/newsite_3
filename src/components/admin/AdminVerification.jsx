@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { UserCheck, ShieldCheck, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAdminUserPage, adminUserListQuery, adminUserStatusCountsQuery, ADMIN_USER_LIST_KEY, warmAdmin } from "@/lib/queries/admin";
+import AdminPagination from "@/components/admin/AdminPagination";
 import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -17,16 +19,29 @@ const STATUS_CLS = {
   rejected: "bg-destructive/15 text-destructive"
 };
 
-const NONE = [];
+// Members only (staff accounts are never verified); paged and counted on the server.
+const QUEUE = { status: ["pending"], role: "user" };
+const REVIEWED = { status: ["verified", "rejected"], role: "user" };
+const COUNTS = { role: "user" };
 
-const loadSection = async () => (await base44.entities.User.list("-created_date", 500)) || [];
-
-/** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["verification"], loadSection));
+/** Route loader: the stat counts and the first page of each list. */
+export const prefetch = (qc) =>
+  warmAdmin(
+    qc,
+    adminUserStatusCountsQuery(COUNTS),
+    adminUserListQuery({ ...QUEUE, page: 1, pageSize: 25 }),
+    adminUserListQuery({ ...REVIEWED, page: 1, pageSize: 25 }),
+  );
 
 export default function AdminVerification() {
   const { t } = useI18n();
-  const { data: users = NONE, isPending: loading, refresh: load } = useAdminData(["verification"], loadSection);
+  const qc = useQueryClient();
+  const queueTable = useAdminUserPage(QUEUE);
+  const reviewedTable = useAdminUserPage(REVIEWED);
+  const countsQuery = useQuery(adminUserStatusCountsQuery(COUNTS));
+  const loading = queueTable.isPending || countsQuery.isPending;
+  // Refreshes both lists, the counts, and the Users / Participants tables.
+  const load = () => qc.invalidateQueries({ queryKey: ADMIN_USER_LIST_KEY });
   const [busy, setBusy] = useState("");
   const [rejecting, setRejecting] = useState(null);
   const [note, setNote] = useState("");
@@ -66,14 +81,9 @@ export default function AdminVerification() {
 
   if (loading) return null;
 
-  const members = users.filter((u) => u.role !== "admin");
-  const queue = members.filter((u) => u.verification_status !== "verified" && u.verification_status !== "rejected");
-  const reviewed = members.filter((u) => u.verification_status === "verified" || u.verification_status === "rejected");
-  const stats = {
-    pending: queue.length,
-    verified: members.filter((u) => u.verification_status === "verified").length,
-    rejected: members.filter((u) => u.verification_status === "rejected").length
-  };
+  const queue = queueTable.rows;
+  const reviewed = reviewedTable.rows;
+  const stats = countsQuery.data || { pending: 0, verified: 0, rejected: 0 };
 
   return (
     <div className="space-y-6">
@@ -93,7 +103,7 @@ export default function AdminVerification() {
           <UserCheck className="w-4 h-4 text-warning" />
           <h3 className="font-heading text-lg font-semibold">{t.admin.verification.title}</h3>
         </div>
-        {queue.length === 0 ? (
+        {queueTable.total === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">{t.admin.verification.empty}</div>
         ) : (
           <div className="admin-table-scroll">
@@ -124,9 +134,10 @@ export default function AdminVerification() {
             </table>
           </div>
         )}
+        {queueTable.total > 0 && <AdminPagination {...queueTable.pagination} />}
       </div>
 
-      {reviewed.length > 0 && (
+      {reviewedTable.total > 0 && (
         <div className="space-y-3">
           <h3 className="font-heading text-lg font-semibold text-muted-foreground">{t.admin.verification.recent}</h3>
           <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -152,6 +163,7 @@ export default function AdminVerification() {
                 </tbody>
               </table>
             </div>
+            <AdminPagination {...reviewedTable.pagination} />
           </div>
         </div>
       )}

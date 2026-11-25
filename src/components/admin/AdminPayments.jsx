@@ -2,9 +2,9 @@ import React, { useState, useCallback, useMemo } from "react";
 import { Wallet, Plus, Minus, Receipt, TrendingUp, SlidersHorizontal } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { base44 } from "@/api/base44Client";
-import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminKeys } from "@/lib/queries/keys";
-import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { useAdminData, useAdminUsersByIds, adminSection, adminRpc, warmAdmin } from "@/lib/queries/admin";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -20,13 +20,19 @@ const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,
 
 const NONE = [];
 
+const CHART_DAYS = 30;
+const viewerTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+/** Totals over the whole ledger, the 30-day chart and the approvals queue, summed in Postgres. */
 const loadSummary = async () => {
-  const [tList, uList] = await Promise.all([
-    base44.entities.WalletTransaction.listFields("id, type, amount, status, reference, user_id, created_date", "-created_date", 5000),
-    base44.entities.User.listFields("id, full_name, email", "", 2000),
-  ]);
-  return { txns: tList || [], users: uList || [] };
+  const res = await adminRpc("admin_payments_summary", { _days: CHART_DAYS, _tz: viewerTz() });
+  return { deposits: 0, fees: 0, adjustments: 0, daily: [], pending: [], ...(res || {}) };
 };
+
+/** Recipient picker for a manual adjustment, loaded only when the dialog opens. */
+const pickerQuery = () =>
+  adminSection(adminKeys.paymentsUserPicker(), async () =>
+    (await base44.entities.User.listFields("id, full_name, email", "full_name", 2000)) || [], { staleTime: 60_000 });
 
 const fetchPage = (page, pageSize, typeFilter) =>
   base44.entities.WalletTransaction.page({
@@ -35,13 +41,14 @@ const fetchPage = (page, pageSize, typeFilter) =>
   });
 
 const FIRST_PAGE = [1, 25, "all"];
+const pageKey = (page, pageSize, typeFilter) => adminKeys.paymentsPage({ page, pageSize, typeFilter });
 
 /** Route loader: the summary and the first table page. */
 export const prefetch = (qc) =>
   warmAdmin(
     qc,
-    adminSection(["payments", "summary"], loadSummary),
-    adminSection(["payments", "page", ...FIRST_PAGE], () => fetchPage(...FIRST_PAGE)),
+    adminSection(adminKeys.paymentsSummary(), loadSummary),
+    adminSection(pageKey(...FIRST_PAGE), () => fetchPage(...FIRST_PAGE)),
   );
 
 export default function AdminPayments() {
@@ -58,16 +65,15 @@ export default function AdminPayments() {
    * Summary/chart data uses a light projection (three columns) while the table
    * itself is paginated in Postgres, so this screen stays fast as the ledger grows.
    */
-  const summary = useAdminData(["payments", "summary"], loadSummary);
-  const txns = summary.data?.txns ?? NONE;
-  const users = summary.data?.users ?? NONE;
-  const pending = useMemo(() => txns.filter((x) => x.status === "pending" && x.type === "topup"), [txns]);
+  const summary = useAdminData(adminKeys.paymentsSummary(), loadSummary);
+  const pending = summary.data?.pending ?? NONE;
   const loading = summary.isPending;
+  const { data: users = NONE } = useQuery({ ...pickerQuery(), enabled: dialog });
 
   // One cached page per (page, size, type); the previous page stays on screen
   // while the next one loads.
   const pageQuery = useAdminData(
-    ["payments", "page", page, pageSize, typeFilter],
+    pageKey(page, pageSize, typeFilter),
     () => fetchPage(page, pageSize, typeFilter),
     { placeholderData: keepPreviousData },
   );
@@ -77,7 +83,7 @@ export default function AdminPayments() {
 
   // Refreshes both the summary and every cached page.
   const qc = useQueryClient();
-  const load = useCallback(() => qc.invalidateQueries({ queryKey: adminKeys.section("payments") }), [qc]);
+  const load = useCallback(() => qc.invalidateQueries({ queryKey: adminKeys.paymentsAll() }), [qc]);
   const loadPage = useCallback(() => {}, []);
 
   const decide = async (txn, decision) => {
@@ -93,43 +99,34 @@ export default function AdminPayments() {
     }
   };
 
-  // Money totals only count settled records: pending and failed top-ups are not income.
-  const settled = useMemo(
-    () => txns.filter((x) => x.status !== "pending" && x.status !== "failed" && x.status !== "rejected"),
-    [txns],
-  );
-
-  const stats = useMemo(() => {
-    const deposits = settled.filter((x) => x.type === "topup").reduce((s, x) => s + Math.abs(x.amount || 0), 0);
-    const fees = settled.filter((x) => x.type === "subscription").reduce((s, x) => s + Math.abs(x.amount || 0), 0);
-    const adjustments = settled.filter((x) => x.type === "adjustment").reduce((s, x) => s + (x.amount || 0), 0);
-    return { deposits, fees, adjustments };
-  }, [settled]);
+  // Money totals only count settled records (summed on the server): pending and failed top-ups are not income.
+  const stats = {
+    deposits: Number(summary.data?.deposits || 0),
+    fees: Number(summary.data?.fees || 0),
+    adjustments: Number(summary.data?.adjustments || 0),
+  };
 
   const chartData = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const days = []; const byKey = {};
-    for (let i = 29; i >= 0; i--) {
+    for (let i = CHART_DAYS - 1; i >= 0; i--) {
       const d = new Date(today); d.setDate(today.getDate() - i);
       const k = dayKey(d);
       const item = { label: `${d.getDate()}/${d.getMonth() + 1}`, deposits: 0, fees: 0 };
       days.push(item); byKey[k] = item;
     }
-    settled.forEach((x) => {
-      if (!x.created_date) return;
-      const k = dayKey(new Date(x.created_date));
-      if (!byKey[k]) return;
-      if (x.type === "topup") byKey[k].deposits += Math.abs(x.amount || 0);
-      if (x.type === "subscription") byKey[k].fees += Math.abs(x.amount || 0);
+    // Server buckets are "YYYY-MM-DD" in the viewer's time zone, the same as dayKey().
+    (summary.data?.daily || []).forEach((d) => {
+      const item = byKey[String(d.day).slice(0, 10)];
+      if (!item) return;
+      item.deposits += Number(d.deposits || 0);
+      item.fees += Number(d.fees || 0);
     });
     return days;
-  }, [settled]);
+  }, [summary.data]);
 
-  const userMap = useMemo(() => {
-    const m = {};
-    users.forEach((u) => { m[u.id] = u; });
-    return m;
-  }, [users]);
+  // Names for the approvals queue and the ledger page on screen.
+  const userMap = useAdminUsersByIds([...pending.map((x) => x.user_id), ...rows.map((x) => x.user_id)]);
 
   const apply = async () => {
     const amt = parseFloat(form.amount);

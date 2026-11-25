@@ -15,13 +15,13 @@ import LiveAuctionMonitor, { useLiveAuctionStats } from "@/components/admin/Live
 const NONE = [];
 
 const liveListQuery = () => ({
-  queryKey: adminKeys.section("live", "auctions"),
+  queryKey: adminKeys.liveAuctions(),
   queryFn: async () => (await base44.entities.Auction.filter({ status: "live" }, "-created_date", 50)) || [],
   staleTime: 10_000,
 });
 
 const liveDetailQuery = (id) => ({
-  queryKey: adminKeys.section("live", "detail", id),
+  queryKey: adminKeys.liveDetail(id),
   queryFn: async () => {
     const [bids, credits, txns] = await Promise.all([
       base44.entities.Bid.filter({ auction_id: id }, "-created_date", 1000).catch(() => []),
@@ -52,7 +52,7 @@ export default function AdminLive() {
 
   // Live auctions: cached, 20s safety poll (paused in background tabs).
   // Realtime row changes are merged straight into the cache.
-  const liveKey = adminKeys.section("live", "auctions");
+  const liveKey = adminKeys.liveAuctions();
   const { data: auctions = NONE, dataUpdatedAt, isPending: loading } = useQuery({
     ...liveListQuery(),
     refetchInterval: 20_000,
@@ -97,14 +97,14 @@ export default function AdminLive() {
       if (timers.has(id)) return;
       timers.set(id, setTimeout(() => {
         timers.delete(id);
-        qc.invalidateQueries({ queryKey: adminKeys.section("live", "detail", id) }, { cancelRefetch: false });
+        qc.invalidateQueries({ queryKey: adminKeys.liveDetail(id) }, { cancelRefetch: false });
       }, 2000));
     };
     const unsub = base44.entities.Bid.subscribe(
       ({ data }) => { if (data?.auction_id) refreshSoon(data.auction_id); },
       {
         filter: `auction_id=in.(${idsKey})`,
-        onReconnect: () => qc.invalidateQueries({ queryKey: adminKeys.section("live", "detail") }),
+        onReconnect: () => qc.invalidateQueries({ queryKey: adminKeys.liveDetail() }),
       },
     );
     return () => { unsub(); timers.forEach(clearTimeout); };

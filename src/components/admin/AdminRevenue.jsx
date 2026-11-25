@@ -7,8 +7,9 @@ import {
   TrendingUp, TrendingDown, Wallet, Ticket, Gavel, Coins, Package,
   RefreshCw, Download, ChevronDown, ChevronRight, Percent, DollarSign
 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { keepPreviousData } from "@tanstack/react-query";
+import { useAdminData, adminSection, adminRpc, fetchAllRows, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/format";
@@ -33,7 +34,6 @@ import SelectField from "@/components/ui/select-field";
  *
  * Net profit = income - costs - refunds.  Margin = net / income.
  */
-const INCOME_TYPES = { subscription: "entryFees", bid_fee: "bidFees", bid_credits: "extraBids", winning_bid: "winnerPayment" };
 
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const abs = (n) => Math.abs(Number(n) || 0);
@@ -48,29 +48,51 @@ const RANGES = [
 
 const NONE = [];
 
-const loadSection = async () => {
-  const [a, x, ci, ov] = await Promise.all([
-    base44.entities.Auction.list("-created_date", 500),
-    base44.entities.WalletTransaction.list("-created_date", 5000),
-    base44.entities.AuctionCostItem.list("-created_date", 2000).catch(() => []),
-    base44.entities.AuctionFinanceOverride.list("-created_date", 1000).catch(() => []),
-  ]);
-  return { auctions: a || [], txns: x || [], costItems: ci || [], overrides: ov || [] };
+/** Local midnight at the start of the range (null = all time). */
+const sinceFor = (range) => {
+  const r = RANGES.find((x) => x.id === range);
+  if (!r?.days) return null;
+  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (r.days - 1));
+  return d;
 };
+const DEFAULT_RANGE = "30";
+
+/**
+ * The ledger is summed in Postgres (admin_revenue_by_auction / _daily), so no
+ * transaction rows are downloaded. Auctions and their cost lines are read in
+ * full (batched), since every auction gets a row in this report.
+ */
+const loadSection = async (range) => {
+  const since = sinceFor(range);
+  const trendSince = since || sinceFor("30"); // "all" still charts the last 30 days
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const [a, sums, daily, ci, ov] = await Promise.all([
+    fetchAllRows("Auction", { sort: "-created_date" }),
+    adminRpc("admin_revenue_by_auction", { _since: since ? since.toISOString() : null }),
+    adminRpc("admin_revenue_daily", { _since: trendSince.toISOString(), _tz: tz }),
+    fetchAllRows("AuctionCostItem", { sort: "-created_date" }).catch(() => []),
+    fetchAllRows("AuctionFinanceOverride", { sort: "-created_date" }).catch(() => []),
+  ]);
+  return { auctions: a || [], sums: sums || [], daily: daily || [], costItems: ci || [], overrides: ov || [] };
+};
+const revenueQuery = (range) => adminSection(adminKeys.revenueReport(range), () => loadSection(range), { placeholderData: keepPreviousData });
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["revenue"], loadSection));
+export const prefetch = (qc) => warmAdmin(qc, revenueQuery(DEFAULT_RANGE));
 
 export default function AdminRevenue() {
   const { t } = useI18n();
   const { format, code } = useCurrency();
-  // One cached snapshot of the ledger; filters/sorting below are in-memory.
-  const { data, isPending: loading, isFetching: refreshing, refresh, dataUpdatedAt } = useAdminData(["revenue"], loadSection);
+  const [range, setRange] = useState(DEFAULT_RANGE);
+  // One cached report per range (ledger summed in SQL); filters/sorting below are in-memory over auctions.
+  const { data, isPending: loading, isFetching: refreshing, refresh, dataUpdatedAt } = useAdminData(
+    adminKeys.revenueReport(range), () => loadSection(range), { placeholderData: keepPreviousData },
+  );
   const auctions = data?.auctions ?? NONE;
-  const txns = data?.txns ?? NONE;
+  const sums = data?.sums ?? NONE;
+  const daily = data?.daily ?? NONE;
   const costItems = data?.costItems ?? NONE;
   const overrides = data?.overrides ?? NONE;
-  const [range, setRange] = useState("30");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("net");
@@ -78,36 +100,15 @@ export default function AdminRevenue() {
   const refreshedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
   const load = () => refresh();
 
-  const since = useMemo(() => {
-    const r = RANGES.find((x) => x.id === range);
-    if (!r?.days) return null;
-    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (r.days - 1));
-    return d;
-  }, [range]);
-
-  /** Confirmed transactions only — pending top-ups are not revenue yet. */
-  const scoped = useMemo(() => {
-    return (txns || []).filter((x) => {
-      if (x.status && x.status !== "confirmed") return false;
-      if (!since) return true;
-      return x.created_date && new Date(x.created_date) >= since;
-    });
-  }, [txns, since]);
-
-  /** Per-auction revenue rows. */
+  /** Per-auction revenue rows. Income/refund sums are confirmed transactions in the range, summed on the server. */
   const rows = useMemo(() => {
-    const byAuction = new Map();
-    const blank = () => ({ entryFees: 0, bidFees: 0, extraBids: 0, winnerPayment: 0, refunds: 0, txns: [] });
-
-    for (const x of scoped) {
-      if (!x.auction_id) continue;
-      const bucket = byAuction.get(x.auction_id) || blank();
-      const key = INCOME_TYPES[x.type];
-      if (key) bucket[key] += abs(x.amount);
-      else if (x.type === "refund") bucket.refunds += abs(x.amount);
-      bucket.txns.push(x);
-      byAuction.set(x.auction_id, bucket);
-    }
+    const blank = () => ({ entryFees: 0, bidFees: 0, extraBids: 0, winnerPayment: 0, refunds: 0 });
+    const byAuction = new Map(
+      sums.map((x) => [x.auction_id, {
+        entryFees: num(x.entry_fees), bidFees: num(x.bid_fees), extraBids: num(x.extra_bids),
+        winnerPayment: num(x.winner_payment), refunds: num(x.refunds),
+      }]),
+    );
 
     const itemsBy = new Map();
     for (const i of costItems || []) {
@@ -155,7 +156,7 @@ export default function AdminRevenue() {
         };
       })
       .filter((r) => r.income > 0 || r.costs > 0 || r.auction.status !== "ended");
-  }, [auctions, scoped, costItems, overrides]);
+  }, [auctions, sums, costItems, overrides]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -202,15 +203,15 @@ export default function AdminRevenue() {
       const item = { label: `${d.getDate()}/${d.getMonth() + 1}`, income: 0, refunds: 0 };
       list.push(item); byKey[dayKey(d)] = item;
     }
-    for (const x of scoped) {
-      if (!x.created_date || !x.auction_id) continue;
-      const item = byKey[dayKey(new Date(x.created_date))];
+    // Server buckets are "YYYY-MM-DD" in the viewer's time zone, the same as dayKey().
+    for (const d of daily) {
+      const item = byKey[String(d.day).slice(0, 10)];
       if (!item) continue;
-      if (INCOME_TYPES[x.type]) item.income += abs(x.amount);
-      else if (x.type === "refund") item.refunds += abs(x.amount);
+      item.income += num(d.income);
+      item.refunds += num(d.refunds);
     }
     return list;
-  }, [scoped, range]);
+  }, [daily, range]);
 
   const mix = useMemo(() => ([
     { name: t.admin.revenue?.entryFees || "Entry fees", value: totals.entryFees, color: "hsl(var(--info))" },

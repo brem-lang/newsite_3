@@ -27,6 +27,10 @@ export const auctionKeys = {
 
 export const bidKeys = {
   byAuction: (auctionId) => ["bids", auctionId],
+  /** Every bid of one auction (not just the live round). */
+  byAuctionAll: (auctionId) => ["bids", auctionId, "all"],
+  mine: (userId) => ["bids", "mine", userId],
+  summaryAll: () => ["bids", "summary"],
   summary: (viewer) => ["bids", "summary", viewerOf(viewer)],
   /** Newest bids across a set of live auctions (the /home activity feed). */
   recent: (viewer, auctionIds) => ["bids", "recent", viewerOf(viewer), auctionIds.join(",")],
@@ -67,10 +71,94 @@ export const configKeys = {
   themeEditor: () => ["config", "theme", "editor"],
 };
 
-/** Staff-session data. Separate root so customer and admin caches never mix. */
+/**
+ * Staff-session data. Separate roots (`["admin", …]`, `["admin-entity", …]`)
+ * so customer and admin caches never mix.
+ *
+ * Every admin key is built here. Builders named `…All` (or called with no
+ * argument) return a prefix for invalidation; the rest return one cache entry.
+ * Paged tables put their params object last: `[...prefix, "page", params]`.
+ */
+const admin = (...parts) => ["admin", ...parts];
+
 export const adminKeys = {
-  all: ["admin"],
-  capabilities: () => ["admin", "capabilities"],
+  all: admin(),
+  capabilities: () => admin("capabilities"),
+  me: () => admin("me"),
+
+  // Generic CRUD tables (AdminCrudTable)
+  entities: ["admin-entity"],
   entity: (entity) => ["admin-entity", entity],
-  section: (section, ...rest) => ["admin", section, ...rest],
+  entityPage: (entity, params) => ["admin-entity", entity, "page", params],
+
+  // Users / Participants / Verification (listUsers edge function)
+  usersAll: () => admin("users"),
+  usersList: () => admin("users", "list"),
+  usersListPage: (params) => admin("users", "list", params),
+  usersStatusCounts: (params) => admin("users", "list", "counts", params),
+  usersLookup: () => admin("users", "lookup"),
+  usersByIds: (...ids) => admin("users", "byIds", ...ids),
+  participantFile: (userId) => admin("participant", userId),
+  roles: () => admin("roles"),
+  rolesList: () => admin("roles", "list"),
+
+  // Auctions
+  auctionsAll: () => admin("auctions"),
+  auctionsActive: () => admin("auctions", "active"),
+  auctionsEnded: (...params) => admin("auctions", "ended", ...params),
+  auctionsCounts: () => admin("auctions", "counts"),
+  auctionsLookup: () => admin("auctions", "lookup"),
+  auctionsByIds: (...ids) => admin("auctions", "byIds", ...ids),
+  auctionBids: (...auctionId) => admin("auctionBids", ...auctionId),
+  auctionHistory: (auctionId) => admin("auctionHistory", auctionId),
+  numberPool: (auctionId) => admin("numberPool", auctionId),
+  resultsAll: () => admin("results"),
+  resultsPage: (params) => admin("results", "page", params),
+  systemEvents: () => admin("systemEvents"),
+  live: () => admin("live"),
+  liveAuctions: () => admin("live", "auctions"),
+  liveDetail: (...auctionId) => admin("live", "detail", ...auctionId),
+
+  // Money
+  paymentsAll: () => admin("payments"),
+  paymentsSummary: () => admin("payments", "summary"),
+  paymentsPage: (params) => admin("payments", "page", params),
+  paymentsUserPicker: () => admin("payments", "userPicker"),
+  refundsAll: () => admin("refunds"),
+  refundsPage: (scope, params) => admin("refunds", scope, "page", params),
+  refundTxnsByIds: (...ids) => admin("refunds", "txns", ...ids),
+  revenueAll: () => admin("revenue"),
+  revenueReport: (range) => admin("revenue", range),
+  revenueStream: () => admin("revenue-stream"),
+  auctionPLAll: () => admin("auctionpl"),
+  auctionPLList: (params) => admin("auctionpl", "list", params),
+  auctionPLDetail: (auctionId) => admin("auctionpl", "detail", auctionId),
+  financeHistory: (auctionId) => admin("finance", "history", auctionId),
+  financeRounds: (auctionId) => admin("finance", "rounds", auctionId),
+  winnerPaymentsAll: () => admin("winnerpayments"),
+  winnerPaymentsPage: (params) => admin("winnerpayments", "page", params),
+  winnerPaymentsTotals: () => admin("winnerpayments", "totals"),
+  paymentMethods: () => admin("payment_methods"),
+
+  // Operations
+  analytics: (days) => admin("analytics", days),
+  bidMonitorAll: () => admin("bidmonitor"),
+  bidMonitorPage: (params) => admin("bidmonitor", "page", params),
+  bidMonitorStats: () => admin("bidmonitor", "stats"),
+  fulfilmentAll: () => admin("fulfilment"),
+  fulfilmentPage: (params) => admin("fulfilment", "page", params),
+  fulfilmentCounts: () => admin("fulfilment", "counts"),
+  notificationsAll: () => admin("notifications"),
+  notificationsPage: (params) => admin("notifications", "page", params),
+  supportAll: () => admin("support"),
+  supportPage: (params) => admin("support", "page", params),
+  supportCounts: () => admin("support", "counts"),
+  system: () => admin("system"),
+
+  // Site content / config
+  categories: () => admin("categories"),
+  content: () => admin("content"),
+  coupons: () => admin("coupons"),
+  hero: () => admin("hero"),
+  settings: () => admin("settings", "global"),
 };

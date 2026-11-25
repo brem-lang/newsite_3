@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Trophy, Mail, MessageCircle, CheckCircle2, Users } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminData, useAdminUserMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUserMap, useAdminUsersByIds, adminPageQuery, firstPage, warmAdmin } from "@/lib/queries/admin";
+import AdminPagination from "@/components/admin/AdminPagination";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,17 +18,23 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription
 } from "@/components/ui/dialog";
 
-const NONE = [];
+const RESULTS = { where: { status: ["ended", "archived"] }, sort: "-created_date" };
+const PAGE_SIZE = 10;
 
-const loadSection = async () => (await base44.entities.Auction.filter({ status: ["ended", "archived"] }, "-created_date", 100)) || [];
-
-/** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["results"], loadSection), adminLookups.users());
+/** Route loader: the first page of results (paged in Postgres). */
+export const prefetch = (qc) => {
+  const params = firstPage(RESULTS, PAGE_SIZE);
+  return warmAdmin(qc, adminPageQuery("Auction", adminKeys.resultsPage(params), params));
+};
 
 export default function AdminResults() {
   const { t } = useI18n();
-  const { data: ended = NONE, isPending: loading, refresh: load } = useAdminData(["results"], loadSection);
-  const users = useAdminUserMap();
+  const table = useAdminPage("Auction", adminKeys.resultsPage, RESULTS, { initialPageSize: PAGE_SIZE });
+  const { rows: ended, isPending: loading } = table;
+  const load = () => table.refresh();
+  // Full winner profiles (email, phone, WhatsApp) for just this page.
+  const users = useAdminUsersByIds(ended.map((a) => a.winner_id), "*");
+  const bidders = useAdminUserMap(); // shared name lookup for the bid logs
   const [contact, setContact] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState({ subject: "", body: "" });
@@ -70,7 +78,7 @@ export default function AdminResults() {
         <p className="text-muted-foreground mt-1 text-sm">{t.admin.results.subtitle}</p>
       </div>
 
-      {ended.length === 0 ? (
+      {table.total === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">{t.admin.results.empty}</div>
       ) : (
         <div className="grid lg:grid-cols-2 gap-5">
@@ -108,12 +116,15 @@ export default function AdminResults() {
                   {!a.paid && <Button size="sm" className="gap-2" onClick={() => markPaid(a)}><CheckCircle2 className="w-4 h-4" />{t.admin.results.markPaid}</Button>}
                 </div>
                 </div>
-                <AuctionBidsLog auction={a} users={users} />
+                <AuctionBidsLog auction={a} users={bidders} />
               </div>
 
             );
           })}
         </div>
+      )}
+      {table.total > 0 && (
+        <div className="rounded-2xl border border-border bg-card"><AdminPagination {...table.pagination} /></div>
       )}
 
       <Dialog open={!!contact} onOpenChange={(o) => !o && setContact(null)}>

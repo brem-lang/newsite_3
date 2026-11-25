@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { LifeBuoy, Send, RotateCcw, CheckCircle2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAdminPage, adminPageQuery, adminSection, firstPage, warmAdmin } from "@/lib/queries/admin";
+import AdminPagination from "@/components/admin/AdminPagination";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,24 +27,38 @@ const STATUS_LABEL = (t, s) => ({ open: t.admin.support.statusOpen, pending: t.a
 const PRIO_CLS = { high: "bg-destructive/10 text-destructive", normal: "bg-warning/10 text-warning", low: "bg-surface text-muted-foreground" };
 const STATUS_CLS = { open: "bg-success/10 text-success", pending: "bg-warning/10 text-warning", resolved: "bg-info/10 text-info", closed: "bg-surface text-muted-foreground" };
 
-const NONE = [];
+const filtersFor = (filter) => ({ sort: "-created_date", where: filter === "all" ? {} : { status: filter } });
 
-const loadSection = async () => (await base44.entities.SupportTicket.list("-created_date", 200)) || [];
+/** Filter chip counts, one exact count each. */
+const loadCounts = async () => {
+  const T = base44.entities.SupportTicket;
+  const [all, open, pending, resolved] = await Promise.all([
+    T.count(), T.count({ where: { status: "open" } }), T.count({ where: { status: "pending" } }), T.count({ where: { status: "resolved" } }),
+  ]);
+  return { all, open, pending, resolved };
+};
+const countsQuery = () => adminSection(adminKeys.supportCounts(), loadCounts);
 
-/** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["support"], loadSection));
+/** Route loader: the chip counts and the first page of tickets. */
+export const prefetch = (qc) => {
+  const params = firstPage(filtersFor("all"));
+  return warmAdmin(qc, countsQuery(), adminPageQuery("SupportTicket", adminKeys.supportPage(params), params));
+};
 
 export default function AdminSupport() {
   const { t } = useI18n();
-  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(["support"], loadSection);
+  const qc = useQueryClient();
   const [filter, setFilter] = useState("all");
+  const table = useAdminPage("SupportTicket", adminKeys.supportPage, filtersFor(filter));
+  const { rows: filtered, isPending: loading } = table;
+  const { data: counts = { all: 0, open: 0, pending: 0, resolved: 0 } } = useQuery(countsQuery());
+  const load = () => qc.invalidateQueries({ queryKey: adminKeys.supportAll() });
   const [active, setActive] = useState(null);
   const replyGuard = useDiscardGuard(!!active);
   const [reply, setReply] = useState("");
   const [saving, setSaving] = useState(false);
 
 
-  const filtered = items.filter((it) => filter === "all" || it.status === filter);
 
   const openTicket = (it) => { setActive(it); setReply(it.staff_reply || ""); };
 
@@ -65,12 +82,6 @@ export default function AdminSupport() {
     }
   };
 
-  const counts = {
-    all: items.length,
-    open: items.filter((i) => i.status === "open").length,
-    pending: items.filter((i) => i.status === "pending").length,
-    resolved: items.filter((i) => i.status === "resolved").length
-  };
 
   const FilterChip = ({ id, label }) => (
     <button
@@ -98,7 +109,7 @@ export default function AdminSupport() {
         <FilterChip id="resolved" label={t.admin.support.filterResolved} />
       </div>
 
-      {loading ? null : filtered.length === 0 ? (
+      {loading ? null : table.total === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
           <LifeBuoy className="w-8 h-8 mx-auto mb-3 opacity-30" />
           {t.admin.support.noTickets}
@@ -129,6 +140,7 @@ export default function AdminSupport() {
               </div>
             </button>
           ))}
+          <div className="rounded-xl border border-border bg-card"><AdminPagination {...table.pagination} /></div>
         </div>
       )}
 

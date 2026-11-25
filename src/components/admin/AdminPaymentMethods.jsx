@@ -3,6 +3,7 @@ import { CreditCard, Plus, Pencil, Trash2, Globe, X, Check } from "lucide-react"
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { configKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -30,14 +31,14 @@ const loadSection = async () => {
 };
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["payment_methods"], loadSection));
+export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.paymentMethods(), loadSection));
 
 export default function AdminPaymentMethods() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
   const m = t.admin.payments;
   const qc = useQueryClient();
-  const { data, isPending: loading, refresh } = useAdminData(["payment_methods"], loadSection);
+  const { data, isPending: loading, refresh } = useAdminData(adminKeys.paymentMethods(), loadSection);
   const methods = data?.methods ?? NONE;
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);

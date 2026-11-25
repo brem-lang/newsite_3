@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { systemEventsQuery } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { describeEvent } from "@/lib/lifecycleEvents";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ export default function AdminSystemEvents() {
           const ev = describeEvent(data, t);
           toast(ev.label, { description: ev.detail });
           // Lists showing this auction are now stale.
-          qc.invalidateQueries({ queryKey: ["admin", "auctions"] });
+          qc.invalidateQueries({ queryKey: adminKeys.auctionsAll() });
         },
         { filter: "source=eq.system", onReconnect: () => qc.invalidateQueries({ queryKey: systemEventsQuery().queryKey }) },
       ),

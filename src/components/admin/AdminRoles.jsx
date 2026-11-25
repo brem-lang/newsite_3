@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Plus, Pencil, Trash2, ShieldCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +39,7 @@ const loadSection = async () => {
 };
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["roles"], loadSection));
+export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.roles(), loadSection));
 
 export default function AdminRoles() {
   const { t } = useI18n();
@@ -46,7 +47,7 @@ export default function AdminRoles() {
   
   const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
 
-  const { data, isPending: loading, refresh: load, error: loadError } = useAdminData(["roles"], loadSection);
+  const { data, isPending: loading, refresh: load, error: loadError } = useAdminData(adminKeys.roles(), loadSection);
   useEffect(() => { if (loadError) toast.error(loadError.message); }, [loadError]);
   const caps = data?.caps ?? NONE;
   const roles = data?.roles ?? NONE;

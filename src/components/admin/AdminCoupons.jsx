@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Plus, Pencil, Trash2, Ticket, Percent, DollarSign } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
@@ -23,13 +24,13 @@ const NONE = [];
 const loadSection = async () => (await base44.entities.Coupon.list("-created_date", 200)) || [];
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["coupons"], loadSection));
+export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.coupons(), loadSection));
 
 export default function AdminCoupons() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
   const { symbol } = useCurrency();
-  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(["coupons"], loadSection);
+  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(adminKeys.coupons(), loadSection);
   const [open, setOpen] = useState(false);
   const { markDirty, guard } = useDiscardGuard(open);
   const [editing, setEditing] = useState(null);

@@ -1,7 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Search, ArrowUpDown, Download, RefreshCw, AlertTriangle } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { adminKeys } from "@/lib/queries/keys";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
+import AdminPagination from "@/components/admin/AdminPagination";
 import { logAdminAction } from "@/lib/adminAudit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +18,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import SelectField from "@/components/ui/select-field";
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 25;
+const DEFAULT_SORT = "-created_date";
+const EXPORT_BATCH = 1000;
 
 const initialFor = (f) => (f.type === "boolean" ? false : f.type === "number" ? 0 : f.type === "select" ? (f.options?.[0]?.value ?? "") : "");
 const defaultForm = (fields) => Object.fromEntries(fields.map((f) => [f.key, initialFor(f)]));
@@ -27,18 +32,26 @@ const csvCell = (v) => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-/** One entity's rows, shared by the table and its route prefetch. */
-const crudQuery = (entity) => ({
-  queryKey: ["admin-entity", entity],
-  queryFn: async () => {
-    const res = await base44.entities[entity].list();
-    return Array.isArray(res) ? res : res?.items || [];
-  },
+/**
+ * Columns the server-side search can `ilike` against: text-like table columns.
+ * Numbers, booleans, JSON and fields marked `searchable: false` (e.g. timestamps) are skipped.
+ */
+const TEXT_TYPES = new Set([undefined, "text", "url", "textarea", "select"]);
+const searchColumns = (fields) =>
+  fields.filter((f) => !f.hideInTable && f.searchable !== false && TEXT_TYPES.has(f.type)).map((f) => f.key);
+
+const sortParam = (sort) => (sort.key ? `${sort.dir === "desc" ? "-" : ""}${sort.key}` : DEFAULT_SORT);
+
+/** Query options for one page of an entity, filtered, sorted and counted in Postgres. */
+const crudPageQuery = (entity, { page = 1, pageSize = DEFAULT_PAGE_SIZE, term = "", sort = DEFAULT_SORT, columns = [] } = {}) => ({
+  queryKey: adminKeys.entityPage(entity, { page, pageSize, term, sort }),
+  queryFn: () => base44.entities[entity].page({ page, pageSize, sort, search: { term, columns } }),
   staleTime: 30_000,
+  placeholderData: keepPreviousData,
 });
 
-/** A panel's route prefetch: `export const prefetch = prefetchCrud("Brand")`. */
-export const prefetchCrud = (entity) => (qc) => qc.ensureQueryData(crudQuery(entity)).catch(() => undefined);
+/** A panel's route prefetch: `export const prefetch = prefetchCrud("Brand")` warms the first page. */
+export const prefetchCrud = (entity) => (qc) => qc.ensureQueryData(crudPageQuery(entity)).catch(() => undefined);
 
 export default function AdminCrudTable({ entity, title, subtitle, addLabel, emptyLabel, fields, readOnly }) {
   
@@ -52,41 +65,55 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState({ key: null, dir: "asc" });
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [exporting, setExporting] = useState(false);
   const { t } = useI18n();
   const askConfirm = useConfirm();
 
-  const { data, isLoading, isError, error, isFetching, refetch } = useQuery(crudQuery(entity));
-  const rows = data || [];
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-entity", entity] });
+  const term = useDebouncedValue(query.trim());
+  const columns = useMemo(() => searchColumns(fields), [fields]);
+  const sortBy = sortParam(sort);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = !q
-      ? rows
-      : rows.filter((r) => cols.some((f) => String(r[f.key] ?? "").toLowerCase().includes(q)));
-    if (sort.key) {
-      list = [...list].sort((a, b) => {
-        const av = a[sort.key], bv = b[sort.key];
-        const cmp = typeof av === "number" && typeof bv === "number"
-          ? av - bv
-          : String(av ?? "").localeCompare(String(bv ?? ""));
-        return sort.dir === "asc" ? cmp : -cmp;
-      });
-    }
-    return list;
-  }, [rows, query, sort, cols]);
+  // Back to page 1 whenever the result set changes shape.
+  useEffect(() => { setPage(1); }, [term, sortBy, pageSize]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const current = Math.min(page, pageCount - 1);
-  const paged = filtered.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
+  const { data, isLoading, isError, error, isFetching, isPlaceholderData, refetch } = useQuery(
+    crudPageQuery(entity, { page, pageSize, term, sort: sortBy, columns }),
+  );
+  const rows = data?.rows || [];
+  const total = data?.total || 0;
+  const pageCount = data?.pageCount || 1;
+  const invalidate = () => qc.invalidateQueries({ queryKey: adminKeys.entity(entity) });
+
+  // A delete can empty the last page: step back to the new last page.
+  useEffect(() => {
+    if (data && !isPlaceholderData && page > pageCount) setPage(pageCount);
+  }, [data, isPlaceholderData, page, pageCount]);
 
   const toggleSort = (key) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
 
-  const exportCsv = () => {
+  /** Exports every row matching the current search, fetched in batches (not just the visible page). */
+  const exportCsv = async () => {
+    setExporting(true);
+    let all = [];
+    try {
+      for (let p = 1; ; p++) {
+        const res = await base44.entities[entity].page({
+          page: p, pageSize: EXPORT_BATCH, sort: sortBy, search: { term, columns },
+        });
+        all = all.concat(res.rows);
+        if (p >= res.pageCount) break;
+      }
+    } catch (e) {
+      toast.error(e.message);
+      setExporting(false);
+      return;
+    }
+    setExporting(false);
     const header = cols.map((f) => csvCell(L(f.label))).join(",");
-    const body = filtered.map((r) => cols.map((f) => csvCell(r[f.key])).join(",")).join("\n");
+    const body = all.map((r) => cols.map((f) => csvCell(r[f.key])).join(",")).join("\n");
     const blob = new Blob([`${header}\n${body}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -151,8 +178,8 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
           <Button variant="outline" size="sm" onClick={() => refetch()} title={"Refresh"}>
             <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
           </Button>
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
-            <Download className="w-4 h-4" /> CSV
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!total || exporting}>
+            <Download className={cn("w-4 h-4", exporting && "animate-pulse")} /> CSV
           </Button>
           {!readOnly && (
             <Button size="sm" onClick={() => { setEditing(null); setForm(defaultForm(fields)); setOpen(true); }}>
@@ -167,13 +194,13 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setPage(0); }}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder={"Search…"}
             className="ps-9"
           />
         </div>
         <span className="text-xs text-muted-foreground">
-          {filtered.length} {"records"}
+          {total} {"records"}
         </span>
       </div>
 
@@ -183,12 +210,12 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
           <p className="text-sm text-destructive">{error?.message || "Failed to load data."}</p>
           <Button variant="outline" size="sm" onClick={() => refetch()}>{"Try again"}</Button>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : total === 0 ? (
         <div className="py-12 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
-          {query ? "No matching records." : L(emptyLabel)}
+          {term ? "No matching records." : L(emptyLabel)}
         </div>
       ) : (
-        <div className="admin-table-card rounded-2xl border border-border bg-card overflow-hidden">
+        <div className={cn("admin-table-card rounded-2xl border border-border bg-card overflow-hidden", isPlaceholderData && "opacity-60")}>
           <div className="admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
@@ -205,7 +232,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
                 </tr>
               </thead>
               <tbody>
-                {paged.map((r) => (
+                {rows.map((r) => (
                   <tr key={r.id} className="border-t hover:bg-muted/30">
                     {cols.map((f) => (
                       <td key={f.key} className="px-3 py-2 align-top max-w-xs">
@@ -232,21 +259,10 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
             </table>
           </div>
 
-          {pageCount > 1 && (
-            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-border">
-              <span className="text-xs text-muted-foreground">
-                {"Page"} {current + 1} / {pageCount}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled={current === 0} onClick={() => setPage(current - 1)}>
-                  {"Previous"}
-                </Button>
-                <Button variant="outline" size="sm" disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)}>
-                  {"Next"}
-                </Button>
-              </div>
-            </div>
-          )}
+          <AdminPagination
+            page={Math.min(page, pageCount)} pageSize={pageSize} total={total}
+            onPage={setPage} onPageSize={setPageSize}
+          />
         </div>
       )}
 

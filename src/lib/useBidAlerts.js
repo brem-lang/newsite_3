@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { auctionKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 
 const CLOSED = new Set(["ended", "voided", "voiding"]);
@@ -26,7 +27,7 @@ export function useBidAlerts(user) {
   const userId = user?.id;
 
   const { data: joined } = useQuery({
-    queryKey: ["myAuctions", userId],
+    queryKey: auctionKeys.mine(userId),
     enabled: !!userId,
     staleTime: 60_000,
     refetchOnWindowFocus: true,

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,12 +18,12 @@ const NONE = [];
 const loadSection = async () => (await base44.entities.Content.list("-created_date", 200)) || [];
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["content"], loadSection));
+export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.content(), loadSection));
 
 export default function AdminContent() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
-  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(["content"], loadSection);
+  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(adminKeys.content(), loadSection);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ key: "", label: "", value_en: "" });

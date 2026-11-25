@@ -1,7 +1,10 @@
 import React, { useState } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw, Check, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminData, useAdminUserMap, toMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUsersByIds, adminPageQuery, firstPage, toMap, warmAdmin, ADMIN_STALE } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
+import AdminPagination from "@/components/admin/AdminPagination";
 import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -15,26 +18,44 @@ const STATUS_CLS = {
   pending: "bg-warning/15 text-warning", approved: "bg-success/15 text-success", rejected: "bg-destructive/15 text-destructive"
 };
 
-const NONE = [];
 const NO_MAP = {};
+const PENDING = { sort: "-created_date", where: { status: "pending" } };
+const RESOLVED = { sort: "-created_date", notIn: { status: ["pending"] } };
+const pendingKey = (params) => adminKeys.refundsPage("pending", params);
+const resolvedKey = (params) => adminKeys.refundsPage("resolved", params);
 
-const loadSection = async () => {
-  const [r, x] = await Promise.all([
-    base44.entities.RefundRequest.list("-created_date", 500),
-    base44.entities.WalletTransaction.list("-created_date", 1000),
-  ]);
-  return { rows: r || [], txns: toMap(x) };
+/** Original transactions for just the refund requests on screen (for the amount column). */
+const txnsByIdsQuery = (ids) => {
+  const list = [...new Set(ids.filter(Boolean))].sort();
+  return {
+    queryKey: adminKeys.refundTxnsByIds(list),
+    queryFn: async () => toMap(await base44.entities.WalletTransaction.filterFields("id, amount", { id: list }, "", list.length)),
+    enabled: list.length > 0,
+    staleTime: ADMIN_STALE,
+    placeholderData: keepPreviousData,
+  };
 };
 
-/** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["refunds"], loadSection), adminLookups.users());
+/** Route loader: the first page of each list (paged in Postgres). */
+export const prefetch = (qc) => {
+  const p1 = firstPage(PENDING);
+  const p2 = firstPage(RESOLVED);
+  return warmAdmin(qc, adminPageQuery("RefundRequest", pendingKey(p1), p1), adminPageQuery("RefundRequest", resolvedKey(p2), p2));
+};
 
 export default function AdminRefunds() {
   const { t } = useI18n();
-  const { data, isPending: loading, refresh: load } = useAdminData(["refunds"], loadSection);
-  const rows = data?.rows ?? NONE;
-  const txns = data?.txns ?? NO_MAP;
-  const users = useAdminUserMap();
+  const qc = useQueryClient();
+  const pendingTable = useAdminPage("RefundRequest", pendingKey, PENDING);
+  const resolvedTable = useAdminPage("RefundRequest", resolvedKey, RESOLVED);
+  const pending = pendingTable.rows;
+  const resolved = resolvedTable.rows;
+  const onScreen = [...pending, ...resolved];
+  const { data: txns = NO_MAP } = useQuery(txnsByIdsQuery(onScreen.map((r) => r.original_transaction_id)));
+  const users = useAdminUsersByIds(onScreen.map((r) => r.user_id));
+  const loading = pendingTable.isPending || resolvedTable.isPending;
+  // A decision moves a request from one list to the other: refresh both.
+  const load = () => qc.invalidateQueries({ queryKey: adminKeys.refundsAll() });
   const [busy, setBusy] = useState("");
   const [rejecting, setRejecting] = useState(null);
   const [note, setNote] = useState("");
@@ -58,8 +79,6 @@ export default function AdminRefunds() {
 
   if (loading) return null;
 
-  const pending = rows.filter((r) => r.status === "pending");
-  const resolved = rows.filter((r) => r.status !== "pending");
 
   return (
     <div className="space-y-6">
@@ -70,7 +89,7 @@ export default function AdminRefunds() {
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="p-5 border-b border-border"><h3 className="font-heading text-lg font-semibold">{t.admin.refunds.title}</h3></div>
-        {pending.length === 0 ? (
+        {pendingTable.total === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">{t.admin.refunds.empty}</div>
         ) : (
           <div className="admin-table-scroll">
@@ -105,9 +124,10 @@ export default function AdminRefunds() {
             </table>
           </div>
         )}
+        {pendingTable.total > 0 && <AdminPagination {...pendingTable.pagination} />}
       </div>
 
-      {resolved.length > 0 && (
+      {resolvedTable.total > 0 && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="admin-table-scroll">
             <table className="w-full text-sm">
@@ -135,6 +155,7 @@ export default function AdminRefunds() {
               </tbody>
             </table>
           </div>
+          <AdminPagination {...resolvedTable.pagination} />
         </div>
       )}
 

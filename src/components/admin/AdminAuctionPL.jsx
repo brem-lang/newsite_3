@@ -4,7 +4,10 @@ import {
   RefreshCw, Search, Ticket, TrendingDown, TrendingUp, Trophy, Wallet
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { useAdminData, useAdminPage, adminPageQuery, adminRpc, fetchAllRows, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
+import AdminPagination from "@/components/admin/AdminPagination";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/format";
@@ -46,17 +49,26 @@ function Kpi({ icon: Icon, label, value, hint, tone = "default" }) {
  * Per-auction profitability page: deposits made by its participants, every bid,
  * the fees the platform collected, the winner and what is still owed.
  */
-const NONE = [];
 
-const loadSection = async () =>
-  (await base44.entities.Auction.listFields(
-    "id,title,status,mode,winner_id,winner_name,subscriber_ids,entry_fee,cost_price,other_cost,created_date",
-    "-created_date",
-    400,
-  )) || [];
+const LIST_FIELDS = "id,title,status,mode,winner_id,winner_name,subscriber_ids,entry_fee,cost_price,other_cost,created_date";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["auctionpl", "list"], loadSection));
+/** Paged, searched auction list. A full id matches exactly; other text searches title and winner. */
+const listFilters = (term) => ({
+  fields: LIST_FIELDS,
+  sort: "-created_date",
+  ...(UUID.test(term) ? { where: { id: term } } : { search: { columns: ["title", "winner_name"], term } }),
+});
+
+/** All cost lines of one auction (batched, no row cap). */
+const fetchCostItems = (auctionId) =>
+  fetchAllRows("AuctionCostItem", { where: { auction_id: auctionId }, sort: "-created_date" }).catch(() => []);
+
+/** Route loader: the first page of the auction list. */
+export const prefetch = (qc) => {
+  const params = firstPage(listFilters(""));
+  return warmAdmin(qc, adminPageQuery("Auction", adminKeys.auctionPLList(params), params));
+};
 
 export default function AdminAuctionPL() {
   const { t } = useI18n();
@@ -67,37 +79,30 @@ export default function AdminAuctionPL() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
 
-  const { data: auctions = NONE, isPending: listLoading } = useAdminData(["auctionpl", "list"], loadSection);
+  const term = useDebouncedValue(search.trim());
+  const list = useAdminPage("Auction", adminKeys.auctionPLList, listFilters(term));
+  const { rows: filtered, isPending: listLoading } = list;
 
   // One cached P&L file per auction: reopening an auction is instant.
+  // Fees, deposits, bid counts and the per-participant roll-up are summed in
+  // Postgres (admin_auction_pl), so no bid or transaction rows are downloaded.
   const detailQuery = useAdminData(
-    ["auctionpl", "detail", selected],
+    adminKeys.auctionPLDetail(selected),
     async () => {
       const auctionId = selected;
-      const auction = await base44.entities.Auction.get(auctionId);
-      const seatIds = auction.subscriber_ids || [];
-      const [bids, txns, costItems, override, winnerPays, people, deposits] = await Promise.all([
-        base44.entities.Bid.filter({ auction_id: auctionId }, "-created_date", 3000).catch(() => []),
-        base44.entities.WalletTransaction.filter({ auction_id: auctionId }, "-created_date", 3000).catch(() => []),
-        base44.entities.AuctionCostItem.filter({ auction_id: auctionId }, "-created_date", 200).catch(() => []),
+      const [auction, pl, costItems, override, winnerPays] = await Promise.all([
+        base44.entities.Auction.get(auctionId),
+        adminRpc("admin_auction_pl", { _auction_id: auctionId }),
+        fetchCostItems(auctionId),
         base44.entities.AuctionFinanceOverride.filter({ auction_id: auctionId }, "-created_date", 1).catch(() => []),
-        base44.entities.WinnerPayment.filter({ auction_id: auctionId }, "-created_date", 50).catch(() => []),
-        seatIds.length
-          ? base44.entities.User.filter({ id: seatIds }, "", seatIds.length).catch(() => [])
-          : Promise.resolve([]),
-        base44.entities.WalletTransaction.filter(
-          { auction_id: auctionId, type: "deposit" }, "-created_date", 3000
-        ).catch(() => []),
+        base44.entities.WinnerPayment.filter({ auction_id: auctionId }, "-created_date", 1).catch(() => []),
       ]);
       return {
         auction,
-        bids: bids || [],
-        txns: txns || [],
+        pl: pl || {},
         costItems: costItems || [],
         override: (override || [])[0] || null,
         winnerPays: winnerPays || [],
-        people: people || [],
-        deposits: deposits || [],
       };
     },
     { enabled: !!selected },
@@ -107,28 +112,13 @@ export default function AdminAuctionPL() {
   const refreshedAt = detailQuery.dataUpdatedAt ? new Date(detailQuery.dataUpdatedAt) : null;
   const loadDetail = () => detailQuery.refresh();
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return auctions;
-    return auctions.filter((a) =>
-      (a.title || "").toLowerCase().includes(q) ||
-      (a.winner_name || "").toLowerCase().includes(q) ||
-      (a.id || "").toLowerCase().includes(q)
-    );
-  }, [auctions, search]);
 
   /** Money model for the selected auction. */
   const model = useMemo(() => {
     if (!detail) return null;
-    const { auction, bids, txns, costItems, override, deposits } = detail;
-    const confirmed = txns.filter((x) => !x.status || x.status === "confirmed");
-
+    const { auction, pl, costItems, override } = detail;
     const fees = { entryFees: 0, bidFees: 0, extraBids: 0, winnerPayment: 0, refunds: 0 };
-    for (const x of confirmed) {
-      const key = FEE_TYPES[x.type];
-      if (key) fees[key] += abs(x.amount);
-      else if (x.type === "refund") fees.refunds += abs(x.amount);
-    }
+    for (const k of Object.keys(fees)) fees[k] = num(pl.fees?.[k]);
 
     const incomeAdjust = num(override?.income_adjust);
     const income = fees.entryFees + fees.bidFees + fees.extraBids + fees.winnerPayment + incomeAdjust;
@@ -148,41 +138,17 @@ export default function AdminAuctionPL() {
     const costs = productCost + otherCost + items.total + fees.refunds;
     const net = income - costs;
 
-    const depositTotal = deposits
-      .filter((d) => !d.status || d.status === "confirmed")
-      .reduce((s, d) => s + abs(d.amount), 0);
-    const depositPending = deposits
-      .filter((d) => d.status === "pending")
-      .reduce((s, d) => s + abs(d.amount), 0);
+    const depositTotal = num(pl.deposits?.confirmed);
+    const depositPending = num(pl.deposits?.pending);
+    const bidCount = num(pl.bids?.live);
+    const burned = num(pl.bids?.burned);
+    const archivedBids = num(pl.bids?.archived);
 
-    const liveBids = bids.filter((b) => !b.archived);
-    const burned = liveBids.filter((b) => b.burned).length;
-
-    // Per-participant roll-up: bids placed, fees paid, deposits funded.
-    const byUser = new Map();
-    const seat = (id) => {
-      if (!byUser.has(id)) byUser.set(id, { userId: id, bids: 0, burned: 0, fees: 0, deposits: 0, last: null });
-      return byUser.get(id);
-    };
-    for (const id of auction.subscriber_ids || []) seat(id);
-    for (const b of liveBids) {
-      const s = seat(b.user_id);
-      s.bids += 1;
-      if (b.burned) s.burned += 1;
-      if (!s.last || new Date(b.created_date) > new Date(s.last)) s.last = b.created_date;
-    }
-    for (const x of confirmed) {
-      if (!FEE_TYPES[x.type]) continue;
-      seat(x.user_id).fees += abs(x.amount);
-    }
-    for (const d of deposits) {
-      if (d.status && d.status !== "confirmed") continue;
-      seat(d.user_id).deposits += abs(d.amount);
-    }
-    const nameOf = new Map(detail.people.map((p) => [p.id, p.full_name || p.email || p.id]));
-    const seats = [...byUser.values()]
-      .map((s) => ({ ...s, name: nameOf.get(s.userId) || s.userId }))
-      .sort((a, b) => b.fees - a.fees || b.bids - a.bids);
+    // Per-participant roll-up (bids placed, fees paid, deposits funded), built in SQL.
+    const seats = (pl.seats || []).map((x) => ({
+      userId: x.userId, name: x.name || x.userId,
+      bids: num(x.bids), burned: num(x.burned), fees: num(x.fees), deposits: num(x.deposits), last: x.last || null,
+    }));
 
     const winnerPay = detail.winnerPays[0] || null;
     const awaiting = winnerPay && winnerPay.status !== "paid" ? num(winnerPay.amount) : 0;
@@ -192,7 +158,7 @@ export default function AdminAuctionPL() {
       margin: income > 0 ? (net / income) * 100 : 0,
       roi: costs > 0 ? (net / costs) * 100 : null,
       depositTotal, depositPending,
-      bidCount: liveBids.length, burned, archivedBids: bids.length - liveBids.length,
+      bidCount, burned, archivedBids,
       seats, hasWinner, winnerPay, awaiting,
       incomePerSeat: seats.length ? income / seats.length : 0,
     };
@@ -256,7 +222,7 @@ export default function AdminAuctionPL() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          {listLoading ? null : filtered.length === 0 ? (
+          {listLoading ? null : list.total === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">{L.empty || "No auctions found."}</p>
           ) : (
             <ul className="divide-y divide-border">
@@ -280,6 +246,7 @@ export default function AdminAuctionPL() {
               ))}
             </ul>
           )}
+          {list.total > 0 && <AdminPagination {...list.pagination} />}
         </div>
       </div>
     );

@@ -107,6 +107,31 @@ function applyWhere(query: any, where: Row) {
   return query;
 }
 
+/**
+ * Filters shared by page() and count():
+ *   where  { col: value | value[] }   -> eq / in
+ *   notIn  { col: value[] }           -> not in (skipped when the list is empty)
+ *   gte / lte { col: value }          -> range bounds (e.g. dates)
+ *   search { columns: [...], term }   -> ilike across text columns, OR-ed
+ */
+function applyFilters(query: any, opts: Row) {
+  query = applyWhere(query, opts.where || {});
+  for (const [key, values] of Object.entries(opts.notIn || {})) {
+    const list = (values as unknown[]).filter((v) => v !== undefined && v !== null && v !== "");
+    if (list.length) query = query.not(key, "in", `(${list.map((v) => `"${String(v).replace(/"/g, "")}"`).join(",")})`);
+  }
+  for (const [key, value] of Object.entries(opts.gte || {})) if (value !== undefined && value !== "") query = query.gte(key, value);
+  for (const [key, value] of Object.entries(opts.lte || {})) if (value !== undefined && value !== "") query = query.lte(key, value);
+  const term = String(opts.search?.term || "").trim();
+  const columns: string[] = opts.search?.columns || [];
+  if (term && columns.length) {
+    // PostgREST `or` syntax: commas, parens and wildcards in the term would break the filter.
+    const safe = term.replace(/[%,()*\\]/g, " ").trim();
+    if (safe) query = query.or(columns.map((c) => `${c}.ilike.%${safe}%`).join(","));
+  }
+  return query;
+}
+
 /** Attach the role from user_roles so `user.role === "admin"` keeps working. */
 async function withRoles(rows: Row[]): Promise<Row[]> {
   if (!rows.length) return rows;
@@ -217,21 +242,16 @@ function makeEntity(name: string) {
      * Server-side pagination: only one page of rows crosses the wire and the
      * total row count comes from Postgres, so admin tables stay fast as the
      * dataset grows.
-     *   page({ page: 1, pageSize: 25, where, sort, fields, search: { columns, term } })
+     *   page({ page: 1, pageSize: 25, where, notIn, gte, lte, sort, fields, search: { columns, term } })
      *   -> { rows, total, page, pageSize, pageCount }
+     * See applyFilters for where / notIn / gte / lte / search.
      */
     async page(opts: Row = {}) {
       const pageNum = Math.max(1, Number(opts.page) || 1);
       const pageSize = Math.max(1, Number(opts.pageSize) || 25);
       if (await readBlocked()) return { rows: [] as Row[], total: 0, page: pageNum, pageSize, pageCount: 1 };
       let query = db().from(await source()).select(opts.fields || "*", { count: "exact" });
-      query = applyWhere(query, opts.where || {});
-      const term = String(opts.search?.term || "").trim();
-      const columns: string[] = opts.search?.columns || [];
-      if (term && columns.length) {
-        const safe = term.replace(/[%,()]/g, " ");
-        query = query.or(columns.map((c) => `${c}.ilike.%${safe}%`).join(","));
-      }
+      query = applyFilters(query, opts);
       if (opts.sort) {
         const desc = String(opts.sort).startsWith("-");
         query = query.order(desc ? String(opts.sort).slice(1) : String(opts.sort), { ascending: !desc });
@@ -242,6 +262,15 @@ function makeEntity(name: string) {
       const rows = await finish(data || []);
       const total = Number(count || 0);
       return { rows, total, page: pageNum, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
+    },
+
+    /** Exact row count for the same filters page() takes, without fetching rows. */
+    async count(opts: Row = {}) {
+      if (await readBlocked()) return 0;
+      const query = applyFilters(db().from(await source()).select("id", { count: "exact", head: true }), opts);
+      const { count, error } = await query;
+      if (error) throw error;
+      return Number(count || 0);
     },
 
 

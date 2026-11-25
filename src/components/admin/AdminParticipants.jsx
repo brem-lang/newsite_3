@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Search, Contact, PauseCircle, PlayCircle, Gift } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAdminMe, adminUserListQuery, adminLookups, warmAdmin } from "@/lib/queries/admin";
+import { useAdminMe, adminUserListQuery, fetchAdminUserIds, ADMIN_USER_LIST_KEY, adminLookups, warmAdmin } from "@/lib/queries/admin";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import ParticipantDetailDialog from "@/components/admin/ParticipantDetailDialog";
-import AdminPagination, { paginate } from "@/components/admin/AdminPagination";
+import AdminPagination from "@/components/admin/AdminPagination";
 
 
 const statusStyle = {
@@ -29,14 +30,24 @@ export const prefetch = (qc) => warmAdmin(qc, adminUserListQuery(), adminLookups
 export default function AdminParticipants() {
   const { t } = useI18n();
   const qc = useQueryClient();
-  const usersQuery = useQuery(adminUserListQuery());
-  const users = usersQuery.data?.users ?? NONE;
-  const loading = usersQuery.isPending;
-  // Optimistic edits go straight into the shared cache.
-  const setUsers = (update) =>
-    qc.setQueryData(adminUserListQuery().queryKey, (prev) => (prev ? { ...prev, users: update(prev.users) } : prev));
   const me = useAdminMe();
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const search = useDebouncedValue(query.trim());
+  useEffect(() => { setPage(1); }, [search, statusFilter, roleFilter, pageSize]);
+
+  // Search, filters, paging and super-admin hiding all run on the server (listUsers).
+  const listParams = { page, pageSize, search, status: statusFilter, role: roleFilter };
+  const usersQuery = useQuery(adminUserListQuery(listParams));
+  const visible = usersQuery.data?.users ?? NONE;
+  const total = usersQuery.data?.total ?? 0;
+  const loading = usersQuery.isPending;
+  // Optimistic edits go straight into the cached page.
+  const setUsers = (update) =>
+    qc.setQueryData(adminUserListQuery(listParams).queryKey, (prev) => (prev ? { ...prev, users: update(prev.users) } : prev));
   const noteCounts = useMemo(() => {
     const counts = {};
     (usersQuery.data?.notes || []).forEach((n) => { counts[n.user_id] = (counts[n.user_id] || 0) + 1; });
@@ -47,30 +58,7 @@ export default function AdminParticipants() {
 
   const isSuper = !!me?.is_super;
 
-  const load = useCallback(() => qc.invalidateQueries({ queryKey: adminUserListQuery().queryKey }), [qc]);
-
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [roleFilter, setRoleFilter] = useState("all");
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return users
-      .filter((u) => isSuper || !u.is_super)
-      .filter((u) =>
-        !q ||
-        (u.full_name || "").toLowerCase().includes(q) ||
-        (u.email || "").toLowerCase().includes(q) ||
-        (u.phone || "").toLowerCase().includes(q) ||
-        (u.country || "").toLowerCase().includes(q)
-      )
-      .filter((u) => statusFilter === "all" || (u.verification_status || "pending") === statusFilter)
-      .filter((u) => roleFilter === "all" || (u.role || "user") === roleFilter);
-  }, [users, query, isSuper, statusFilter, roleFilter]);
-
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-  useEffect(() => { setPage(1); }, [query, statusFilter, roleFilter]);
-  const visible = useMemo(() => paginate(filtered, page, pageSize), [filtered, page, pageSize]);
+  const load = useCallback(() => qc.invalidateQueries({ queryKey: ADMIN_USER_LIST_KEY }), [qc]);
 
   const togglePause = async (u) => {
     setBusyId(u.id);
@@ -111,7 +99,15 @@ export default function AdminParticipants() {
     else visible.forEach((u) => next.add(u.id));
     return next;
   });
-  const selectAllFiltered = () => setPicked(new Set(filtered.map((u) => u.id)));
+  // Every match across all pages, fetched as ids only.
+  const selectAllFiltered = async () => {
+    try {
+      const ids = await fetchAdminUserIds({ search, status: statusFilter, role: roleFilter });
+      setPicked(new Set(ids));
+    } catch (e) {
+      toast.error(e.message || "Error");
+    }
+  };
 
   const grantFreeBids = async () => {
     if (!bulkAuction) { toast.error(t.admin.participants.bulk.needAuction); return; }
@@ -174,7 +170,7 @@ export default function AdminParticipants() {
       {picked.size > 0 && (
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3 flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold px-1">{picked.size} {st.bulk.selected}</span>
-          <Button size="sm" variant="ghost" onClick={selectAllFiltered}>{st.bulk.selectAll} ({filtered.length})</Button>
+          <Button size="sm" variant="ghost" onClick={selectAllFiltered}>{st.bulk.selectAll} ({total})</Button>
           <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>{st.bulk.clear}</Button>
           <div className="flex-1" />
           <Select value={bulkAuction} onValueChange={setBulkAuction}>
@@ -196,10 +192,10 @@ export default function AdminParticipants() {
         </div>
       )}
 
-      {filtered.length === 0 ? (
+      {total === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">{st.empty}</div>
       ) : (
-        <div className="admin-table-card rounded-2xl border border-border bg-card overflow-hidden">
+        <div className={cn("admin-table-card rounded-2xl border border-border bg-card overflow-hidden", usersQuery.isPlaceholderData && "opacity-60")}>
           <div className="admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 text-muted-foreground">
@@ -266,8 +262,8 @@ export default function AdminParticipants() {
             </table>
           </div>
           <AdminPagination
-            page={page} pageSize={pageSize} total={filtered.length}
-            onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }}
+            page={page} pageSize={pageSize} total={total}
+            onPage={setPage} onPageSize={setPageSize}
           />
         </div>
       )}

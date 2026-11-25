@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Plus, Pencil, Trash2, Clock, Star, Trophy, Users, Flame, CheckCircle2, Search, Download, FileText, BarChart3, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, RefreshCw, Play, Square, RotateCcw, Archive } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { useAdminData, useAdminUserMap, auctionBidsQuery, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAdminData, useAdminUserMap, useAdminUsersByIds, adminSection, auctionCountsQuery, endedAuctionsQuery, fetchEndedAuctions, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { adminKeys } from "@/lib/queries/keys";
 import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
@@ -28,17 +29,29 @@ const statusStyles = {
 
 const NO_AUCTIONS = [];
 
-// refresh() on ["admin","auctions"] also covers the shared ["admin","auctions","lookup"].
-const loadSection = async () => (await base44.entities.Auction.list("-created_date", 100)) || [];
+const NO_TOTALS = { seats: 0, entry: 0, bidRev: 0, total: 0, maxTotal: 0 };
+const NO_COUNTS = { ended: 0, archived: 0, nonArchived: 0, revenue: 0 };
+
+/**
+ * The working set: every auction that is not ended or archived (open, live,
+ * scheduled, voided). Ended and archived auctions grow without bound, so their
+ * tabs page on the server instead (EndedAuctions / admin_ended_auctions).
+ */
+const loadSection = async () =>
+  (await base44.entities.Auction.page({ notIn: { status: ["ended", "archived"] }, sort: "-created_date", pageSize: 1000 })).rows;
+const activeQuery = () => adminSection(adminKeys.auctionsActive(), loadSection);
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["auctions"], loadSection), adminLookups.users());
+export const prefetch = (qc) => warmAdmin(qc, activeQuery(), auctionCountsQuery(), adminLookups.users());
 
 export default function AdminAuctions() {
   const { t, format } = useI18n();
   const askConfirm = useConfirm();
   const qc = useQueryClient();
-  const { data: auctions = NO_AUCTIONS, isPending: loading, refresh: load, queryKey } = useAdminData(["auctions"], loadSection);
+  const { data: auctions = NO_AUCTIONS, isPending: loading, queryKey } = useAdminData(adminKeys.auctionsActive(), loadSection);
+  const { data: counts = NO_COUNTS } = useQuery(auctionCountsQuery());
+  // Covers the working set, counts, ended/archived pages and the shared lookup.
+  const load = useCallback(() => qc.invalidateQueries({ queryKey: adminKeys.auctionsAll() }), [qc]);
   // Optimistic edits write straight into the cache; load() re-reads after.
   const setAuctions = (update) => qc.setQueryData(queryKey, (prev = []) => update(prev));
   const users = useAdminUserMap();
@@ -174,17 +187,16 @@ export default function AdminAuctions() {
   const byStatus = (s) => auctions.filter((a) => adminStatus(a, now) === s);
   const liveAuctions = byStatus("live");
   const openAuctions = byStatus("open");
-  const endedAuctions = byStatus("ended");
-  const archivedAuctions = byStatus("archived");
-  // Archived auctions are off the active list: only their own tab shows them.
-  const activeAuctions = auctions.filter((a) => a.status !== "archived");
+  // "All" lists the working set; ended and archived have their own paged tabs.
+  const activeAuctions = auctions;
+  // Totals come from Postgres so they cover every auction, not just loaded rows.
   const stats = {
-    total: activeAuctions.length,
+    total: counts.nonArchived,
     open: openAuctions.length,
     live: liveAuctions.length,
-    ended: endedAuctions.length,
-    archived: archivedAuctions.length,
-    revenue: auctions.reduce((s, a) => s + (a.subscriber_ids?.length || 0) * (a.entry_fee || 0), 0)
+    ended: counts.ended,
+    archived: counts.archived,
+    revenue: counts.revenue
   };
   const statCards = [
     { label: t.admin.stats.total, value: stats.total },
@@ -250,7 +262,8 @@ export default function AdminAuctions() {
 
       {view === "ended" || view === "archived" ? (
         <EndedAuctions
-          items={view === "archived" ? archivedAuctions : endedAuctions}
+          key={view}
+          statuses={view === "archived" ? ARCHIVED_STATUSES : ENDED_STATUSES}
           users={users}
           t={t}
           onEdit={openEdit}
@@ -414,10 +427,12 @@ export default function AdminAuctions() {
 }
 
 const PAGE_SIZE = 10;
+const ENDED_STATUSES = ["ended"];
+const ARCHIVED_STATUSES = ["archived"];
 
 /** Full data view for ended auctions: search, filters, pagination, export, details and revenue. */
 /** onTransition(a, to) runs Relaunch / Archive; null = read-only (the Archived tab). */
-function EndedAuctions({ items, users, t, onEdit, onTransition, busyId, onReload }) {
+function EndedAuctions({ statuses, users: knownUsers, t, onEdit, onTransition, busyId, onReload }) {
   const currency = t?.common?.currency || "$";
   const money = (n) => `${currency}${Number(n || 0).toFixed(2)}`;
   const date = (v) => (v ? new Date(v).toLocaleString("en-GB") : "—");
@@ -438,7 +453,8 @@ function EndedAuctions({ items, users, t, onEdit, onTransition, busyId, onReload
   const qcEnded = useQueryClient();
   const refresh = useCallback(() => {
     setRefreshing(true);
-    qcEnded.invalidateQueries({ queryKey: adminKeys.section("auctionBids") });
+    qcEnded.invalidateQueries({ queryKey: adminKeys.auctionBids() });
+    qcEnded.invalidateQueries({ queryKey: adminKeys.auctionsEnded() });
     setRefreshKey((k) => k + 1);
     onReload?.();
     setLastRefresh(new Date());
@@ -471,52 +487,34 @@ function EndedAuctions({ items, users, t, onEdit, onTransition, busyId, onReload
     results: t?.admin?.results?.count || "results",
   };
 
+  // One server page (admin_ended_auctions): search, filters, paging, bid counts
+  // and the revenue totals for every match all come from Postgres.
+  const search = useDebouncedValue(q.trim());
+  const filters = { statuses, search, from, to, payment };
+  useEffect(() => { setPage(1); }, [JSON.stringify(filters)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { data: result } = useQuery(endedAuctionsQuery({ ...filters, page, pageSize: PAGE_SIZE }));
+  const pageItems = result?.rows ?? NO_AUCTIONS;
+  const totalCount = result?.total ?? 0;
+  const pageCount = result?.pageCount ?? 1;
+  const safePage = Math.min(page, pageCount);
+  const totals = result?.totals ?? NO_TOTALS;
+  const maxTotal = Math.max(totals.maxTotal || 0, 1);
+  const filtered = { length: totalCount }; // match count, for the existing labels below
+
+  // Winner names for just this page, on top of the shared lookup.
+  const pageUsers = useAdminUsersByIds(pageItems.flatMap((a) => [a.winner_id, a.highest_bidder_id]));
+  const users = useMemo(() => ({ ...knownUsers, ...pageUsers }), [knownUsers, pageUsers]);
   const winnerNameOf = (a) => {
     const w = users[a.winner_id] || users[a.highest_bidder_id];
     return a.winner_name || (w ? w.full_name || w.email : "");
   };
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    const fromTs = from ? new Date(from).getTime() : null;
-    const toTs = to ? new Date(to).getTime() + 86399999 : null;
-    return items.filter((a) => {
-      if (payment === "paid" && !a.paid) return false;
-      if (payment === "unpaid" && a.paid) return false;
-      const ts = a.end_time ? new Date(a.end_time).getTime() : null;
-      if (fromTs && (!ts || ts < fromTs)) return false;
-      if (toTs && (!ts || ts > toTs)) return false;
-      if (!needle) return true;
-      return [a.id, a.title, winnerNameOf(a)].some((v) => String(v || "").toLowerCase().includes(needle));
-    });
-  }, [items, q, from, to, payment, users]);
-
-  useEffect(() => { setPage(1); }, [q, from, to, payment]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  // Bid counts for the visible page (drives bid-fee revenue). Each auction's
-  // bids are one cached query, shared with its expanded bid log.
-  const bidQueries = useQueries({ queries: pageItems.map((a) => auctionBidsQuery(a.id)) });
-  const bidStats = {};
-  pageItems.forEach((a, i) => { if (bidQueries[i]?.data) bidStats[a.id] = bidQueries[i].data.length; });
-
   const revenueOf = (a) => {
     const seats = a.subscriber_ids?.length || 0;
     const entry = seats * Number(a.entry_fee || 0);
-    const bidCount = bidStats[a.id] || 0;
-    const bidRev = a.mode === "closest" ? bidCount * Number(a.bid_fee || 0) : 0;
+    const bidRev = a.mode === "closest" ? Number(a.bid_count || 0) * Number(a.bid_fee || 0) : 0;
     return { seats, entry, bidRev, total: entry + bidRev };
   };
-
-  const totals = filtered.reduce((acc, a) => {
-    const r = revenueOf(a);
-    acc.seats += r.seats; acc.entry += r.entry; acc.bidRev += r.bidRev; acc.total += r.total;
-    return acc;
-  }, { seats: 0, entry: 0, bidRev: 0, total: 0 });
-  const maxTotal = Math.max(...filtered.map((a) => revenueOf(a).total), 1);
 
   const exportCsv = async () => {
     setExporting(true);
@@ -526,7 +524,13 @@ function EndedAuctions({ items, users, t, onEdit, onTransition, busyId, onReload
         ["auction_id", "title", "mode", "status", "start_time", "end_time", "duration_minutes", "seats", "min_participants", "entry_fee", "bid_fee", "start_price", "current_price", "target_price", "round", "winner", "paid", "entry_revenue", "bid_fee_revenue", "total_revenue"].join(","),
       ];
       const bidLines = [["auction_id", "auction_title", "round", "archived", "burned", "bidder", "amount", "created_date"].join(",")];
-      for (const a of filtered) {
+      const all = [];
+      for (let p = 1; ; p++) {
+        const res = await fetchEndedAuctions({ ...filters, page: p, pageSize: 500 });
+        all.push(...res.rows);
+        if (p >= res.pageCount) break;
+      }
+      for (const a of all) {
         const r = revenueOf(a);
         lines.push([a.id, a.title, a.mode, a.status, a.start_time, a.end_time, a.duration_minutes, r.seats, a.min_participants ?? "", a.entry_fee, a.bid_fee, a.start_price, a.current_price, a.target_price ?? "", a.round ?? 1, winnerNameOf(a), a.paid ? "yes" : "no", r.entry.toFixed(2), r.bidRev.toFixed(2), r.total.toFixed(2)].map(esc).join(","));
         const bids = await base44.entities.Bid.filter({ auction_id: a.id }, "-created_date", 500).catch(() => []);

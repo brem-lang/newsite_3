@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Save, History, Layers, Receipt, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
-import { useAdminData, useAdminMe } from "@/lib/queries/admin";
+import { useAdminData, useAdminMe, adminRpc } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,23 +31,17 @@ export default function AuctionFinancePanel({ auction, row, costItems, override,
   const me = useAdminMe();
   // Audit trail: fetched when the History tab is opened, then cached.
   const historyQuery = useAdminData(
-    ["finance", "history", auction.id],
+    adminKeys.financeHistory(auction.id),
     async () => (await base44.entities.AuctionFinanceChange.filter({ auction_id: auction.id }, "-created_date", 200)) || [],
     { enabled: tab === "history" },
   );
   const history = historyQuery.data ?? NO_ROWS;
   const loadHistory = () => historyQuery.refresh();
 
-  // Raw bids/credits for the per-round breakdown, fetched when that tab opens.
+  // Per-round bid / credit counts (admin_auction_rounds), fetched when that tab opens.
   const roundsQuery = useAdminData(
-    ["finance", "rounds", auction.id],
-    async () => {
-      const [bids, credits] = await Promise.all([
-        base44.entities.Bid.filter({ auction_id: auction.id }, "created_date", 5000),
-        base44.entities.BidCredit.filter({ auction_id: auction.id }, "created_date", 2000),
-      ]);
-      return { bids: bids || [], credits: credits || [] };
-    },
+    adminKeys.financeRounds(auction.id),
+    async () => (await adminRpc("admin_auction_rounds", { _auction_id: auction.id })) || [],
     { enabled: tab === "rounds" },
   );
   const [busy, setBusy] = useState(false);
@@ -72,38 +67,31 @@ export default function AuctionFinancePanel({ auction, row, costItems, override,
   const rounds = useMemo(() => {
     if (roundsQuery.isError) return [];
     if (!roundsQuery.data) return null;
-    const { bids, credits } = roundsQuery.data;
     {
       const bidFee = num(auction.bid_fee);
       const extraPrice = num(auction.extra_bid_price);
-      const map = new Map();
-      const bucket = (r) => {
-        const k = Number(r) || 1;
-        if (!map.has(k)) map.set(k, { round: k, bids: 0, archivedBids: 0, burned: 0, bidFees: 0, extraBids: 0, credits: 0, bidders: new Set() });
-        return map.get(k);
-      };
-      for (const b of bids || []) {
-        const g = bucket(b.round);
-        if (b.archived) g.archivedBids += 1; else g.bids += 1;
-        if (b.burned) g.burned += 1;
-        g.bidFees += bidFee;
-        g.bidders.add(b.user_id);
-      }
-      for (const c of credits || []) {
-        const g = bucket(c.round);
-        g.credits += num(c.credits);
-        g.extraBids += num(c.credits) * extraPrice;
-      }
       const currentRound = Number(auction.round) || 1;
       const entryFees = num(row?.entryFees);
-      const out = [...map.values()].sort((a, b) => a.round - b.round).map((g) => ({
-        ...g,
-        participants: g.bidders.size,
-        entryFees: g.round === 1 ? entryFees : 0,
-        income: (g.round === 1 ? entryFees : 0) + g.bidFees + g.extraBids,
-        isCurrent: g.round === currentRound,
-      }));
-      return out;
+      // Every bid (live or archived) carried the per-bid fee, as before.
+      return roundsQuery.data.map((r) => {
+        const round = Number(r.round) || 1;
+        const bidFees = (num(r.bids) + num(r.archived_bids)) * bidFee;
+        const extraBids = num(r.credits) * extraPrice;
+        const roundEntry = round === 1 ? entryFees : 0;
+        return {
+          round,
+          bids: num(r.bids),
+          archivedBids: num(r.archived_bids),
+          burned: num(r.burned),
+          credits: num(r.credits),
+          participants: num(r.bidders),
+          bidFees,
+          extraBids,
+          entryFees: roundEntry,
+          income: roundEntry + bidFees + extraBids,
+          isCurrent: round === currentRound,
+        };
+      });
     }
   }, [roundsQuery.data, roundsQuery.isError, auction.bid_fee, auction.extra_bid_price, auction.round, row?.entryFees]);
 

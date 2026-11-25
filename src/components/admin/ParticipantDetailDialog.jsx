@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAdminData, useAdminMe } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
 
   // The participant file, cached per user while the dialog is open.
   const fileQuery = useAdminData(
-    ["participant", participant?.id],
+    adminKeys.participantFile(participant?.id),
     async () => {
       const res = await base44.functions.invoke("getParticipantFile", { user_id: participant.id });
       if (res.data?.error) throw new Error(res.data.error);

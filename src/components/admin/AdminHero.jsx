@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Sparkles, Save, Eye } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,11 +15,11 @@ const NONE = [];
 const loadSection = async () => (await base44.entities.Content.list(50)) || [];
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["hero"], loadSection));
+export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.hero(), loadSection));
 
 export default function AdminHero() {
   const { t } = useI18n();
-  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(["hero"], loadSection);
+  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(adminKeys.hero(), loadSection);
   const [saving, setSaving] = useState(false);
   const [titleEn, setTitleEn] = useState("");
   const [subEn, setSubEn] = useState("");

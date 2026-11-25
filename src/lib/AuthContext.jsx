@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { configKeys, adminKeys } from "@/lib/queries/keys";
 import { useSiteSettings } from "@/lib/queries/config";
 
 const AuthContext = createContext(undefined);
@@ -8,7 +9,7 @@ const AuthContext = createContext(undefined);
 /** Cached data that belongs to one signed-in customer (config and staff data are kept). */
 const isUserScoped = (query) => {
   const root = query.queryKey[0];
-  return root !== "config" && root !== "admin" && root !== "admin-entity";
+  return root !== configKeys.all[0] && root !== adminKeys.all[0] && root !== adminKeys.entities[0];
 };
 
 export const AuthProvider = ({ children }) => {
@@ -71,7 +72,7 @@ export const AuthProvider = ({ children }) => {
   }, [settingsRows, isLoadingPublicSettings, settingsFailed]);
 
   const checkAppState = useCallback(async () => {
-    await Promise.all([qc.invalidateQueries({ queryKey: ["config", "settings"] }), checkUserAuth()]);
+    await Promise.all([qc.invalidateQueries({ queryKey: configKeys.settings() }), checkUserAuth()]);
   }, [qc, checkUserAuth]);
 
   useEffect(() => {

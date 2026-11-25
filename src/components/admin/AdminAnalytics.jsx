@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import AdminRevenueStream, { prefetch as prefetchRevenueStream } from "@/components/admin/AdminRevenueStream";
 
 
@@ -25,7 +26,7 @@ const loadDashboard = async (days) => (await base44.functions.invoke("adminDashb
 /** Route loader: the default range's dashboard and the revenue stream below it. */
 export const prefetch = (qc) =>
   Promise.all([
-    warmAdmin(qc, adminSection(["analytics", DEFAULT_DAYS], () => loadDashboard(DEFAULT_DAYS))),
+    warmAdmin(qc, adminSection(adminKeys.analytics(DEFAULT_DAYS), () => loadDashboard(DEFAULT_DAYS))),
     prefetchRevenueStream(qc),
   ]);
 
@@ -38,7 +39,7 @@ export default function AdminAnalytics() {
   // One cached dashboard per range; switching ranges keeps the previous
   // numbers on screen until the new ones arrive.
   const { data = null, isPending: loading, isFetching: refreshing, refresh } = useAdminData(
-    ["analytics", days],
+    adminKeys.analytics(days),
     () => loadDashboard(days),
     { placeholderData: keepPreviousData },
   );

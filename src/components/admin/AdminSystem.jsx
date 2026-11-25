@@ -3,6 +3,7 @@ import { Activity, Database, Users, Gavel, Wallet, PackageCheck, LifeBuoy, Wrenc
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -25,13 +26,13 @@ const loadSection = async () => {
 };
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["system"], loadSection));
+export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.system(), loadSection));
 
 export default function AdminSystem() {
   const { t } = useI18n();
   const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
   const qc = useQueryClient();
-  const { data, isPending: loading, error: loadError, queryKey } = useAdminData(["system"], loadSection);
+  const { data, isPending: loading, error: loadError, queryKey } = useAdminData(adminKeys.system(), loadSection);
   useEffect(() => { if (loadError) toast.error(loadError.message); }, [loadError]);
   const counts = data?.counts ?? NO_MAP;
   const settings = data?.settings ?? null;

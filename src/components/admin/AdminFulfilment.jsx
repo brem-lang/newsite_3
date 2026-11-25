@@ -1,7 +1,10 @@
 import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PackageCheck, Truck, MapPin, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminData, useAdminUserMap, toMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUsersByIds, useAdminAuctionsByIds, adminPageQuery, adminSection, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
+import AdminPagination from "@/components/admin/AdminPagination";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,26 +20,43 @@ const STATUS_CLS = {
   delivered: "bg-info/15 text-info", collected: "bg-info/15 text-info", confirmed: "bg-success/15 text-success"
 };
 
-const NONE = [];
-const NO_MAP = {};
+const ORDERS = { sort: "-created_date" };
 
-const loadSection = async () => {
-  const [o, a] = await Promise.all([
-    base44.entities.Fulfilment.list("-created_date", 500),
-    base44.entities.Auction.list("-created_date", 500),
-  ]);
-  return { orders: o || [], auctions: toMap(a) };
+/** Stat cards: one exact count per stage, straight from Postgres. */
+const STAGES = {
+  pending: ["pending"],
+  inTransit: ["shipped", "ready"],
+  delivered: ["delivered", "collected"],
+  done: ["confirmed"],
 };
+const loadCounts = async () => {
+  const entries = await Promise.all(
+    Object.entries(STAGES).map(async ([k, statuses]) => [k, await base44.entities.Fulfilment.count({ where: { status: statuses } })]),
+  );
+  return Object.fromEntries(entries);
+};
+const countsQuery = () => adminSection(adminKeys.fulfilmentCounts(), loadCounts);
 
-/** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["fulfilment"], loadSection), adminLookups.users());
+/** Route loader: the stage counts and the first page of orders. */
+export const prefetch = (qc) => {
+  const params = firstPage(ORDERS);
+  return warmAdmin(qc, countsQuery(), adminPageQuery("Fulfilment", adminKeys.fulfilmentPage(params), params));
+};
 
 export default function AdminFulfilment() {
   const { t } = useI18n();
-  const { data, isPending: loading, refresh: load } = useAdminData(["fulfilment"], loadSection);
-  const orders = data?.orders ?? NONE;
-  const auctions = data?.auctions ?? NO_MAP;
-  const users = useAdminUserMap();
+  const qc = useQueryClient();
+  const table = useAdminPage("Fulfilment", adminKeys.fulfilmentPage, ORDERS);
+  const orders = table.rows;
+  const { data: counts } = useQuery(countsQuery());
+  // Labels for just the orders on this page.
+  const auctions = useAdminAuctionsByIds(orders.map((o) => o.auction_id));
+  const users = useAdminUsersByIds(orders.map((o) => o.winner_id));
+  const loading = table.isPending;
+  const load = () => {
+    qc.invalidateQueries({ queryKey: adminKeys.fulfilmentAll() });
+    qc.invalidateQueries({ queryKey: adminKeys.auctionsByIds() }); // "paid" flag
+  };
   const [advance, setAdvance] = useState(null);
   const [form, setForm] = useState({ carrier: "", tracking_number: "", notes: "" });
   const [busy, setBusy] = useState(false);
@@ -88,12 +108,7 @@ export default function AdminFulfilment() {
 
   if (loading) return null;
 
-  const stats = {
-    pending: orders.filter((o) => o.status === "pending").length,
-    inTransit: orders.filter((o) => o.status === "shipped" || o.status === "ready").length,
-    delivered: orders.filter((o) => o.status === "delivered" || o.status === "collected").length,
-    done: orders.filter((o) => o.status === "confirmed").length
-  };
+  const stats = counts || { pending: 0, inTransit: 0, delivered: 0, done: 0 };
   const cards = [
     { label: t.admin.fulfilment.stats.pending, value: stats.pending },
     { label: t.admin.fulfilment.stats.inTransit, value: stats.inTransit },
@@ -117,7 +132,7 @@ export default function AdminFulfilment() {
         ))}
       </div>
 
-      <div className="admin-table-card rounded-2xl border border-border bg-card overflow-hidden">
+      <div className={cn("admin-table-card rounded-2xl border border-border bg-card overflow-hidden", table.isPlaceholderData && "opacity-60")}>
         <div className="admin-table-scroll">
           <table className="w-full text-sm">
             <thead className="bg-secondary/50 text-muted-foreground">
@@ -165,6 +180,7 @@ export default function AdminFulfilment() {
             </tbody>
           </table>
         </div>
+        <AdminPagination {...table.pagination} />
       </div>
 
       <Dialog open={!!advance} onOpenChange={(o) => !o && setAdvance(null)}>

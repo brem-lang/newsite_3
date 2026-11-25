@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
  * (`cancelRefetch: false`). Use this for aggregates and admin tables where the
  * payload can't simply be merged into the cache.
  *
- *   useInvalidateOn(base44.entities.Bid, adminKeys.section("bids"), { filter, throttleMs: 2000 })
+ *   useInvalidateOn(base44.entities.Bid, adminKeys.auctionBids(auctionId), { filter, throttleMs: 2000 })
  */
 export function useInvalidateOn(entity, queryKey, { filter, throttleMs = 1000, enabled = true } = {}) {
   const qc = useQueryClient();

@@ -1196,52 +1196,90 @@ async function claimFulfilment(user: Row, body: Payload) {
 
 /* -------------------------------- admin -------------------------------- */
 
-async function listUsers() {
-  const [{ data: profiles }, { data: notes }, { data: roles }] = await Promise.all([
-    admin.from("profiles").select("*").order("created_date", { ascending: false }).limit(1000),
-    admin.from("participant_notes").select("*").order("created_date", { ascending: false }).limit(1000),
-    admin.from("user_roles").select("user_id, role"),
-  ]);
+/**
+ * One page of users for the admin Users / Participants tables. Search, filters,
+ * sort, the page slice and the total count all run in Postgres, so the screens
+ * stay correct however many accounts exist.
+ *   payload: { page, pageSize, search, status, role, idsOnly, counts }
+ *   status: "all" | one status | a list of statuses
+ *   -> { users, notes, total, page, pageSize, pageCount }
+ *   idsOnly -> { ids, total }     counts -> { counts: { pending, verified, rejected } }
+ */
+async function listUsers(actor: Row, body: Payload = {}) {
+  const page = Math.max(1, Number(body["page"]) || 1);
+  const pageSize = Math.min(200, Math.max(1, Number(body["pageSize"]) || 25));
+  // PostgREST `or` syntax: commas, parens and wildcards in the term would break the filter.
+  const search = String(body["search"] || "").replace(/[%,()*\\]/g, " ").trim();
+  const statuses: string[] = Array.isArray(body["status"])
+    ? (body["status"] as unknown[]).map(String)
+    : body["status"] && body["status"] !== "all" ? [String(body["status"])] : [];
+  const status = statuses.length ? statuses.join(",") : "all";
+  const roleFilter = String(body["role"] || "all");
+  const idsOnly = body["idsOnly"] === true;
+  const countsOnly = body["counts"] === true;
 
-  // Fetch every registered auth user so nobody is missing from Participants,
-  // even if their profile row was never created (pre-trigger signups).
-  const { data: authData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  const authUsers = authData?.users || [];
-  const byId = new Map((profiles || []).map((p: Row) => [p["id"], p]));
-  const missing = authUsers.filter((u: Row) => !byId.has(u.id));
-
-  // Backfill missing profiles so the table stays in sync going forward.
-  if (missing.length > 0) {
-    const rows = missing.map((u: Row) => ({
-      id: u.id,
-      email: u.email || null,
-      full_name: u.user_metadata?.full_name || null,
-      first_name: u.user_metadata?.first_name || null,
-      last_name: u.user_metadata?.last_name || null,
-      phone: u.phone || u.user_metadata?.phone || null,
-      country: u.user_metadata?.country || null,
-    }));
-    const { data: inserted } = await admin.from("profiles").upsert(rows, { onConflict: "id" }).select("*");
-    (inserted || rows).forEach((p: Row) => byId.set(p["id"], p));
+  // Signups older than the handle_new_user trigger get their profile row here
+  // (one INSERT ... WHERE NOT EXISTS), on the unfiltered first page only.
+  if (page === 1 && !search && status === "all" && roleFilter === "all" && !idsOnly && !countsOnly) {
+    await admin.rpc("backfill_missing_profiles").then(() => undefined, () => undefined);
   }
 
-  // Merge auth users with their profiles; newest registrations first.
-  const users = authUsers
-    .map((u: Row) => {
-      const p: Row = byId.get(u.id) || {};
-      return {
-        ...p,
-        id: u.id,
-        email: p["email"] || u.email || null,
-        created_date: p["created_date"] || u.created_at,
-      };
-    })
-    .sort((a: Row, b: Row) => new Date(b["created_date"]).getTime() - new Date(a["created_date"]).getTime());
+  const { data: adminRows } = await admin.from("user_roles").select("user_id").eq("role", "admin");
+  const adminIds = [...new Set((adminRows || []).map((r: Row) => String(r.user_id)))];
 
-  const adminIds = new Set((roles || []).filter((r: Row) => r.role === "admin").map((r: Row) => r.user_id));
+  const build = (fields: string, opts: { head?: boolean; statuses?: string[] } = {}) => {
+    let q = admin.from("profiles").select(fields, { count: "exact", head: !!opts.head });
+    const only = opts.statuses ?? statuses;
+    // Super admins are invisible to everyone except other super admins.
+    if (!actor["is_super"]) q = q.eq("is_super", false);
+    if (search) {
+      q = q.or(["full_name", "email", "phone", "country"].map((c) => `${c}.ilike.%${search}%`).join(","));
+    }
+    if (only.length === 1) q = q.eq("verification_status", only[0]);
+    else if (only.length > 1) q = q.in("verification_status", only);
+    if (roleFilter === "admin") q = q.in("id", adminIds.length ? adminIds : ["00000000-0000-0000-0000-000000000000"]);
+    else if (roleFilter === "user" && adminIds.length) q = q.not("id", "in", `(${adminIds.join(",")})`);
+    return q.order("created_date", { ascending: false });
+  };
+
+  if (countsOnly) {
+    // Verification stat cards: one head-only count per status.
+    const keys = ["pending", "verified", "rejected"];
+    const results = await Promise.all(keys.map((k) => build("id", { head: true, statuses: [k] })));
+    const counts: Record<string, number> = {};
+    keys.forEach((k, i) => { counts[k] = Number(results[i].count || 0); });
+    return ok({ counts });
+  }
+
+  if (idsOnly) {
+    // "Select all matching" in Participants: ids only, in batches past the row cap.
+    const ids: string[] = [];
+    let total = 0;
+    for (let from = 0; ; from += 1000) {
+      const { data, count, error } = await build("id").range(from, from + 999);
+      if (error) return fail(error.message, 500);
+      total = Number(count || 0);
+      ids.push(...(data || []).map((r: Row) => String(r["id"])));
+      if (!data?.length || ids.length >= total) break;
+    }
+    return ok({ ids, total });
+  }
+
+  const from = (page - 1) * pageSize;
+  const { data: profiles, count, error } = await build("*").range(from, from + pageSize - 1);
+  if (error) return fail(error.message, 500);
+  const rows = (profiles || []) as Row[];
+  const total = Number(count || 0);
+
+  const pageIds = rows.map((p) => p["id"]);
+  const { data: notes } = pageIds.length
+    ? await admin.from("participant_notes").select("*").in("user_id", pageIds).order("created_date", { ascending: false })
+    : { data: [] };
+
+  const adminSet = new Set(adminIds);
   return ok({
-    users: users.map((u: Row) => {
-      const base = adminIds.has(u["id"]) ? "admin" : "user";
+    users: rows.map((u) => {
+      const base = adminSet.has(String(u["id"])) ? "admin" : "user";
       return {
         ...u,
         role: base,
@@ -1252,6 +1290,10 @@ async function listUsers() {
       };
     }),
     notes: notes || [],
+    total,
+    page,
+    pageSize,
+    pageCount: Math.max(1, Math.ceil(total / pageSize)),
   });
 }
 
@@ -1824,13 +1866,38 @@ async function walletExposure(user: Row, _body: Payload) {
   });
 }
 
-/** Admin: every win and whether its manual payment has been collected. */
+/**
+ * Admin: one page of wins and whether each manual payment has been collected.
+ *   payload: { page, pageSize, status, auction_id, search }
+ *   search matches the auction title, the winner name / email, the pay token or the paid reference.
+ *   -> { payments, total, page, pageSize, pageCount }
+ */
 async function listWinnerPayments(_actor: Row, body: Payload) {
-  let q = admin.from("winner_payments").select("*").order("created_date", { ascending: false }).limit(500);
-  if (body["status"]) q = q.eq("status", String(body["status"]));
+  const page = Math.max(1, Number(body["page"]) || 1);
+  const pageSize = Math.min(200, Math.max(1, Number(body["pageSize"]) || 25));
+  const search = String(body["search"] || "").replace(/[%,()*\\"]/g, " ").trim();
+
+  let q = admin.from("winner_payments").select("*", { count: "exact" }).order("created_date", { ascending: false });
+  if (body["status"] && body["status"] !== "all") q = q.eq("status", String(body["status"]));
   if (body["auction_id"]) q = q.eq("auction_id", String(body["auction_id"]));
-  const { data } = await q;
-  return ok({ payments: data || [] });
+  if (search) {
+    // Title and name live on other tables: resolve them to ids first (bounded lookups).
+    const [{ data: aRows }, { data: uRows }] = await Promise.all([
+      admin.from("auctions").select("id").ilike("title", `%${search}%`).limit(1000),
+      admin.from("profiles").select("id").or(`full_name.ilike.%${search}%,email.ilike.%${search}%`).limit(1000),
+    ]);
+    const parts = [`token.ilike.%${search}%`, `paid_reference.ilike.%${search}%`];
+    const aIds = (aRows || []).map((r: Row) => r["id"]);
+    const uIds = (uRows || []).map((r: Row) => r["id"]);
+    if (aIds.length) parts.push(`auction_id.in.(${aIds.join(",")})`);
+    if (uIds.length) parts.push(`user_id.in.(${uIds.join(",")})`);
+    q = q.or(parts.join(","));
+  }
+  const from = (page - 1) * pageSize;
+  const { data, count, error } = await q.range(from, from + pageSize - 1);
+  if (error) return fail(error.message, 500);
+  const total = Number(count || 0);
+  return ok({ payments: data || [], total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) });
 }
 
 /** Admin: mark a win as paid outside the wallet (bank transfer, cash, link). */
@@ -2208,7 +2275,7 @@ export async function runBackendFunction(name: string, payload: Payload, userId:
     // A write that the database rejects must surface as a failure, never as
     // a silent success the screen reports as "saved".
     try {
-      if (name === "listUsers") return listUsers();
+      if (name === "listUsers") return listUsers(user, payload);
       if (name === "finalizeAuctions") return ok(await finalizeAuctions());
       return await ADMIN_HANDLERS[name]!(user, payload);
     } catch (e) {

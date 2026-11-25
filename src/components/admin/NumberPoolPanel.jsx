@@ -13,7 +13,7 @@ const nf = (n) => Number(n || 0).toLocaleString("en-GB");
  */
 export function useNumberPool(auctionId, { enabled = true, revision = 0 } = {}) {
   const qc = useQueryClient();
-  const queryKey = adminKeys.section("numberPool", auctionId);
+  const queryKey = adminKeys.numberPool(auctionId);
   // One cached pool per auction, shared by every surface that shows it.
   const { data: pool = null, isFetching: loading, refetch } = useQuery({
     queryKey,
@@ -32,7 +32,7 @@ export function useNumberPool(auctionId, { enabled = true, revision = 0 } = {}) 
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
-    if (enabled && auctionId) qc.invalidateQueries({ queryKey: adminKeys.section("numberPool", auctionId) }, { cancelRefetch: false });
+    if (enabled && auctionId) qc.invalidateQueries({ queryKey: adminKeys.numberPool(auctionId) }, { cancelRefetch: false });
   }, [revision]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => (await refetch()).data ?? null, [refetch]);

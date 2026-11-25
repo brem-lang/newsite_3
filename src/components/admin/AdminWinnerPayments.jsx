@@ -1,7 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Receipt, Copy, CheckCircle2, XCircle, Clock, RefreshCw, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminData, useAdminUserMap, useAdminAuctionMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAdminUsersByIds, useAdminAuctionsByIds, adminSection, adminRpc, warmAdmin } from "@/lib/queries/admin";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
+import AdminPagination from "@/components/admin/AdminPagination";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -20,46 +24,49 @@ const STATUSES = ["pending", "paid", "void"];
  * runner-up is promoted.
  */
 const NONE = [];
-const NO_MAP = {};
 
-const loadSection = async () => {
-  const res = await base44.functions.invoke("listWinnerPayments", {});
-  if (res.data?.error) throw new Error(res.data.error);
-  return res.data?.payments || [];
-};
+/** One server page of wins (listWinnerPayments): status, search and paging run on the server. */
+const pageQuery = (params) =>
+  adminSection(adminKeys.winnerPaymentsPage(params), async () => {
+    const res = await base44.functions.invoke("listWinnerPayments", params);
+    if (res.data?.error) throw new Error(res.data.error);
+    return { payments: [], total: 0, pageCount: 1, ...res.data };
+  }, { placeholderData: keepPreviousData });
 
-/** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["winnerpayments"], loadSection), adminLookups.users(), adminLookups.auctions());
+/** Stat cards over every win (admin_winner_payment_totals). */
+const totalsQuery = () =>
+  adminSection(adminKeys.winnerPaymentsTotals(), async () => ({ pending: 0, paid: 0, count: 0, ...((await adminRpc("admin_winner_payment_totals")) || {}) }));
+
+const FIRST = { status: "pending", search: "", page: 1, pageSize: 25 };
+
+/** Route loader: the totals and the first page. */
+export const prefetch = (qc) => warmAdmin(qc, totalsQuery(), pageQuery(FIRST));
 
 export default function AdminWinnerPayments() {
   const { t } = useI18n();
-  const { data: rows = NONE, isPending: loading, refresh: load, error: loadError } = useAdminData(["winnerpayments"], loadSection);
-  useEffect(() => { if (loadError) toast.error(loadError.message || "Error"); }, [loadError]);
-  const auctions = useAdminAuctionMap();
-  const users = useAdminUserMap();
-  const [status, setStatus] = useState("pending");
+  const qc = useQueryClient();
+  const [status, setStatus] = useState(FIRST.status);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(FIRST.pageSize);
+  const search = useDebouncedValue(q.trim());
+  useEffect(() => { setPage(1); }, [status, search, pageSize]);
+  const { data, isPending: loading, error: loadError } = useQuery(pageQuery({ status, search, page, pageSize }));
+  const rows = data?.payments ?? NONE;
+  const { data: totals = { pending: 0, paid: 0, count: 0 } } = useQuery(totalsQuery());
+  const load = () => qc.invalidateQueries({ queryKey: adminKeys.winnerPaymentsAll() });
+  useEffect(() => { if (loadError) toast.error(loadError.message || "Error"); }, [loadError]);
+  // Labels for just this page.
+  const auctions = useAdminAuctionsByIds(rows.map((r) => r.auction_id));
+  const users = useAdminUsersByIds(rows.map((r) => r.user_id));
   const [busy, setBusy] = useState(false);
   const [payDialog, setPayDialog] = useState(null);
   const [form, setForm] = useState({ reference: "", note: "" });
 
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (status !== "all" && r.status !== status) return false;
-      if (!needle) return true;
-      const u = users[r.user_id];
-      const hay = [auctions[r.auction_id]?.title, u?.full_name, u?.email, r.token, r.paid_reference]
-        .filter(Boolean).join(" ").toLowerCase();
-      return hay.includes(needle);
-    });
-  }, [rows, status, q, auctions, users]);
-
-  const totals = useMemo(() => {
-    const sum = (s) => rows.filter((r) => r.status === s).reduce((n, r) => n + Number(r.amount || 0), 0);
-    return { pending: sum("pending"), paid: sum("paid"), count: rows.length };
-  }, [rows]);
+  const filtered = rows;
+  const total = data?.total ?? 0;
+  const pagination = { page: Math.min(page, data?.pageCount || 1), pageSize, total, onPage: setPage, onPageSize: setPageSize };
 
   const linkFor = (r) => `${window.location.origin}/pay/${r.token}`;
 
@@ -131,8 +138,8 @@ export default function AdminWinnerPayments() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label={t.admin.winnerPayments?.awaiting || "Awaiting payment"} value={`${t.common.currency}${totals.pending.toFixed(2)}`} tone="amber" />
-        <Stat label={t.admin.winnerPayments?.collected || "Collected"} value={`${t.common.currency}${totals.paid.toFixed(2)}`} tone="emerald" />
+        <Stat label={t.admin.winnerPayments?.awaiting || "Awaiting payment"} value={`${t.common.currency}${Number(totals.pending).toFixed(2)}`} tone="amber" />
+        <Stat label={t.admin.winnerPayments?.collected || "Collected"} value={`${t.common.currency}${Number(totals.paid).toFixed(2)}`} tone="emerald" />
         <Stat label={t.admin.winnerPayments?.wins || "Total wins"} value={totals.count} />
       </div>
 
@@ -152,7 +159,7 @@ export default function AdminWinnerPayments() {
         <div className="h-40 grid place-items-center">
           <div className="w-8 h-8 border-4 border-muted border-t-foreground rounded-full animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : total === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
           {t.admin.winnerPayments?.empty || "No winner payments yet."}
         </div>
@@ -201,6 +208,7 @@ export default function AdminWinnerPayments() {
               </div>
             );
           })}
+          <div className="rounded-2xl border border-border bg-card"><AdminPagination {...pagination} /></div>
         </div>
       )}
 

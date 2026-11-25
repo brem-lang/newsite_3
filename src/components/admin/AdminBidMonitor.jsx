@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivitySquare, AlertTriangle, CheckCircle2, Gauge, RefreshCw, ShieldAlert } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAdminData, useAdminUserMap, useAdminAuctionMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAdminPage, useAdminUsersByIds, useAdminAuctionsByIds, adminPageQuery, adminSection, adminRpc, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
+import { useInvalidateOn } from "@/lib/queries/live";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import AdminPagination, { paginate } from "@/components/admin/AdminPagination";
+import AdminPagination from "@/components/admin/AdminPagination";
 
 const FILTERS = ["all", "error", "warning", "info"];
 
@@ -14,61 +16,60 @@ const FILTERS = ["all", "error", "warning", "info"];
  * Bid observability: every bid/join/settlement attempt with its outcome,
  * latency and detected anomalies, so rare inconsistencies are debuggable.
  */
-const NONE = [];
+const NO_STATS = { total: 0, accepted: 0, errors: 0, anomalies: 0, p95: 0, rate: 0 };
+const filtersFor = (filter) => ({ sort: "-created_date", where: filter === "all" ? {} : { severity: filter } });
 
-const loadSection = async () => (await base44.entities.BidEvent.list("-created_date", 300).catch(() => [])) || [];
+/** Last-hour health numbers, counted in Postgres (admin_bid_monitor_stats). */
+const statsQuery = (live) =>
+  adminSection(
+    adminKeys.bidMonitorStats(),
+    async () => ({ ...NO_STATS, ...((await adminRpc("admin_bid_monitor_stats", { _since: new Date(Date.now() - 3_600_000).toISOString() })) || {}) }),
+    { refetchInterval: live ? 30_000 : false, refetchIntervalInBackground: false },
+  );
 
-/** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["bidmonitor"], loadSection), adminLookups.users(), adminLookups.auctions());
+/** Route loader: the health numbers and the first page of events. */
+export const prefetch = (qc) => {
+  const params = firstPage(filtersFor("all"));
+  return warmAdmin(qc, statsQuery(true), adminPageQuery("BidEvent", adminKeys.bidMonitorPage(params), params));
+};
 
 export default function AdminBidMonitor() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [live, setLive] = useState(true);
-  const users = useAdminUserMap();
-  const auctions = useAdminAuctionMap();
 
-  // Cached event log; in live mode a 30s safety poll (paused in background
-  // tabs) backs up the realtime stream below.
-  const { data: events = NONE, isFetching: loading, refresh, queryKey } = useAdminData(["bidmonitor"], loadSection, { refetchInterval: live ? 30_000 : false, refetchIntervalInBackground: false });
-  const load = useCallback(() => refresh(), [refresh]);
+  // One server page of the event log; in live mode a 30s safety poll (paused
+  // in background tabs) backs up the realtime stream below.
+  const table = useAdminPage("BidEvent", adminKeys.bidMonitorPage, filtersFor(filter), {
+    refetchInterval: live ? 30_000 : false,
+    refetchIntervalInBackground: false,
+  });
+  const { rows: visible, isFetching: loading, page, queryKey } = table;
+  const { data: stats = NO_STATS } = useQuery(statsQuery(live));
+  const load = useCallback(() => qc.invalidateQueries({ queryKey: adminKeys.bidMonitorAll() }), [qc]);
 
+  // Labels for just the rows on this page.
+  const users = useAdminUsersByIds(visible.map((e) => e.user_id));
+  const auctions = useAdminAuctionsByIds(visible.map((e) => e.auction_id));
+
+  // New events go straight onto page 1 (when they match the filter); other
+  // pages and the stats refresh on the throttled invalidation below.
   useEffect(() => {
-    if (!live) return;
-    // Each event carries the row: prepend it to the cache, no re-fetch.
+    if (!live || page !== 1) return;
     return base44.entities.BidEvent.subscribe(({ data, event }) => {
       if (!data?.id || event === "DELETE") return;
-      qc.setQueryData(queryKey, (prev = []) => [data, ...prev.filter((e) => e.id !== data.id)].slice(0, 300));
+      if (filter !== "all" && data.severity !== filter) return;
+      qc.setQueryData(queryKey, (prev) => {
+        if (!prev) return prev;
+        const known = prev.rows.some((e) => e.id === data.id);
+        const rows = [data, ...prev.rows.filter((e) => e.id !== data.id)].slice(0, prev.pageSize);
+        const total = known ? prev.total : prev.total + 1;
+        return { ...prev, rows, total, pageCount: Math.max(1, Math.ceil(total / prev.pageSize)) };
+      });
     }, { onReconnect: () => qc.invalidateQueries({ queryKey }) });
-  }, [live, qc]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const stats = useMemo(() => {
-    const since = Date.now() - 60 * 60 * 1000;
-    const recent = events.filter((e) => new Date(e.created_date).getTime() >= since);
-    const errors = recent.filter((e) => e.severity === "error");
-    const accepted = recent.filter((e) => e.outcome === "accepted");
-    const lat = recent.map((e) => Number(e.latency_ms || 0)).filter((n) => n > 0).sort((a, b) => a - b);
-    const p95 = lat.length ? lat[Math.min(lat.length - 1, Math.floor(lat.length * 0.95))] : 0;
-    return {
-      total: recent.length,
-      accepted: accepted.length,
-      errors: errors.length,
-      anomalies: recent.filter((e) => e.details?.anomaly).length,
-      p95,
-      rate: recent.length ? Math.round((errors.length / recent.length) * 100) : 0,
-    };
-  }, [events]);
-
-  const rows = useMemo(
-    () => (filter === "all" ? events : events.filter((e) => e.severity === filter)),
-    [events, filter],
-  );
-
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-  useEffect(() => { setPage(1); }, [filter]);
-  const visible = useMemo(() => paginate(rows, page, pageSize), [rows, page, pageSize]);
+  }, [live, page, filter, qc, JSON.stringify(queryKey)]); // eslint-disable-line react-hooks/exhaustive-deps
+  useInvalidateOn(base44.entities.BidEvent, adminKeys.bidMonitorStats(), { throttleMs: 5000, enabled: live });
 
   const who = (id) => {
     const u = users[id];
@@ -161,7 +162,7 @@ export default function AdminBidMonitor() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {table.total === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-muted-foreground">
                     {loading ? "Loading…" : "No bid events recorded yet."}
@@ -218,10 +219,7 @@ export default function AdminBidMonitor() {
             </tbody>
           </table>
         </div>
-        <AdminPagination
-          page={page} pageSize={pageSize} total={rows.length}
-          onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }}
-        />
+        <AdminPagination {...table.pagination} />
       </div>
     </div>
   );

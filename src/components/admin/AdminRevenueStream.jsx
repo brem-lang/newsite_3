@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Gavel, Ticket, Trophy, Wallet, Clock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,7 @@ const loadSection = async () => {
 };
 
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["revenue-stream"], loadSection));
+export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.revenueStream(), loadSection));
 
 export default function AdminRevenueStream() {
   const { lang } = useI18n();
@@ -42,7 +43,7 @@ export default function AdminRevenueStream() {
   const timer = useRef(null);
 
   // Cached; 20s safety poll, paused while the tab is hidden.
-  const { data, isPending: loading, refresh: load } = useAdminData(["revenue-stream"], loadSection, { staleTime: 10_000, refetchInterval: 20_000, refetchIntervalInBackground: false });
+  const { data, isPending: loading, refresh: load } = useAdminData(adminKeys.revenueStream(), loadSection, { staleTime: 10_000, refetchInterval: 20_000, refetchIntervalInBackground: false });
   const txns = data?.txns ?? NONE;
   const auctions = data?.auctions ?? NONE;
   const pending = data?.pending ?? NONE;

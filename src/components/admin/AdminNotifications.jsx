@@ -1,25 +1,27 @@
 import React, { useState } from "react";
 import { Mail, MessageCircle, Bell, ListFilter } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-import { useAdminData, useAdminUserMap, adminSection, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUsersByIds, adminPageQuery, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
+import AdminPagination from "@/components/admin/AdminPagination";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-const NONE = [];
+const SORT = "-created_date";
+const filtersFor = (channel) => ({ sort: SORT, where: channel === "all" ? {} : { channel } });
 
-const loadSection = async () => (await base44.entities.Notification.list("-created_date", 500)) || [];
-
-/** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["notifications"], loadSection), adminLookups.users());
+/** Route loader: the first page (paged and filtered in Postgres). */
+export const prefetch = (qc) => {
+  const params = firstPage(filtersFor("all"));
+  return warmAdmin(qc, adminPageQuery("Notification", adminKeys.notificationsPage(params), params));
+};
 
 export default function AdminNotifications() {
   const { t } = useI18n();
-  const { data: items = NONE, isPending: loading } = useAdminData(["notifications"], loadSection);
   const [channel, setChannel] = useState("all");
-  const users = useAdminUserMap();
-
-
-  const filtered = channel === "all" ? items : items.filter((n) => n.channel === channel);
+  const table = useAdminPage("Notification", adminKeys.notificationsPage, filtersFor(channel));
+  const { rows: filtered, isPending: loading } = table;
+  // Names for just the recipients on this page.
+  const users = useAdminUsersByIds(filtered.map((n) => n.user_id));
 
   const channelMeta = (c) => ({
     inapp: { icon: Bell, label: t.admin.notificationsLog.chInapp, tint: "text-info bg-info/10" },
@@ -59,10 +61,10 @@ export default function AdminNotifications() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {table.total === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">{t.admin.notificationsLog.empty}</div>
       ) : (
-        <div className="admin-table-card rounded-2xl border border-border bg-card overflow-hidden">
+        <div className={cn("admin-table-card rounded-2xl border border-border bg-card overflow-hidden", table.isPlaceholderData && "opacity-60")}>
           <div className="admin-table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 text-muted-foreground">
@@ -98,6 +100,7 @@ export default function AdminNotifications() {
               </tbody>
             </table>
           </div>
+          <AdminPagination {...table.pagination} />
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { walletKeys } from "./keys";
 
 const usable = (t) => t.status !== "pending" && t.status !== "failed";
 
@@ -34,21 +35,21 @@ const WALLET_LIVE = {
 export const walletQueries = {
   balance: (userId) =>
     queryOptions({
-      queryKey: ["wallet", userId, "balance"],
+      queryKey: walletKeys.balance(userId),
       queryFn: () => fetchBalance(userId),
       enabled: !!userId,
       ...WALLET_LIVE,
     }),
   transactions: (userId) =>
     queryOptions({
-      queryKey: ["wallet", userId, "transactions"],
+      queryKey: walletKeys.transactions(userId),
       queryFn: () => fetchTransactions(userId),
       enabled: !!userId,
       ...WALLET_LIVE,
     }),
   refunds: (userId) =>
     queryOptions({
-      queryKey: ["wallet", userId, "refunds"],
+      queryKey: walletKeys.refunds(userId),
       queryFn: () => base44.entities.RefundRequest.filter({ user_id: userId }, "-created_date", 100),
       enabled: !!userId,
       staleTime: 30_000,
@@ -61,7 +62,7 @@ function useWalletRealtime(userId, qc) {
     if (!userId) return;
     // cancelRefetch: false — several mounted hooks receive the same event, and
     // they should share the one request already in flight.
-    const refresh = () => qc.invalidateQueries({ queryKey: ["wallet", userId] }, { cancelRefetch: false });
+    const refresh = () => qc.invalidateQueries({ queryKey: walletKeys.all(userId) }, { cancelRefetch: false });
     return base44.entities.WalletTransaction.subscribe(refresh, {
       filter: `user_id=eq.${userId}`,
       onReconnect: refresh,
@@ -87,7 +88,7 @@ export function useWallet(userId, withTransactions = false) {
   });
 
   const refresh = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["wallet", userId] });
+    qc.invalidateQueries({ queryKey: walletKeys.all(userId) });
   }, [qc, userId]);
 
   return {

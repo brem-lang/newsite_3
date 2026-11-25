@@ -24,17 +24,17 @@ const TIMEZONES = [
 const loadSection = async () => (await base44.entities.SiteSettings.filter({ key: "global" }).catch(() => []))?.[0] || null;
 
 /** Route loader: the settings row and the signed-in staff profile. */
-export const prefetch = (qc) => warmAdmin(qc, adminSection(["settings", "global"], loadSection), adminLookups.me());
+export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.settings(), loadSection), adminLookups.me());
 
 export default function AdminSettings() {
   const { t } = useI18n();
   // The signed-in staff member (admin session, separate from customers).
   const qc = useQueryClient();
   const user = useAdminMe();
-  const loadAdmin = useCallback(() => qc.invalidateQueries({ queryKey: adminKeys.section("me") }), [qc]);
+  const loadAdmin = useCallback(() => qc.invalidateQueries({ queryKey: adminKeys.me() }), [qc]);
   // Capabilities: the same cached query AdminGate uses.
   const { data: caps = null } = useAdminCapabilities();
-  const { data: row = null, isPending: loading, queryKey: rowKey } = useAdminData(["settings", "global"], loadSection);
+  const { data: row = null, isPending: loading, queryKey: rowKey } = useAdminData(adminKeys.settings(), loadSection);
   const setRow = (next) => qc.setQueryData(rowKey, next);
   const [form, setForm] = useState({
     site_name: "", tagline: "", timezone: "Asia/Jerusalem",

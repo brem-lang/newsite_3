@@ -2,8 +2,10 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Search, UserPlus, Mail, MessageCircle, Bell, ChevronDown, ChevronUp, Gavel, Wallet, Edit2, Trash2, PauseCircle, PlayCircle, ShieldCheck, KeyRound, Plus, Minus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAdminData, useAdminMe, adminUserListQuery, adminSection, adminLookups, warmAdmin } from "@/lib/queries/admin";
-import AdminPagination, { paginate } from "@/components/admin/AdminPagination";
+import { useAdminData, useAdminMe, adminUserListQuery, ADMIN_USER_LIST_KEY, adminSection, adminLookups, warmAdmin } from "@/lib/queries/admin";
+import { adminKeys } from "@/lib/queries/keys";
+import AdminPagination from "@/components/admin/AdminPagination";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { logAdminAction } from "@/lib/adminAudit";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -28,19 +30,25 @@ const loadRoles = async () => (await base44.entities.Role.list("-created_date", 
 
 /** Route loader: users, roles and the signed-in staff profile. */
 export const prefetch = (qc) =>
-  warmAdmin(qc, adminUserListQuery(), adminSection(["roles", "list"], loadRoles), adminLookups.me());
+  warmAdmin(qc, adminUserListQuery(), adminSection(adminKeys.rolesList(), loadRoles), adminLookups.me());
 
 export default function AdminUsers() {
   const { t } = useI18n();
   const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
-  // listUsers is shared with the Participants panel (same cache entry).
+  // listUsers pages are shared with the Participants panel (same cache prefix).
   const qc = useQueryClient();
-  const usersQuery = useQuery(adminUserListQuery());
-  const users = usersQuery.data?.users ?? NONE;
-  const { data: roles = NONE, isPending: rolesLoading } = useAdminData(["roles", "list"], loadRoles);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const search = useDebouncedValue(query.trim());
+  useEffect(() => { setPage(1); }, [search, pageSize]);
+  // Search, paging and super-admin hiding all run on the server (listUsers).
+  const usersQuery = useQuery(adminUserListQuery({ page, pageSize, search }));
+  const visible = usersQuery.data?.users ?? NONE;
+  const total = usersQuery.data?.total ?? 0;
+  const { data: roles = NONE, isPending: rolesLoading } = useAdminData(adminKeys.rolesList(), loadRoles);
   const loading = usersQuery.isPending || rolesLoading;
   const me = useAdminMe();
-  const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(null);
   const [profile, setProfile] = useState({ bids: [], txns: [] });
   const [invite, setInvite] = useState(false);
@@ -60,9 +68,9 @@ export default function AdminUsers() {
   const isSuper = !!me?.is_super;
 
   const load = useCallback(() => {
-    qc.invalidateQueries({ queryKey: adminUserListQuery().queryKey });
-    qc.invalidateQueries({ queryKey: ["admin", "roles"] });
-    qc.invalidateQueries({ queryKey: ["admin", "users", "lookup"] });
+    qc.invalidateQueries({ queryKey: ADMIN_USER_LIST_KEY });
+    qc.invalidateQueries({ queryKey: adminKeys.roles() });
+    qc.invalidateQueries({ queryKey: adminKeys.usersLookup() });
   }, [qc]);
 
   const roleOptions = useMemo(() => {
@@ -77,17 +85,6 @@ export default function AdminUsers() {
   }, [roles]);
 
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return users
-      .filter((u) => isSuper || !u.is_super) // super admins are invisible to regular admins
-      .filter((u) => !q || (u.full_name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q) || (u.phone || "").toLowerCase().includes(q));
-  }, [users, query, isSuper]);
-
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-  useEffect(() => { setPage(1); }, [query]);
-  const visible = useMemo(() => paginate(filtered, page, pageSize), [filtered, page, pageSize]);
 
   const openProfile = async (u) => {
     if (expanded === u.id) { setExpanded(null); return; }
@@ -212,7 +209,7 @@ export default function AdminUsers() {
         <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.admin.users.search} className="ps-9" />
       </div>
 
-      {filtered.length === 0 ? (
+      {total === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">{t.admin.users.noUsers}</div>
       ) : (
         <div className="space-y-2">
@@ -300,7 +297,7 @@ export default function AdminUsers() {
           })}
           <div className="rounded-2xl border border-border bg-card">
             <AdminPagination
-              page={page} pageSize={pageSize} total={filtered.length}
+              page={page} pageSize={pageSize} total={total}
               onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }}
               className="border-t-0"
             />
