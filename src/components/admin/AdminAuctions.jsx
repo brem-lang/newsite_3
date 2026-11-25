@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Plus, Pencil, Trash2, Clock, Star, Trophy, Users, Flame, CheckCircle2, Search, Download, FileText, BarChart3, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, RefreshCw, Play, Square, RotateCcw, Archive } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAdminData, useAdminUserMap, useAdminUsersByIds, adminSection, auctionCountsQuery, endedAuctionsQuery, fetchEndedAuctions, warmAdmin, adminLookups } from "@/lib/queries/admin";
+import { useAdminData, useAdminPage, adminPageQuery, firstPage, useAdminUserMap, useAdminUsersByIds, adminSection, auctionCountsQuery, endedAuctionsQuery, fetchEndedAuctions, warmAdmin, adminLookups } from "@/lib/queries/admin";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { adminKeys } from "@/lib/queries/keys";
 import { logAdminAction } from "@/lib/adminAudit";
@@ -17,6 +17,7 @@ import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { MAX_HOME_SLOTS } from "@/lib/homeShowcase";
 import SelectField from "@/components/ui/select-field";
+import AdminPagination from "@/components/admin/AdminPagination";
 
 const statusStyles = {
   open: "bg-success/10 text-success",
@@ -41,8 +42,15 @@ const loadSection = async () =>
   (await base44.entities.Auction.page({ notIn: { status: ["ended", "archived"] }, sort: "-created_date", pageSize: 1000 })).rows;
 const activeQuery = () => adminSection(adminKeys.auctionsActive(), loadSection);
 
+/**
+ * The "All" tab (labelled Total): every non-archived auction, ended ones
+ * included, paged in Postgres so the table matches the Total count.
+ */
+const ALL_FILTERS = { notIn: { status: ["archived"] }, sort: "-created_date" };
+const allFirstPage = () => adminPageQuery("Auction", adminKeys.auctionsAllPage(firstPage(ALL_FILTERS)), firstPage(ALL_FILTERS));
+
 /** Route loader: everything this panel paints, before it opens. */
-export const prefetch = (qc) => warmAdmin(qc, activeQuery(), auctionCountsQuery(), adminLookups.users());
+export const prefetch = (qc) => warmAdmin(qc, activeQuery(), allFirstPage(), auctionCountsQuery(), adminLookups.users());
 
 export default function AdminAuctions() {
   const { t, format } = useI18n();
@@ -56,6 +64,7 @@ export default function AdminAuctions() {
   const setAuctions = (update) => qc.setQueryData(queryKey, (prev = []) => update(prev));
   const users = useAdminUserMap();
   const [view, setView] = useState("all");
+  const allPage = useAdminPage("Auction", adminKeys.auctionsAllPage, ALL_FILTERS);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -187,8 +196,6 @@ export default function AdminAuctions() {
   const byStatus = (s) => auctions.filter((a) => adminStatus(a, now) === s);
   const liveAuctions = byStatus("live");
   const openAuctions = byStatus("open");
-  // "All" lists the working set; ended and archived have their own paged tabs.
-  const activeAuctions = auctions;
   // Totals come from Postgres so they cover every auction, not just loaded rows.
   const stats = {
     total: counts.nonArchived,
@@ -212,7 +219,7 @@ export default function AdminAuctions() {
     { value: "ended", label: t.auction.statusEnded, count: stats.ended },
     { value: "archived", label: L.archived, count: stats.archived }
   ];
-  const rows = view === "all" ? activeAuctions : byStatus(view);
+  const rows = view === "all" ? allPage.rows : byStatus(view);
 
   return (
     <div className="space-y-6 admin-fill">
@@ -418,6 +425,7 @@ export default function AdminAuctions() {
             </tbody>
           </table>
         </div>
+        {view === "all" && <AdminPagination {...allPage.pagination} />}
       </div>
       )}
 

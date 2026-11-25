@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogF
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
+import { CATEGORY_ICONS, CategoryIcon, DEFAULT_CATEGORY_ICON } from "@/lib/categoryIcons";
 
 const slugify = (s) => s.toLowerCase().trim().replace(/[^\w\u0600-\u06FF\s-]/g, "").replace(/\s+/g, "-");
 
@@ -29,10 +30,10 @@ export default function AdminCategories() {
   const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(adminKeys.categories(), loadSection);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: "", slug: "", color: "#3b82f6", icon: "", description: "", sort_order: 0, active: true });
+  const [form, setForm] = useState({ name: "", slug: "", color: "#3b82f6", icon: DEFAULT_CATEGORY_ICON, description: "", sort_order: 0, active: true });
 
 
-  const openNew = () => { setEditing(null); setForm({ name: "", slug: "", color: "#3b82f6", icon: "", description: "", sort_order: 0, active: true }); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ name: "", slug: "", color: "#3b82f6", icon: DEFAULT_CATEGORY_ICON, description: "", sort_order: 0, active: true }); setOpen(true); };
   const openEdit = (it) => {
     setEditing(it);
     setForm({ name: it.name || "", slug: it.slug || "", color: it.color || "#3b82f6", icon: it.icon || "", description: it.description || "", sort_order: it.sort_order || 0, active: it.active !== false });
@@ -81,7 +82,7 @@ export default function AdminCategories() {
             <div key={it.id} className="rounded-xl border border-border bg-card p-4 flex items-start justify-between gap-2">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl grid place-items-center text-lg shrink-0" style={{ backgroundColor: (it.color || "#3b82f6") + "22", color: it.color || "#3b82f6" }}>
-                  {it.icon || "🏷️"}
+                  <CategoryIcon icon={it.icon} className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium truncate">{it.name}</p>
@@ -115,10 +116,6 @@ export default function AdminCategories() {
                   <Input id="category-f2" value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder="auto" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="category-f3">{t.admin.categories.icon}</Label>
-                  <Input id="category-f3" value={form.icon} onChange={(e) => set("icon", e.target.value)} placeholder="🏆" className="text-lg" />
-                </div>
-                <div className="space-y-1.5">
                   <Label htmlFor="category-color">{t.admin.categories.color}</Label>
                   <div className="flex gap-2">
                     <input type="color" aria-label={t.admin.categories.color} value={form.color} onChange={(e) => set("color", e.target.value)} className="h-9 w-12 rounded-md border border-input bg-background cursor-pointer" />
@@ -134,6 +131,32 @@ export default function AdminCategories() {
                     <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} />
                     <span className="text-sm">{t.admin.categories.active}</span>
                   </div>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label id="category-icon-label">{t.admin.categories.icon}</Label>
+                <div role="radiogroup" aria-labelledby="category-icon-label" className="grid grid-cols-9 gap-1.5">
+                  {Object.keys(CATEGORY_ICONS).map((name) => {
+                    const selected = form.icon === name;
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        aria-label={name}
+                        title={name}
+                        onClick={() => set("icon", name)}
+                        className={cn(
+                          "aspect-square rounded-lg border grid place-items-center transition-colors",
+                          selected ? "border-transparent" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
+                        style={selected ? { backgroundColor: form.color + "22", color: form.color, borderColor: form.color } : undefined}
+                      >
+                        <CategoryIcon icon={name} className="w-4 h-4" />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="space-y-1.5">

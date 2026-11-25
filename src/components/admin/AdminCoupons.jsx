@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useConfirm, useDiscardGuard } from "@/components/admin/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import SelectField from "@/components/ui/select-field";
+import { DateTimePicker, toLocalInput, fromLocalInput } from "@/components/ui/date-time-picker";
 
 const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
@@ -43,7 +44,7 @@ export default function AdminCoupons() {
     setForm({
       code: it.code || "", type: it.type || "percent", value: it.value || 0,
       min_amount: it.min_amount || 0, max_uses: it.max_uses || 100,
-      active: it.active !== false, expires_at: it.expires_at ? it.expires_at.slice(0, 16) : "",
+      active: it.active !== false, expires_at: toLocalInput(it.expires_at),
       description: it.description || ""
     });
     setOpen(true);
@@ -68,7 +69,7 @@ export default function AdminCoupons() {
         min_amount: Number(form.min_amount) || 0,
         max_uses: Number(form.max_uses) || 100,
         active: form.active,
-        expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null,
+        expires_at: fromLocalInput(form.expires_at),
         description: form.description
       };
       if (editing) { await base44.entities.Coupon.update(editing.id, payload); toast.success(t.admin.coupons.saved); }
@@ -155,7 +156,7 @@ export default function AdminCoupons() {
                 </div>
                 <div className="space-y-1.5 col-span-2">
                   <Label htmlFor="coupon-f6">{t.admin.coupons.expiresAt}</Label>
-                  <Input id="coupon-f6" type="datetime-local" value={form.expires_at} onChange={(e) => set("expires_at", e.target.value)} />
+                  <DateTimePicker id="coupon-f6" value={form.expires_at} onChange={(v) => set("expires_at", v)} placeholder={t.admin.coupons.noExpiry} disablePast />
                 </div>
               </div>
               <div className="space-y-1.5">

@@ -12,6 +12,7 @@ import AuctionCard from "@/components/AuctionCard";
 import FeaturedAuctionHero from "@/components/auctions/FeaturedAuctionHero";
 import MobileAuctionsHub from "@/components/auctions/MobileAuctionsHub";
 import { useIsMobileView } from "@/lib/useIsMobileView";
+import { useAuctionTaxonomy } from "@/lib/queries/config";
 
 const route = getRouteApi("/_app/auctions");
 const EMPTY = [];
@@ -25,7 +26,8 @@ export default function Auctions() {
   const isMobileView = useIsMobileView();
 
   // Tab, sort, search and category live in the URL (validated on the route).
-  const { tab = "all", sort = "newest", q = "", category = "" } = route.useSearch();
+  const { tab = "all", sort = "newest", q = "", category = "", brand = "" } = route.useSearch();
+  const taxonomy = useAuctionTaxonomy();
 
   // The route loader waits for both (shared with the dashboard's cache).
   // "loading" covers the bids too: the "mine" tab and stats depend on them, so
@@ -88,34 +90,39 @@ export default function Auctions() {
     return { activeBids, wins, joined };
   }, [auctions, bidsByAuction, user?.id]);
 
+  // The category / brand filter scopes everything below: hero, tab counts and the grid.
+  const scoped = useMemo(
+    () => auctions.filter((a) => (!category || a.category_id === category) && (!brand || a.brand_id === brand)),
+    [auctions, category, brand],
+  );
+
   const featured = useMemo(() => {
-    return auctions.find((a) => effectiveStatus(a) === "live")
-      || auctions.find((a) => effectiveStatus(a) === "open")
+    return scoped.find((a) => effectiveStatus(a) === "live")
+      || scoped.find((a) => effectiveStatus(a) === "open")
       || null;
-  }, [auctions]);
+  }, [scoped]);
 
   const counts = useMemo(() => {
     // Only count auctions that still exist in the list, so the tab badge can
     // never promise more rows than the tab can show.
     const c = { all: 0, live: 0, open: 0, ended: 0, mine: 0 };
-    auctions.forEach((a) => {
+    scoped.forEach((a) => {
       const st = effectiveStatus(a);
       if (isMineAuction(a)) c.mine++;
       if (st === "live") c.live++;
       else if (st === "open") c.open++;
       else c.ended++;
     });
-    // The "All" tab lists live rounds only.
-    c.all = c.live;
+    // The "All" tab lists live and upcoming rounds; ended ones have their own tab.
+    c.all = c.live + c.open;
     return c;
-  }, [auctions, isMineAuction]);
+  }, [scoped, isMineAuction]);
 
   const filtered = useMemo(() => {
-    let list = auctions;
-    if (category) list = list.filter((a) => a.category_id === category);
-    // A category tile shows everything in that category (live and upcoming).
-    if (category && tab === "all") list = list.filter((a) => effectiveStatus(a) !== "ended");
-    else if (tab === "all" || tab === "live") list = list.filter((a) => effectiveStatus(a) === "live");
+    let list = scoped;
+    // "All" shows live and upcoming rounds.
+    if (tab === "all") list = list.filter((a) => effectiveStatus(a) !== "ended");
+    else if (tab === "live") list = list.filter((a) => effectiveStatus(a) === "live");
     else if (tab === "open") list = list.filter((a) => effectiveStatus(a) === "open");
     else if (tab === "ended") list = list.filter((a) => effectiveStatus(a) === "ended");
     else if (tab === "mine") list = list.filter(isMineAuction);
@@ -143,7 +150,7 @@ export default function Auctions() {
       return new Date(b.created_date) - new Date(a.created_date);
     });
     return sorted;
-  }, [auctions, tab, sort, q, category, bidsByAuction]);
+  }, [scoped, tab, sort, q, bidsByAuction]);
 
   const setParam = (key, val) => {
     navigate({ to: "/auctions", search: (prev) => ({ ...prev, [key]: val || undefined }), replace: true });
@@ -187,6 +194,10 @@ export default function Auctions() {
     );
   }
 
+  // The hero already shows the featured auction, so the grid skips it.
+  const showHero = !loading && !!featured && (tab === "all" || tab === "live" || tab === "open");
+  const gridList = showHero ? filtered.filter((a) => a.id !== featured.id) : filtered;
+
   return (
     <div className="space-y-5">
       <div>
@@ -206,12 +217,16 @@ export default function Auctions() {
           onSort={(v) => setParam("sort", v === "newest" ? "" : v)}
           search={q}
           onSearch={(v) => setParam("q", v)}
+          categories={taxonomy.categories}
+          activeCategory={category}
+          onCategory={(v) => setParam("category", v)}
+          brands={taxonomy.brands}
+          activeBrand={brand}
+          onBrand={(v) => setParam("brand", v)}
         />
       </div>
 
-      {!loading && featured && (tab === "all" || tab === "live" || tab === "open") && (
-        <FeaturedAuctionHero auction={featured} />
-      )}
+      {showHero && <FeaturedAuctionHero auction={featured} />}
 
       {loading ? null : filtered.length === 0 ? (
         <div className="py-20 text-center text-muted-foreground">
@@ -220,7 +235,7 @@ export default function Auctions() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((a) => (
+          {gridList.map((a) => (
             <AuctionCard
               key={a.id}
               auction={a}

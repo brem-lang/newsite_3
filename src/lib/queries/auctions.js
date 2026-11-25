@@ -341,44 +341,65 @@ export function useLiveAuction(id) {
 }
 const EMPTY_LIST = [];
 
-/** The last 50 chat messages for an auction (oldest first), kept live. */
-export function useAuctionChat(auctionId) {
+export const CHAT_LIMIT = 50;
+export const CHAT_MAX_LENGTH = 500;
+
+/** Insert or update one message in a cached chat list, keeping the newest CHAT_LIMIT. */
+const upsertMessage = (list = [], m) => {
+  const i = list.findIndex((x) => x.id === m.id);
+  if (i >= 0) return list.map((x, j) => (j === i ? { ...x, ...m } : x));
+  return [...list, m].slice(-CHAT_LIMIT);
+};
+
+/**
+ * The last CHAT_LIMIT chat messages for an auction (oldest first).
+ * While the room is open the list streams live. Once it is closed (ended,
+ * archived, voided) the history is read once and never re-fetched, and no
+ * realtime channel is opened.
+ */
+export function useAuctionChat(auctionId, { closed = false } = {}) {
   const qc = useQueryClient();
   const key = chatKeys.byAuction(auctionId);
   const query = useQuery({
     queryKey: key,
     queryFn: async () => {
-      const rows = await base44.entities.AuctionMessage.filter({ auction_id: auctionId }, "-created_date", 50);
+      const rows = await base44.entities.AuctionMessage.filter({ auction_id: auctionId }, "-created_date", CHAT_LIMIT);
       return [...(rows || [])].reverse();
     },
     enabled: !!auctionId,
-    staleTime: 30_000,
+    // A closed room never changes. An open one re-reads on return visits
+    // (messages sent while away), and realtime covers the rest.
+    staleTime: closed ? Infinity : 30_000,
   });
 
   useEffect(() => {
-    if (!auctionId) return;
+    if (!auctionId || closed) return;
     const k = chatKeys.byAuction(auctionId);
     return base44.entities.AuctionMessage.subscribe(
       (ev) => {
         const m = ev.data;
         if (!m?.id) return;
-        qc.setQueryData(k, (list = []) => {
-          const rest = list.filter((x) => x.id !== m.id);
-          if (ev.type === "delete") return rest;
-          const existing = list.find((x) => x.id === m.id);
-          return existing ? list.map((x) => (x.id === m.id ? { ...x, ...m } : x)) : [...rest, m].slice(-50);
-        });
+        qc.setQueryData(k, (list = []) =>
+          ev.type === "delete" ? list.filter((x) => x.id !== m.id) : upsertMessage(list, m),
+        );
       },
       { filter: `auction_id=eq.${auctionId}`, onReconnect: () => qc.invalidateQueries({ queryKey: k }) },
     );
-  }, [auctionId, qc]);
+  }, [auctionId, closed, qc]);
 
   const send = useMutation({
-    mutationFn: (values) => base44.entities.AuctionMessage.create({ ...values, auction_id: auctionId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+    mutationFn: (values) => {
+      if (closed) throw new Error("Chat is closed");
+      return base44.entities.AuctionMessage.create({ ...values, auction_id: auctionId });
+    },
+    // Put the saved row straight into the cache instead of re-fetching all
+    // CHAT_LIMIT messages; the realtime echo of the same row is then a no-op.
+    onSuccess: (row) => {
+      if (row?.id) qc.setQueryData(key, (list = []) => upsertMessage(list, row));
+    },
   });
 
-  return { messages: query.data ?? EMPTY_LIST, send };
+  return { messages: query.data ?? EMPTY_LIST, send, isPending: query.isPending };
 }
 
 /* ------------------------------- mutations ------------------------------ */

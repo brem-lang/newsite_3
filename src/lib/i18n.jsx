@@ -171,6 +171,7 @@ const translations = {
       chat: "Auction chat",
       chatPlaceholder: "Send a message…",
       chatSend: "Send",
+      chatClosed: "Chat is closed for this auction.",
       winTitle: "You won! 🎉",
       winSub: "You placed the highest bid on this auction.",
       prize: "Your prize",
@@ -335,7 +336,7 @@ const translations = {
       joined: "Joined",
       topUp: "Top up wallet",
       account: "Account",
-      filters: { all: "All", live: "Live", open: "Open", ended: "Ended", mine: "My bids", newest: "Newest", ending: "Ending soon", priceLow: "Price: low to high", priceHigh: "Price: high to low", bids: "Most bids", search: "Search auctions…" },
+      filters: { all: "All", live: "Live", open: "Open", ended: "Ended", mine: "My bids", newest: "Newest", ending: "Ending soon", priceLow: "Price: low to high", priceHigh: "Price: high to low", bids: "Most bids", search: "Search auctions…", allCategories: "All categories", allBrands: "All brands" },
       empty: "No auctions match your filters.",
       emptyMine: "You haven't placed any bids yet. Start exploring live auctions to find something you love.",
       noBidsYet: "No Bids Yet",
@@ -481,6 +482,8 @@ const translations = {
       line1: "Address line 1", line2: "Address line 2 (optional)",
       city: "City", country: "Country", zip: "Postal code",
       pickupNotes: "Pickup notes (branch / time)",
+      pickupPlaceholder: "e.g. Main branch, weekdays after 4 pm",
+      pickupHint: "Tell us which branch and when suits you. Our team will contact you to confirm.",
       submit: "Send your details", submitting: "Sending…",
       manualNote: "Send us your details and our team will contact you and arrange delivery of your item manually.",
       sentNote: "We received your details. Our team will contact you shortly to arrange delivery.",
@@ -850,7 +853,8 @@ const translations = {
         send: "Send email",
         sending: "Sending...",
         sent: "Email sent to winner",
-        markPaidDone: "Marked as paid"
+        markPaidDone: "Marked as paid",
+        noBids: "No bids"
       },
       broadcast: {
         title: "Broadcast center",
@@ -1108,7 +1112,7 @@ const translations = {
       },
       categories: {
         title: "Categories", subtitle: "Organize auctions into categories.",
-        name: "Name", slug: "Slug", color: "Color", icon: "Icon (emoji)",
+        name: "Name", slug: "Slug", color: "Color", icon: "Icon",
         description: "Description", sortOrder: "Sort order", active: "Active", new: "Add category",
         saved: "Category saved", added: "Category added", deleted: "Category deleted",
         noCategories: "No categories yet.", emptyName: "Name is required"
@@ -1127,7 +1131,7 @@ const translations = {
       coupons: {
         title: "Coupons", subtitle: "Create and manage discount codes.",
         code: "Code", type: "Type", value: "Value", minAmount: "Min amount",
-        maxUses: "Max uses", uses: "Used", active: "Active", expiresAt: "Expires",
+        maxUses: "Max uses", uses: "Used", active: "Active", expiresAt: "Expires", noExpiry: "No expiry",
         typePercent: "Percent", typeFixed: "Fixed amount",
         new: "New coupon", saved: "Coupon saved", added: "Coupon added", deleted: "Coupon deleted",
         noCoupons: "No coupons yet.", emptyCode: "Code is required"
@@ -1147,6 +1151,9 @@ const translations = {
         title: "Title",
         description: "Description",
         imageUrl: "Image URL",
+        category: "Category",
+        brand: "Brand",
+        none: "None",
         entryFee: "Entry fee ($)",
         maxSubscribers: "Participants needed to close (minimum)",
         minParticipants: "Participants needed to close (minimum)",

@@ -159,44 +159,45 @@ export default function Wallet() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-1">
-        <h1 className="font-heading text-3xl font-bold tracking-tight">{t.wallet.title}</h1>
-        <p className="text-muted-foreground">{t.wallet.subtitle}</p>
-      </div>
+    <div className="space-y-6">
+      {/* Title on the left, balance + deposit as one compact bar on the right. */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <h1 className="font-heading text-3xl font-bold tracking-tight">{t.wallet.title}</h1>
+          <p className="text-muted-foreground text-sm">{t.wallet.subtitle}</p>
+        </div>
 
-      <div className="native-panel relative overflow-hidden rounded-xl border-primary/30 p-8 text-foreground">
-        <div className="relative">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <WalletIcon className="w-4 h-4" />
-            {t.wallet.balance}
+        <div className="native-panel flex items-center gap-4 rounded-xl border-primary/30 py-3 pl-4 pr-3 text-foreground">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+            <WalletIcon className="h-5 w-5" />
           </div>
-          {/* The route loader waits for the balance; nothing (not 0.00) until it's in. */}
-          {!loading && (
-            <p className="mt-3 font-heading text-5xl font-bold text-primary">
-              {symbol}{balance.toFixed(2)}
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">{t.wallet.balance}</p>
+            {/* The route loader waits for the balance; nothing (not 0.00) until it's in. */}
+            <p className="font-heading text-2xl font-bold leading-tight text-primary tabular-nums" dir="ltr">
+              {loading ? " " : `${symbol}${balance.toFixed(2)}`}
             </p>
-          )}
+          </div>
           <Link
             to="/deposit"
-            className="cyan-button mt-5 inline-flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-bold transition-transform active:scale-95"
+            className="cyan-button ml-2 inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-bold transition-transform active:scale-95"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-4 w-4" />
             {t.deposit.title}
           </Link>
-
         </div>
       </div>
 
-      <BidSpendSummary transactions={transactions} />
-
       {confirming && (
-        <div className="rounded-2xl border border-border bg-card p-5 flex items-center gap-3 text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-sm text-muted-foreground">
           <Loader2 className="w-5 h-5 animate-spin" /> {t.wallet.confirming}
         </div>
       )}
 
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+      {/* Wide screens: top-up and spending on the left, history on the right. */}
+      <div className="grid items-start gap-6 lg:grid-cols-2 lg:items-stretch">
+      <div className="space-y-4">
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center gap-2 font-medium">
           <Plus className="w-4 h-4" />
           {t.wallet.topUp}
@@ -263,12 +264,31 @@ export default function Wallet() {
         )}
       </div>
 
-      <div className="space-y-4">
-        <h2 className="font-heading text-xl font-semibold">{t.wallet.history}</h2>
+      <BidSpendSummary transactions={transactions} />
+      </div>
+
+      {/*
+        History card. On wide screens it is pinned to the cell (absolute inset-0),
+        so the left column alone sets the row height and the list scrolls inside.
+        Stacked on smaller screens, it has its own fixed height.
+      */}
+      <div className="relative lg:min-h-[24rem]">
+      <section className="flex h-[30rem] max-h-[70vh] flex-col overflow-hidden rounded-2xl border border-border bg-card lg:absolute lg:inset-0 lg:h-auto lg:max-h-none">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
+          <h2 className="font-heading text-lg font-semibold">{t.wallet.history}</h2>
+          {!loading && transactions.length > 0 && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground tabular-nums">{transactions.length}</span>
+          )}
+        </div>
         {loading ? null : transactions.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground text-sm">{t.wallet.noHistory}</div>
+          <div className="grid flex-1 place-items-center p-8 text-center text-sm text-muted-foreground">{t.wallet.noHistory}</div>
         ) : (
-          <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
+          <div
+            className="min-h-0 flex-1 divide-y divide-border overflow-y-auto overscroll-contain"
+            tabIndex={0}
+            role="region"
+            aria-label={t.wallet.history}
+          >
             {transactions.map((txn) => {
               const isTopup = txn.type === "topup";
               const positive = (txn.amount || 0) >= 0;
@@ -302,6 +322,8 @@ export default function Wallet() {
             })}
           </div>
         )}
+      </section>
+      </div>
       </div>
 
       <RefundRequestsList userId={user?.id} />

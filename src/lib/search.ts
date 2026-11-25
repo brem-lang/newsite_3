@@ -17,6 +17,7 @@ export type AuctionsSearch = {
   sort?: (typeof AUCTION_SORTS)[number] | undefined;
   q?: string | undefined;
   category?: string | undefined;
+  brand?: string | undefined;
 };
 
 export function parseAuctionsSearch(raw: Raw): AuctionsSearch {
@@ -26,6 +27,7 @@ export function parseAuctionsSearch(raw: Raw): AuctionsSearch {
     // Keep the raw search text (spaces included) while the user types.
     q: typeof raw["q"] === "string" && raw["q"] ? raw["q"] : undefined,
     category: str(raw["category"]),
+    brand: str(raw["brand"]),
   };
 }
 

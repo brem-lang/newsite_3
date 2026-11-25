@@ -94,9 +94,16 @@ export default function AdminResults() {
                     <h3 className="font-heading text-lg font-semibold truncate">{a.title}</h3>
                     <p className="text-xs text-muted-foreground">{t.admin.results.endedAt}: {a.end_time ? new Date(a.end_time).toLocaleDateString("en-GB") : "—"}</p>
                   </div>
-                  <span className={cn("shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full", a.paid ? "bg-success/15 text-success" : "bg-warning/15 text-warning")}>
-                    {a.paid ? t.admin.results.paid : t.admin.results.unpaid}
-                  </span>
+                  {a.winner_id ? (
+                    <span className={cn("shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full", a.paid ? "bg-success/15 text-success" : "bg-warning/15 text-warning")}>
+                      {a.paid ? t.admin.results.paid : t.admin.results.unpaid}
+                    </span>
+                  ) : (
+                    // No bids means no winner, so there is nothing to pay.
+                    <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+                      {t.admin.results.noBids}
+                    </span>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 text-sm">
@@ -113,7 +120,7 @@ export default function AdminResults() {
                       <Mail className="w-4 h-4" />{t.admin.results.contactWinner}
                     </Button>
                   )}
-                  {!a.paid && <Button size="sm" className="gap-2" onClick={() => markPaid(a)}><CheckCircle2 className="w-4 h-4" />{t.admin.results.markPaid}</Button>}
+                  {a.winner_id && !a.paid && <Button size="sm" className="gap-2" onClick={() => markPaid(a)}><CheckCircle2 className="w-4 h-4" />{t.admin.results.markPaid}</Button>}
                 </div>
                 </div>
                 <AuctionBidsLog auction={a} users={bidders} />

@@ -13,6 +13,7 @@ import { useDiscardGuard } from "@/components/admin/ConfirmDialog";
 import SelectField from "@/components/ui/select-field";
 import { allowedStatuses, actionFor, runLifecycle, LOCKED_WHILE_LIVE } from "@/lib/auctionLifecycle";
 import AuctionHistory from "@/components/admin/AuctionHistory";
+import { useAuctionTaxonomy } from "@/lib/queries/config";
 
 const inputCls = "w-full rounded-lg border border-accent/20 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
@@ -36,7 +37,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
   // Price, duration, seats and fees are frozen while live (guard_auction_writes).
   const live = isEdit && auction.status === "live";
   const [form, setForm] = useState({
-    title: "", description: "", image_url: "",
+    title: "", description: "", image_url: "", category_id: "", brand_id: "",
     entry_fee: 10, max_subscribers: 10, min_participants: 0, start_price: 0,
     bid_increment: 1, duration_hours: 1, status: "open",
     scheduled_start_time: "", mode: "highest", target_price: 0, bid_fee: 0, bids_per_participant: 5, extra_bid_price: 0,
@@ -44,6 +45,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
     cost_price: 0, other_cost: 0
   });
   const [saving, setSaving] = useState(false);
+  const { categories, brands } = useAuctionTaxonomy();
   // The price of one bid is normally derived from the two numbers the admin
   // already sets: entry (join) fee x bid increment. It can still be overridden.
   const [autoBidFee, setAutoBidFee] = useState(true);
@@ -68,7 +70,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
     if (auction) {
       setForm({
         title: auction.title || "", description: auction.description || "",
-        image_url: auction.image_url || "",
+        image_url: auction.image_url || "", category_id: auction.category_id || "", brand_id: auction.brand_id || "",
         entry_fee: auction.entry_fee ?? 10, max_subscribers: auction.max_subscribers ?? 10,
         min_participants: auction.min_participants ?? 0,
         start_price: auction.start_price ?? 0,
@@ -99,7 +101,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
       setAutoBidFee(true);
       setAutoQuota(true);
       setUnlimitedQuota(false);
-      setForm({ title: "", description: "", image_url: "", entry_fee: 10, max_subscribers: 10, min_participants: 0, start_price: 0, bid_increment: 1, duration_hours: 1, status: "open", scheduled_start_time: "", mode: "highest", target_price: 0, bid_fee: 0, bids_per_participant: 5, extra_bid_price: 0, bid_rate_limit: 0, bid_rate_window_minutes: 10, min_round_minutes: 5, pool_warn_pct: 20, max_restarts: 3, anti_snipe_seconds: 0, hold_retry_minutes: 1440, cost_price: 0, other_cost: 0 });
+      setForm({ title: "", description: "", image_url: "", category_id: "", brand_id: "", entry_fee: 10, max_subscribers: 10, min_participants: 0, start_price: 0, bid_increment: 1, duration_hours: 1, status: "open", scheduled_start_time: "", mode: "highest", target_price: 0, bid_fee: 0, bids_per_participant: 5, extra_bid_price: 0, bid_rate_limit: 0, bid_rate_window_minutes: 10, min_round_minutes: 5, pool_warn_pct: 20, max_restarts: 3, anti_snipe_seconds: 0, hold_retry_minutes: 1440, cost_price: 0, other_cost: 0 });
     }
   }, [auction, open]);
 
@@ -143,6 +145,8 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
         title: form.title.trim(),
         description: form.description,
         image_url: form.image_url.trim(),
+        category_id: form.category_id || null,
+        brand_id: form.brand_id || null,
         entry_fee: Number(form.entry_fee),
         max_subscribers: Number(form.max_subscribers),
         // No maximum exists: the single configured number is the minimum target.
@@ -288,6 +292,20 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
             <Field label={t.admin.fields.imageUrl}>
               <ImagePicker value={form.image_url} onChange={(v) => set("image_url", v)} label={t.admin.fields.imageUrl} />
             </Field>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label={t.admin.fields.category}>
+                <SelectField value={form.category_id} onChange={(e) => set("category_id", e.target.value)} className={inputCls}>
+                  <option value="">{t.admin.fields.none}</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </SelectField>
+              </Field>
+              <Field label={t.admin.fields.brand}>
+                <SelectField value={form.brand_id} onChange={(e) => set("brand_id", e.target.value)} className={inputCls}>
+                  <option value="">{t.admin.fields.none}</option>
+                  {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </SelectField>
+              </Field>
+            </div>
             </Section>
   
             <Section title={t.admin.fields.sectionMode || "Auction type & numbers"}>

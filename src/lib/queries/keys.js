@@ -66,6 +66,7 @@ export const configKeys = {
   settings: () => ["config", "settings"],
   content: () => ["config", "content"],
   categories: () => ["config", "categories"],
+  brands: () => ["config", "brands"],
   paymentMethods: () => ["config", "paymentMethods"],
   publishedTheme: () => ["config", "theme", "published"],
   themeEditor: () => ["config", "theme", "editor"],
@@ -105,6 +106,7 @@ export const adminKeys = {
   // Auctions
   auctionsAll: () => admin("auctions"),
   auctionsActive: () => admin("auctions", "active"),
+  auctionsAllPage: (params) => admin("auctions", "allPage", params),
   auctionsEnded: (...params) => admin("auctions", "ended", ...params),
   auctionsCounts: () => admin("auctions", "counts"),
   auctionsLookup: () => admin("auctions", "lookup"),

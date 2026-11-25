@@ -30,7 +30,12 @@ export default function SiteHero({ auctions, loading, authed, content, contentLo
                 would flash before being replaced. The default is used only
                 when the loaded content has no hero_title / hero_subtitle. */}
             {contentLoading ? (
-              <div className="space-y-3 sm:space-y-4" role="status" aria-busy="true" aria-label="Loading">
+              <div
+                className="space-y-3 sm:space-y-4"
+                role="status"
+                aria-busy="true"
+                aria-label="Loading"
+              >
                 <div className="h-8 sm:h-12 w-4/5 rounded-lg bg-muted animate-pulse" />
                 <div className="h-8 sm:h-12 w-3/5 rounded-lg bg-muted animate-pulse" />
                 <div className="h-4 w-full max-w-lg rounded bg-muted animate-pulse" />
@@ -38,24 +43,59 @@ export default function SiteHero({ auctions, loading, authed, content, contentLo
               </div>
             ) : (
               <>
-                <h1 className="font-display text-[1.7rem] sm:text-5xl font-extrabold leading-[1.1] tracking-tight text-foreground">{heroTitle}</h1>
-                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-lg line-clamp-2 sm:line-clamp-none">{heroSubtitle}</p>
+                <h1 className="font-display text-[1.7rem] sm:text-5xl font-extrabold leading-[1.1] tracking-tight text-foreground">
+                  {heroTitle}
+                </h1>
+                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-lg line-clamp-2 sm:line-clamp-none">
+                  {heroSubtitle}
+                </p>
               </>
             )}
             <div className="flex flex-wrap items-center gap-3">
               {authed ? (
-                <a href="#auctions" className="w-full sm:w-auto"><Button size="lg" className="w-full sm:w-auto gap-2 h-12 px-5 sm:px-7 font-bold shadow-lg shadow-primary/25"><Flame className="w-4 h-4" /> {t.site.hero.browse} <ArrowRight className={cn("w-4 h-4", arrowCls)} /></Button></a>
+                <a href="#auctions" className="w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto gap-2 h-12 px-5 sm:px-7 font-bold shadow-lg shadow-primary/25"
+                  >
+                    <Flame className="w-4 h-4" /> {t.site.hero.browse}{" "}
+                    <ArrowRight className={cn("w-4 h-4", arrowCls)} />
+                  </Button>
+                </a>
               ) : (
                 <>
-                  <Link to="/register" className="flex-1 min-w-[9rem] sm:flex-none"><Button size="lg" className="w-full sm:w-auto gap-2 h-12 px-5 sm:px-7 font-bold shadow-lg shadow-primary/25">{t.auth.register} <ArrowRight className={cn("w-4 h-4", arrowCls)} /></Button></Link>
-                  <Link to="/login" className="flex-1 min-w-[7rem] sm:flex-none"><Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-5 sm:px-7">{t.auth.login}</Button></Link>
+                  <Link to="/register" className="flex-1 min-w-[9rem] sm:flex-none">
+                    <Button
+                      size="lg"
+                      className="w-full sm:w-auto gap-2 h-12 px-5 sm:px-7 font-bold shadow-lg shadow-primary/25"
+                    >
+                      {t.auth.register} <ArrowRight className={cn("w-4 h-4", arrowCls)} />
+                    </Button>
+                  </Link>
+                  <Link to="/login" className="flex-1 min-w-[7rem] sm:flex-none">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full sm:w-auto h-12 px-5 sm:px-7"
+                    >
+                      {t.auth.login}
+                    </Button>
+                  </Link>
                 </>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
               {t.site.hero.trust.map((chip, i) => {
                 const Icon = [Users, Clock, ShieldCheck][i] || Zap;
-                return (<span key={i} className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground"><Icon className="w-4 h-4 text-accent" />{chip}</span>);
+                return (
+                  <span
+                    key={i}
+                    className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground"
+                  >
+                    <Icon className="w-4 h-4 text-accent" />
+                    {chip}
+                  </span>
+                );
               })}
             </div>
           </div>
@@ -67,20 +107,60 @@ export default function SiteHero({ auctions, loading, authed, content, contentLo
               <div className="native-panel relative overflow-hidden rounded-xl">
                 {/* The photo fills the card; the details sit on a fade over it. */}
                 <div className="absolute inset-0 bg-muted">
-                  <Image src={featured.image_url} alt={featured.title} className="w-full h-full" fittingType="fill" />
+                  <Image
+                    src={featured.image_url}
+                    alt={featured.title}
+                    className="w-full h-full"
+                    fittingType="fill"
+                  />
                 </div>
                 <div className="relative aspect-[16/8]">
-                  <span className={cn("absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-lg border", live ? "bg-destructive text-destructive-foreground border-destructive animate-pulse" : "bg-card/90 text-foreground border-border")}>{live ? t.auction.statusLive : t.site.hero.notLive}</span>
-                  <span className="absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-primary text-primary-foreground border border-primary">{t.site.hero.featured}</span>
+                  <span
+                    className={cn(
+                      "absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-lg border",
+                      live
+                        ? "bg-destructive text-destructive-foreground border-destructive animate-pulse"
+                        : "bg-card/90 text-foreground border-border",
+                    )}
+                  >
+                    {live ? t.auction.statusLive : t.site.hero.notLive}
+                  </span>
+                  <span className="absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-primary text-primary-foreground border border-primary">
+                    {t.site.hero.featured}
+                  </span>
                 </div>
                 <div className="photo-fade relative -mt-12 p-5 pt-12 space-y-3">
-                  <h3 className="font-display font-extrabold text-base text-foreground line-clamp-1">{featured.title}</h3>
+                  <h3 className="font-display font-extrabold text-base text-foreground line-clamp-1">
+                    {featured.title}
+                  </h3>
                   <div className="flex items-end justify-between">
-                    <div><p className="text-[11px] text-muted-foreground">{t.auction.currentPrice}</p><p className="font-display text-2xl font-extrabold text-primary">{t.common.currency}{featured.current_price?.toFixed(2) || "0.00"}</p></div>
-                    <div className="text-end"><p className="text-[11px] text-muted-foreground">{t.auction.seats}</p><p className="font-bold text-foreground">{featured.subscriber_ids?.length || 0}/{featured.max_subscribers}</p></div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">{t.auction.currentPrice}</p>
+                      <p className="font-display text-2xl font-extrabold text-primary">
+                        {t.common.currency}
+                        {featured.current_price?.toFixed(2) || "0.00"}
+                      </p>
+                    </div>
+                    <div className="text-end">
+                      <p className="text-[11px] text-muted-foreground">{t.auction.seats}</p>
+                      <p className="font-bold text-foreground">
+                        {featured.subscriber_ids?.length || 0}/{featured.max_subscribers}
+                      </p>
+                    </div>
                   </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, ((featured.subscriber_ids?.length || 0) / Math.max(1, featured.max_subscribers)) * 100)}%` }} /></div>
-                  <Link to="/auction/$id" params={{ id: featured.id }}><Button className="w-full h-11 font-bold gap-2"><Flame className="w-4 h-4" /> {t.site.hero.bidNow}</Button></Link>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-accent"
+                      style={{
+                        width: `${Math.min(100, ((featured.subscriber_ids?.length || 0) / Math.max(1, featured.max_subscribers)) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <Link to="/auction/$id" params={{ id: featured.id }}>
+                    <Button className="w-full h-11 font-bold gap-2">
+                      <Flame className="w-4 h-4" /> {t.site.hero.bidNow}
+                    </Button>
+                  </Link>
                 </div>
               </div>
             )}

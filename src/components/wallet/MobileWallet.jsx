@@ -76,19 +76,19 @@ export default function MobileWallet({
 
         {/* Balance hero */}
         <div className="mx-4 mt-3">
-          <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-card p-5 text-foreground shadow-[0_0_36px_-22px_hsl(var(--primary)/0.9)]">
+          <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-card px-4 py-3.5 text-foreground shadow-[0_0_36px_-22px_hsl(var(--primary)/0.9)]">
             <div className="relative flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold text-muted-foreground">{t.wallet.balance}</p>
-                <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
-                  <span className="font-display text-[34px] leading-none font-extrabold tracking-tight tabular-nums break-all text-primary">
+                <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
+                  <span className="font-display text-[28px] leading-none font-extrabold tracking-tight tabular-nums break-all text-primary">
                     {Number(balance || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                   <span className="text-[12px] font-bold text-primary/70">{code}</span>
                 </div>
               </div>
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-primary/40 bg-primary/10 text-primary" aria-hidden="true">
-                <WalletIcon className="h-6 w-6" />
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-primary/40 bg-primary/10 text-primary" aria-hidden="true">
+                <WalletIcon className="h-5 w-5" />
               </span>
             </div>
           </div>

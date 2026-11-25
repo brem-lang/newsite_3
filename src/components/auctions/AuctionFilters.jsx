@@ -6,7 +6,31 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-export default function AuctionFilters({ tabs, activeTab, onTab, sorts, activeSort, onSort, search, onSearch }) {
+// Radix Select can't use "" as an item value, so "any" stands for no filter.
+const ANY = "__any";
+
+/** A category or brand filter. Hidden when there is nothing to pick. */
+function TaxonomySelect({ items = [], value, onChange, allLabel }) {
+  if (!onChange || items.length === 0) return null;
+  return (
+    <Select value={value || ANY} onValueChange={(v) => onChange(v === ANY ? "" : v)}>
+      <SelectTrigger size="sm" className={cn("w-40 sm:w-44 text-xs", value && "border-primary/50 text-foreground")}>
+        <SelectValue placeholder={allLabel} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ANY} className="text-xs">{allLabel}</SelectItem>
+        {items.map((it) => (
+          <SelectItem key={it.id} value={it.id} className="text-xs">{it.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export default function AuctionFilters({
+  tabs, activeTab, onTab, sorts, activeSort, onSort, search, onSearch,
+  categories, activeCategory, onCategory, brands, activeBrand, onBrand,
+}) {
   const { t } = useI18n();
   const h = t.hub;
 
@@ -38,7 +62,9 @@ export default function AuctionFilters({ tabs, activeTab, onTab, sorts, activeSo
             );
           })}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <TaxonomySelect items={categories} value={activeCategory} onChange={onCategory} allLabel={h.filters.allCategories} />
+          <TaxonomySelect items={brands} value={activeBrand} onChange={onBrand} allLabel={h.filters.allBrands} />
           <Select value={activeSort} onValueChange={onSort}>
             <SelectTrigger size="sm" className="w-40 sm:w-48 text-xs">
               <SlidersHorizontal className="w-3.5 h-3.5" />

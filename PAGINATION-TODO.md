@@ -48,8 +48,9 @@ search only looked inside what had been loaded.
 | Auctions working set | 1000 non-ended auctions | Open/live/voided auctions stay few | Page it if it ever grows |
 
 ## Behaviour changes to know about
-- **Auctions "All" tab** now lists the working set (open / live / scheduled / voided). Ended auctions
-  are in the **Ended** tab (paged). The "Total" card still counts every non-archived auction.
+- **Auctions "All" (Total) tab** pages every non-archived auction, ended ones included, in Postgres
+  (`adminKeys.auctionsAllPage`), so it matches the "Total" count. The Open / Live tabs still filter the
+  working set. (Fixed 25 Nov 2026: it used to list only the working set, so ended auctions were missing.)
 - **Ended tab** shows auctions whose status is `ended`. A live auction whose timer ran out appears
   there once the server marks it ended (`syncAuctions`). Before that it shows in "All" with the ended badge.
 - **Verification queue** is members with status `pending` (the column is never null).

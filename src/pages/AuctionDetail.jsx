@@ -546,7 +546,11 @@ export default function AuctionDetail() {
       <div className="grid lg:grid-cols-2 gap-6">
         {!sealed && <ActivityFeed bids={bids} currentUserId={user?.id} names={bidState.names} />}
         <div className={cn(sealed && "lg:col-span-2")}>
-          <AuctionChat auctionId={id} user={user} />
+          <AuctionChat
+            auctionId={id}
+            user={user}
+            closed={status === "ended" || ["voided", "voiding"].includes(auction.status)}
+          />
         </div>
       </div>
 

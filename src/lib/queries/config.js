@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { configKeys } from "./keys";
@@ -39,7 +39,13 @@ export const configQueries = {
   categories: () =>
     queryOptions({
       queryKey: configKeys.categories(),
-      queryFn: () => base44.entities.Category.list("sort_order", 20),
+      queryFn: () => base44.entities.Category.list("sort_order", 100),
+      ...SLOW_CONFIG,
+    }),
+  brands: () =>
+    queryOptions({
+      queryKey: configKeys.brands(),
+      queryFn: () => base44.entities.Brand.list("sort_order", 200),
       ...SLOW_CONFIG,
     }),
   paymentMethods: () =>
@@ -88,6 +94,33 @@ export function useContentQuery() {
 
 export function useCategories() {
   return useQuery(configQueries.categories());
+}
+
+export function useBrands() {
+  return useQuery(configQueries.brands());
+}
+
+const NO_ROWS = [];
+const activeOnly = (rows) => (rows || NO_ROWS).filter((r) => r.active !== false);
+
+/**
+ * Active categories and brands plus id → row lookups, for labelling auctions
+ * and building filters. An auction whose category or brand was deleted or
+ * switched off simply shows no label.
+ */
+export function useAuctionTaxonomy() {
+  const { data: categoryRows } = useCategories();
+  const { data: brandRows } = useBrands();
+  return useMemo(() => {
+    const categories = activeOnly(categoryRows);
+    const brands = activeOnly(brandRows);
+    return {
+      categories,
+      brands,
+      categoryById: new Map(categories.map((c) => [c.id, c])),
+      brandById: new Map(brands.map((b) => [b.id, b])),
+    };
+  }, [categoryRows, brandRows]);
 }
 
 export function usePaymentMethods() {

@@ -7,11 +7,13 @@ import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const SHIPPING_STEPS = ["pending", "shipped", "delivered", "confirmed"];
 const PICKUP_STEPS = ["pending", "ready", "collected", "confirmed"];
+const PICKUP_NOTES_MAX = 500;
 
 export default function WinnerClaim({ auction, user }) {
   const { t } = useI18n();
@@ -33,7 +35,7 @@ export default function WinnerClaim({ auction, user }) {
     try {
       const body = { auction_id: auction.id, method };
       if (method === "shipping") body.address = addr;
-      else body.pickup_notes = pickupNotes;
+      else body.pickup_notes = pickupNotes.trim();
       const res = await base44.functions.invoke("claimFulfilment", body);
       if (res.data?.error) { toast.error(res.data.error); return; }
       setF(res.data.fulfilment);
@@ -83,7 +85,10 @@ export default function WinnerClaim({ auction, user }) {
           </div>
         )}
         {f.method === "pickup" && f.pickup_notes && (
-          <p className="text-sm text-muted-foreground">{f.pickup_notes}</p>
+          <div className="flex items-start gap-2 text-sm text-muted-foreground">
+            <MapPin className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+            <span className="whitespace-pre-line break-words">{f.pickup_notes}</span>
+          </div>
         )}
         {f.method === "shipping" && f.carrier && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -132,7 +137,22 @@ export default function WinnerClaim({ auction, user }) {
           <Input className={cn(inputCls, "col-span-2")} placeholder={t.fulfilment.zip} value={addr.zip} onChange={(e) => setAddr({ ...addr, zip: e.target.value })} />
         </div>
       ) : (
-        <textarea className={cn(inputCls, "min-h-[80px] resize-none")} placeholder={t.fulfilment.pickupNotes} value={pickupNotes} onChange={(e) => setPickupNotes(e.target.value)} />
+        <div className="space-y-1.5">
+          <label htmlFor="pickup-notes" className="text-sm font-medium text-foreground">{t.fulfilment.pickupNotes}</label>
+          <Textarea
+            id="pickup-notes"
+            rows={3}
+            maxLength={PICKUP_NOTES_MAX}
+            className="min-h-[88px] resize-none bg-card border-border text-foreground"
+            placeholder={t.fulfilment.pickupPlaceholder}
+            value={pickupNotes}
+            onChange={(e) => setPickupNotes(e.target.value)}
+          />
+          <div className="flex items-start justify-between gap-3 text-[11px] text-muted-foreground">
+            <span>{t.fulfilment.pickupHint}</span>
+            <span className="shrink-0 tabular-nums">{pickupNotes.length}/{PICKUP_NOTES_MAX}</span>
+          </div>
+        </div>
       )}
       <Button onClick={submit} disabled={submitting} className="w-full font-bold">
         {submitting ? t.fulfilment.submitting : t.fulfilment.submit}

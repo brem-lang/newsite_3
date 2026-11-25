@@ -7,12 +7,17 @@ import { formatCountdown, formatCountdownCompact, formatDuration, displayPrice, 
 import { useAuctionCountdown } from "@/lib/useAuctionCountdown";
 import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
+import { useAuctionTaxonomy } from "@/lib/queries/config";
+import { CategoryIcon } from "@/lib/categoryIcons";
 
 export default function AuctionCard({ auction, yourBid }) {
   const { t } = useI18n();
   const { symbol } = useCurrency();
   const { status, remaining, durationMinutes } = useAuctionCountdown(auction);
   const filled = auction.subscriber_ids?.length || 0;
+  const { categoryById, brandById } = useAuctionTaxonomy();
+  const category = auction.category_id ? categoryById.get(auction.category_id) : null;
+  const brand = auction.brand_id ? brandById.get(auction.brand_id) : null;
   const statusLabel = { open: t.auction.statusOpen, live: t.auction.statusLive, ended: t.auction.statusEnded }[status];
   const arrowCls = "";
 
@@ -36,7 +41,21 @@ export default function AuctionCard({ auction, yourBid }) {
         </span>
       </div>
       <div className="photo-fade relative -mt-10 p-4 pt-10 space-y-3">
-        <h3 className="font-display font-bold text-base text-foreground leading-snug line-clamp-1">{auction.title}</h3>
+        <div className="space-y-1">
+          {(category || brand) && (
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground truncate">
+              {category && (
+                <span className="inline-flex items-center gap-1" style={category.color ? { color: category.color } : undefined}>
+                  <CategoryIcon icon={category.icon} className="w-3.5 h-3.5 text-xs" />
+                  {category.name}
+                </span>
+              )}
+              {category && brand && <span aria-hidden="true">·</span>}
+              {brand && <span>{brand.name}</span>}
+            </p>
+          )}
+          <h3 className="font-display font-bold text-base text-foreground leading-snug line-clamp-1">{auction.title}</h3>
+        </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-accent" />{filled}/{auction.max_subscribers}</span>
           <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-primary" />{status === "live" ? formatCountdownCompact(remaining, t) : status === "ended" ? t.auction.statusEnded : formatDuration(durationMinutes, t)}</span>

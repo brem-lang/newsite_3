@@ -102,9 +102,9 @@ export default function MobileAuctionsHub({
   const h = t.hub;
   const arrowCls = "";
   const showFeatured = !!featured && (activeTab === "all" || activeTab === "live" || activeTab === "open");
-  // Hide the pinned featured strip when the same auction is already the
-  // first card in the grid — it's redundant to show it twice back-to-back.
-  const featuredIsFirst = !!featured && filtered.length > 0 && filtered[0].id === featured.id;
+  // Hide the pinned featured strip when the same auction is already in the
+  // list below, so it never shows twice.
+  const featuredInList = !!featured && filtered.some((a) => a.id === featured.id);
 
   const activeLabel = (tabs.find((x) => x.id === activeTab) || tabs[0]).label;
   const activeSortLabel = (sorts.find((x) => x.id === activeSort) || sorts[0]).label;
@@ -147,7 +147,7 @@ export default function MobileAuctionsHub({
       </div>
 
       {/* Featured live — hidden when the same auction is already the first list row */}
-      {showFeatured && !featuredIsFirst && <FeaturedLiveStrip auction={featured} symbol={symbol} t={t} arrowCls={arrowCls} />}
+      {showFeatured && !featuredInList && <FeaturedLiveStrip auction={featured} symbol={symbol} t={t} arrowCls={arrowCls} />}
 
       <div className="relative mx-5 mt-2">
         <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

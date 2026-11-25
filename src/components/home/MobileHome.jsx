@@ -2,20 +2,17 @@ import React from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Bell,
-  Building2,
-  Car,
   ChevronLeft,
   ChevronRight,
   Clock,
   Flame,
   Gavel,
   Search,
-  Smartphone,
   UserRound,
   Users,
-  Watch,
 } from "lucide-react";
 import { useCategories } from "@/lib/queries/config";
+import { CategoryIcon } from "@/lib/categoryIcons";
 
 const NO_CATEGORIES = [];
 import { useI18n } from "@/lib/i18n";
@@ -73,7 +70,8 @@ export default function MobileHome({ auctions, loading, authed, userName, userId
 
   // Reference screen 04: identical navy tiles, only the icon carries colour.
   const tones = ["text-accent", "text-primary", "text-accent", "text-accent"];
-  const icons = [Car, Watch, Building2, Smartphone];
+  // Icon keys for the placeholder tiles shown before any category has auctions.
+  const icons = ["Car", "Watch", "Building2", "Smartphone"];
 
   // Real categories that actually have auctions, so a tile always opens results.
   const liveCategories = React.useMemo(() => {
@@ -89,7 +87,7 @@ export default function MobileHome({ auctions, loading, authed, userName, userId
         key: c.id,
         label: c.name,
         to: `/auctions?category=${c.id}`,
-        icon: icons[i % icons.length],
+        icon: c.icon,
         tone: tones[i % tones.length],
       }));
   }, [auctions, dbCategories]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -144,9 +142,9 @@ export default function MobileHome({ auctions, loading, authed, userName, userId
 
       <main className="space-y-5 px-4 pt-4">
         <section className="grid grid-cols-4 gap-2" aria-label="Categories">
-          {categories.map(({ icon: Icon, label, tone, to, key }) => (
+          {categories.map(({ icon, label, tone, to, key }) => (
             <Link key={key} to={to} className="flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-1 py-3">
-              <Icon className={cn("h-5 w-5", tone)} />
+              <CategoryIcon icon={icon} className={cn("h-5 w-5 text-lg", tone)} />
               <span className="max-w-full truncate text-[9px] font-extrabold text-foreground">{label}</span>
             </Link>
           ))}
