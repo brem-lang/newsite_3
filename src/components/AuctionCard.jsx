@@ -22,9 +22,9 @@ export default function AuctionCard({ auction, yourBid }) {
   const arrowCls = "";
 
   const badgeCls = status === "live"
-    ? "bg-destructive/15 text-destructive border-destructive/30"
+    ? "theme-badge-live-soft"
     : status === "open"
-      ? "bg-success/15 text-success border-success/30"
+      ? "theme-badge-open-soft"
       : "bg-muted text-muted-foreground border-border";
 
   return (

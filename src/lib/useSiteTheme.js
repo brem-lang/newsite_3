@@ -28,15 +28,33 @@ export function rememberTheme(theme) {
   }
 }
 
+/** Drop the saved theme (nothing is published any more). */
+export function forgetTheme() {
+  try {
+    localStorage.removeItem(THEME_CACHE_KEY);
+  } catch {
+    /* storage blocked */
+  }
+}
+
 async function fetchEditorState() {
-  const [d, p, h] = await Promise.all([list("draft"), list("published"), list("published", "-created_date", 8)]);
+  const [d, p, h] = await Promise.all([
+    list("draft"),
+    list("published"),
+    list("published", "-created_date", 8),
+  ]);
   return { draft: d?.[0] || null, published: p?.[0] || null, history: h || [] };
 }
 
-const themeEditorQuery = () => ({ queryKey: configKeys.themeEditor(), queryFn: fetchEditorState, staleTime: 30_000 });
+const themeEditorQuery = () => ({
+  queryKey: configKeys.themeEditor(),
+  queryFn: fetchEditorState,
+  staleTime: 30_000,
+});
 
 /** Route prefetch for the admin Design screen. */
-export const prefetchSiteTheme = (qc) => qc.ensureQueryData(themeEditorQuery()).catch(() => undefined);
+export const prefetchSiteTheme = (qc) =>
+  qc.ensureQueryData(themeEditorQuery()).catch(() => undefined);
 
 /** Theme editor state for the admin Design screen. */
 export function useSiteTheme() {
@@ -87,7 +105,8 @@ export function useSiteTheme() {
   const saveDraft = useCallback(
     async (theme) => {
       // Nothing changed since the last save: skip the request.
-      if (draftRef.current && JSON.stringify(draftRef.current.theme) === JSON.stringify(theme)) return;
+      if (draftRef.current && JSON.stringify(draftRef.current.theme) === JSON.stringify(theme))
+        return;
       // A save is already in flight: remember only the latest edit and send it after.
       if (savingRef.current) {
         pendingRef.current = theme;
@@ -110,13 +129,35 @@ export function useSiteTheme() {
     [writeDraft],
   );
 
+  // Publishing makes the theme live and removes the draft, so the editor,
+  // the Draft/Published badge and the live site all agree afterwards.
   const publish = useCallback(
     async (theme) => {
       setSaving(true);
+      pendingRef.current = null;
       try {
         await base44.entities.Theme.create({ scope: "published", theme });
-        await load();
+        if (draftRef.current) {
+          await base44.entities.Theme.delete(draftRef.current.id).catch(() => {});
+          setDraft(null);
+        }
         applyTheme(theme);
+        rememberTheme(theme);
+        await load();
+      } finally {
+        setSaving(false);
+      }
+    },
+    [load, setDraft],
+  );
+
+  /** Delete one published version. If it was the live one, the next newest goes live. */
+  const removeVersion = useCallback(
+    async (id) => {
+      setSaving(true);
+      try {
+        await base44.entities.Theme.delete(id);
+        await load();
       } finally {
         setSaving(false);
       }
@@ -154,6 +195,7 @@ export function useSiteTheme() {
     publish,
     discard,
     restore,
+    removeVersion,
     reload: load,
   };
 }

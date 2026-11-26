@@ -251,11 +251,11 @@ export default function MobileAuctionDetail({
             className={cn(
               "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold",
               live
-                ? "border-destructive/50 bg-destructive/15 text-destructive shadow-[0_0_18px_-6px_hsl(var(--destructive)/0.7)]"
+                ? "theme-badge-live-soft"
                 : "border-border bg-card text-foreground"
             )}
           >
-            <span className={cn("h-2 w-2 rounded-full", live ? "bg-destructive animate-pulse" : "bg-muted-foreground")} />
+            <span className={cn("h-2 w-2 rounded-full", live ? "bg-current animate-pulse" : "bg-muted-foreground")} />
             {live ? t.street.live : status === "ended" ? t.auction.statusEnded : t.auction.statusOpen}
           </span>
         </div>

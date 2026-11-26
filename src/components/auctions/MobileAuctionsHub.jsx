@@ -38,8 +38,8 @@ function FeaturedLiveStrip({ auction, symbol, t, arrowCls }) {
       <div className="photo-fade-side relative min-w-0 flex-1 py-3.5 pe-20 ps-3.5">
         <div className="flex items-center gap-1.5 mb-1">
           {live && (
-            <span className="flex items-center gap-1 text-[10px] font-bold bg-destructive/15 text-destructive border border-destructive/30 px-2 py-0.5 rounded-full shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
+            <span className="theme-badge-live-soft flex items-center gap-1 text-[10px] font-bold border px-2 py-0.5 rounded-full shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
               {t.auction.statusLive}
             </span>
           )}
@@ -292,9 +292,9 @@ function MobileTile({ auction, yourBid, symbol, t, arrowCls }) {
   const pct = auction.max_subscribers ? Math.min(100, (filled / auction.max_subscribers) * 100) : 0;
   const statusLabel = { open: t.auction.statusOpen, live: t.auction.statusLive, ended: t.auction.statusEnded }[status];
   const badgeCls = status === "live"
-    ? "bg-destructive/15 text-destructive border-destructive/30"
+    ? "theme-badge-live-soft"
     : status === "open"
-      ? "bg-success/15 text-success border-success/30"
+      ? "theme-badge-open-soft"
       : "bg-muted text-muted-foreground border-border";
 
   return (

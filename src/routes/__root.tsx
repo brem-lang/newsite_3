@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -127,8 +128,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   // data-look="flat": no glow shadows, half radius, app-wide (src/styles.css).
+  // data-site-theme: the admin > Design theme applies (customer pages only,
+  // never /admin). Set here so it is right on the first, server-rendered paint.
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const themed = !/^\/admin(\/|$)/.test(pathname);
   return (
-    <html lang="en" data-look="flat">
+    <html lang="en" data-look="flat" data-site-theme={themed ? "" : undefined}>
       <head>
         <HeadContent />
       </head>

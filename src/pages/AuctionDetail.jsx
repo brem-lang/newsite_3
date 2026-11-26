@@ -356,8 +356,8 @@ export default function AuctionDetail() {
   }
 
   const statusBadge = {
-    open: "bg-primary/15 text-primary border-primary/30",
-    live: "bg-success/15 text-success border-success/30 animate-pulse",
+    open: "theme-badge-open-soft",
+    live: "theme-badge-live-soft animate-pulse",
     ended: "bg-muted text-muted-foreground border-border"
   }[status];
   const statusLabel = { open: t.auction.statusOpen, live: t.auction.statusLive, ended: t.auction.statusEnded }[status];

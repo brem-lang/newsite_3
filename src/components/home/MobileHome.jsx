@@ -236,7 +236,11 @@ export default function MobileHome({ auctions, loading, authed, userName, userId
                     <Image src={auction.image_url} alt={auction.title} className="h-full w-full" fittingType="fill" />
                   </div>
                   <div className="relative h-20">
-                    <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-[8px] font-extrabold text-destructive-foreground">
+                    <span
+                      className={`absolute start-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[8px] font-extrabold ${
+                        effectiveStatus(auction) === "live" ? "theme-badge-live" : "theme-badge-open"
+                      }`}
+                    >
                       <Flame className="h-2.5 w-2.5" />
                       {effectiveStatus(auction) === "live" ? t.auction.statusLive : t.auction.statusOpen}
                     </span>

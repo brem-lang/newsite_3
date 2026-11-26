@@ -827,3 +827,98 @@ html {
     backdrop-filter: blur(20px);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Admin > Design theme (src/lib/themeDefaults.js).                     */
+/* applyTheme writes --theme-* on <html> when a value is published; the  */
+/* defaults below apply otherwise. The theme is mapped onto the normal   */
+/* tokens on <body> of customer pages (<html data-site-theme>, set in    */
+/* RootShell; not on /admin), so portals (dialogs, menus, toasts) follow */
+/* too. .site-themed does the same for the admin preview.               */
+/* ------------------------------------------------------------------ */
+:root {
+  --theme-font-heading: var(--font-heading);
+  --theme-font-body: var(--font-body);
+  --theme-font-display: var(--font-display);
+  --theme-heading: var(--foreground);
+  --theme-text: var(--muted-foreground);
+  --theme-primary: var(--primary);
+  --theme-primary-fg: var(--primary-foreground);
+  --theme-gold-soft: var(--gold-soft);
+  --theme-card: var(--card);
+  --theme-surface: var(--surface);
+  --theme-bg: var(--background);
+  --theme-bg-deep: var(--navy-deep);
+  --theme-live-bg: var(--destructive);
+  --theme-live-fg: var(--destructive-foreground);
+  --theme-open-bg: var(--success);
+  --theme-open-fg: var(--success-foreground);
+}
+
+html[data-site-theme] body,
+.site-themed {
+  --font-heading: var(--theme-font-heading);
+  --font-body: var(--theme-font-body);
+  --font-display: var(--theme-font-display);
+  /* Body text is the muted tone (subtitles, labels, descriptions). */
+  --muted-foreground: var(--theme-text);
+  --primary: var(--theme-primary);
+  --primary-foreground: var(--theme-primary-fg);
+  --gold-soft: var(--theme-gold-soft);
+  /* Every bg-card, native-panel and photo-fade surface. */
+  --card: var(--theme-card);
+  --surface: var(--theme-surface);
+  --background: var(--theme-bg);
+  --navy-deep: var(--theme-bg-deep);
+  /* One radius scale: rounded-xl (cards, buttons) equals the chosen card
+     radius, rounded-lg (badges) is 4px less. Without a value it keeps the
+     flat look's half radius. Beats [data-look="flat"] body on specificity. */
+  --radius: var(--theme-radius-base, calc(var(--radius-theme, 0.625rem) / 2));
+  font-family: var(--font-body);
+}
+.site-themed {
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(circle at 50% -18%, hsl(var(--accent) / 0.11), transparent 30%),
+    linear-gradient(180deg, hsl(var(--background)), hsl(var(--navy-deep)) 78%);
+}
+
+/* Heading colour, only when one is set (data-theme-heading, from
+   applyTheme / the preview): page titles, section headings and the site
+   name (.theme-brand). The colour sits in the base layer, so a heading with
+   its own colour utility (text-primary, text-destructive...) keeps it, while
+   size-only classes like text-3xl no longer stop it. Headings using
+   text-foreground get it through the --foreground swap. */
+:is(html[data-site-theme][data-theme-heading] body, .site-themed[data-theme-heading])
+  :is(h1, h2, h3, h4, .theme-brand) {
+  --foreground: var(--theme-heading);
+  --card-foreground: var(--theme-heading);
+}
+@layer base {
+  :is(html[data-site-theme][data-theme-heading] body, .site-themed[data-theme-heading])
+    :is(h1, h2, h3, h4, .theme-brand) {
+    color: hsl(var(--theme-heading));
+  }
+}
+
+/* Status badges. Solid (hero featured card) and soft (auction cards). */
+.theme-badge-live {
+  background-color: hsl(var(--theme-live-bg));
+  border-color: hsl(var(--theme-live-bg));
+  color: hsl(var(--theme-live-fg));
+}
+.theme-badge-open {
+  background-color: hsl(var(--theme-open-bg));
+  border-color: hsl(var(--theme-open-bg));
+  color: hsl(var(--theme-open-fg));
+}
+.theme-badge-live-soft {
+  background-color: hsl(var(--theme-live-bg) / 0.15);
+  border-color: hsl(var(--theme-live-bg) / 0.3);
+  color: hsl(var(--theme-live-bg));
+}
+.theme-badge-open-soft {
+  background-color: hsl(var(--theme-open-bg) / 0.15);
+  border-color: hsl(var(--theme-open-bg) / 0.3);
+  color: hsl(var(--theme-open-bg));
+}

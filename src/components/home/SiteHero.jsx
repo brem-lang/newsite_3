@@ -119,8 +119,8 @@ export default function SiteHero({ auctions, loading, authed, content, contentLo
                     className={cn(
                       "absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-lg border",
                       live
-                        ? "bg-destructive text-destructive-foreground border-destructive animate-pulse"
-                        : "bg-card/90 text-foreground border-border",
+                        ? "theme-badge-live animate-pulse"
+                        : "theme-badge-open",
                     )}
                   >
                     {live ? t.auction.statusLive : t.site.hero.notLive}
