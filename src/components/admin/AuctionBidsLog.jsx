@@ -34,7 +34,7 @@ export default function AuctionBidsLog({ auction, users = {}, defaultOpen = fals
     return `…${String(b.user_id || "").slice(-6)}`;
   };
 
-  const currency = t?.common?.currency || "$";
+  const currency = t?.common?.currency || "₱";
   const labels = {
     all: t?.admin?.live?.bids || "Bids",
     none: t?.admin?.live?.noBids || "No bids yet",

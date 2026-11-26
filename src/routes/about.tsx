@@ -7,10 +7,10 @@ import { configQueries } from "@/lib/queries/config";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About — Mazady" },
-      { name: "description", content: "About Mazady: who we are and how our auctions work." },
-      { property: "og:title", content: "About — Mazady" },
-      { property: "og:description", content: "About Mazady: who we are and how our auctions work." },
+      { title: "About — BidKita" },
+      { name: "description", content: "About BidKita: who we are and how our auctions work." },
+      { property: "og:title", content: "About — BidKita" },
+      { property: "og:description", content: "About BidKita: who we are and how our auctions work." },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
     ],

@@ -4,9 +4,9 @@ import { walletQueries } from "@/lib/queries/wallet";
 import PageNotFound from "@/lib/PageNotFound";
 import AuctionDetail from "@/pages/AuctionDetail";
 
-const title = "Auction room | Mazad Atna";
+const title = "Auction room | BidKita";
 const description =
-  "Follow this Mazad Atna auction live: countdown, current price, your bids, seat count and the leaderboard.";
+  "Follow this BidKita auction live: countdown, current price, your bids, seat count and the leaderboard.";
 
 export const Route = createFileRoute("/_app/auction/$id")({
   head: () => ({

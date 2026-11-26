@@ -1,5 +1,5 @@
 insert into public.site_settings (key, site_name, tagline, contact_email, active_currency)
-values ('global', 'Mazady', 'Live online auctions', 'support@mazady.app', 'USD');
+values ('global', 'BidKita', 'Live Online Auction', 'support@bidkita.app', 'PHP');
 
 -- Bootstrap: the very first account created becomes an admin so the
 -- admin dashboard is reachable on a fresh install.

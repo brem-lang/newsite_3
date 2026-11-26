@@ -8,10 +8,10 @@ import { AppShellSkeleton } from "@/components/skeletons/PageSkeleton";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Mazady — Live Online Auctions" },
-      { name: "description", content: "Join live online auctions on Mazady: reserve a seat, bid in real time, and win phones, watches, cars and jewellery." },
-      { property: "og:title", content: "Mazady — Live Online Auctions" },
-      { property: "og:description", content: "Join live online auctions on Mazady: reserve a seat, bid in real time, and win phones, watches, cars and jewellery." },
+      { title: "BidKita - Live Online Auction" },
+      { name: "description", content: "Join live online auctions on BidKita: reserve a seat, bid in real time, and win phones, watches, cars and jewellery." },
+      { property: "og:title", content: "BidKita - Live Online Auction" },
+      { property: "og:description", content: "Join live online auctions on BidKita: reserve a seat, bid in real time, and win phones, watches, cars and jewellery." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

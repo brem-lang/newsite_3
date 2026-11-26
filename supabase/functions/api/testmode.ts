@@ -22,7 +22,7 @@ const fail = (error: string, status = 400): Result => ({ data: { error }, status
 
 const round2 = (n: number) => Math.round(Number(n || 0) * 100) / 100;
 const TEST_PASSWORD = "TestSeat!2024";
-const TEST_DOMAIN = "seat.mazadatna.test";
+const TEST_DOMAIN = "seat.bidkita.test";
 
 /* ------------------------------ test seats ------------------------------ */
 

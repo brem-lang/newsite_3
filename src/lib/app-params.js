@@ -22,7 +22,7 @@ const read = (key) => {
 
 export const appParams = {
   get appId() {
-    return read("app_id") || "mazady";
+    return read("app_id") || "bidkita";
   },
   get token() {
     return read("access_token");

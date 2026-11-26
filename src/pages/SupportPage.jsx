@@ -56,7 +56,7 @@ export default function SupportPage() {
 
         <div className="mx-4 mt-3 rounded-xl bg-card border border-border overflow-hidden">
           <a
-            href="mailto:support@ascendauction.example"
+            href="mailto:support@bidkita.example"
             className="flex items-center gap-3 px-4 py-3.5 border-b border-border active:bg-secondary/70 transition"
           >
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent/12 text-accent">
@@ -64,7 +64,7 @@ export default function SupportPage() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-bold text-foreground truncate">{"Email support"}</p>
-              <p className="text-[11px] text-muted-foreground truncate">support@ascendauction.example</p>
+              <p className="text-[11px] text-muted-foreground truncate">support@bidkita.example</p>
             </div>
             <ChevronLeft className={cn("h-4 w-4 shrink-0 text-muted-foreground/55")} />
           </a>

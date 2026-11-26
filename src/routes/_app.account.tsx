@@ -3,9 +3,9 @@ import { auctionQueries, bidQueries } from "@/lib/queries/auctions";
 import { accountQueries } from "@/lib/queries/account";
 import Account from "@/pages/Account";
 
-const title = "Your account | Mazad Atna";
+const title = "Your account | BidKita";
 const description =
-  "Manage your Mazad Atna profile, contact details, address, verification status and password.";
+  "Manage your BidKita profile, contact details, address, verification status and password.";
 
 export const Route = createFileRoute("/_app/account")({
   head: () => ({

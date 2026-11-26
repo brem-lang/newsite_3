@@ -5,16 +5,16 @@ import { configQueries } from "@/lib/queries/config";
 export const Route = createFileRoute("/terms")({
   head: () => ({
     meta: [
-      { title: "Terms of Service — Mazady" },
+      { title: "Terms of Service — BidKita" },
       {
         name: "description",
         content:
-          "Terms of Service for Mazady auctions: entry fees, bidding rules, wallet balance, refunds and fair-use policy.",
+          "Terms of Service for BidKita auctions: entry fees, bidding rules, wallet balance, refunds and fair-use policy.",
       },
-      { property: "og:title", content: "Terms of Service — Mazady" },
+      { property: "og:title", content: "Terms of Service — BidKita" },
       {
         property: "og:description",
-        content: "How entry fees, bids, wallet balance and refunds work on Mazady.",
+        content: "How entry fees, bids, wallet balance and refunds work on BidKita.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },

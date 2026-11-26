@@ -3,7 +3,7 @@ import { Gavel } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-const KEY = "mizad_splash_seen";
+const KEY = "bidkita_splash_seen";
 
 /**
  * Screen 01 — Splash / brand screen.
@@ -75,7 +75,7 @@ export default function SplashScreen() {
         <h1 className="mt-8 font-display text-5xl font-extrabold tracking-tight text-primary drop-shadow-[0_0_28px_hsl(var(--primary)/0.35)]">
           {t.brand}
         </h1>
-        <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.5em] text-accent/80">MIZAD</p>
+        <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.5em] text-accent/80">BIDKITA</p>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">{tagline}</p>
 

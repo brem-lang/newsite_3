@@ -1,6 +1,6 @@
 {
-  "name": "Mazady — Live Online Auctions",
-  "short_name": "Mazady",
+  "name": "BidKita - Live Online Auction",
+  "short_name": "BidKita",
   "description": "Reserve a seat, bid in real time, and win exclusive items.",
   "start_url": "/",
   "scope": "/",

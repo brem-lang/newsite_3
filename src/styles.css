@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Mazady design system (ported from the original Tailwind v3 config).
+ * BidKita design system (ported from the original Tailwind v3 config).
  * Color values are HSL triples in CSS variables; @theme maps them to
  * Tailwind utilities (bg-primary, text-neon-lime, font-heading, ...).
  */

@@ -3,9 +3,9 @@ import { auctionQueries, bidQueries } from "@/lib/queries/auctions";
 import PageNotFound from "@/lib/PageNotFound";
 import AuctionResults from "@/pages/AuctionResults";
 
-const title = "Auction results | Mazad Atna";
+const title = "Auction results | BidKita";
 const description =
-  "See how this Mazad Atna auction closed: every bid placed, the winning bid and the winner, plus the wallet payment step.";
+  "See how this BidKita auction closed: every bid placed, the winning bid and the winner, plus the wallet payment step.";
 
 export const Route = createFileRoute("/_app/auction/$id/results")({
   head: () => ({

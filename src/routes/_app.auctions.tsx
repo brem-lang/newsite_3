@@ -4,9 +4,9 @@ import { walletQueries } from "@/lib/queries/wallet";
 import { parseAuctionsSearch } from "@/lib/search";
 import Auctions from "@/pages/Auctions";
 
-const title = "Live auctions | Mazad Atna";
+const title = "Live auctions | BidKita";
 const description =
-  "Browse every live auction on Mazad Atna: rising-price rounds and sealed closest-to-price rounds, with seats, timers and current prices.";
+  "Browse every live auction on BidKita: rising-price rounds and sealed closest-to-price rounds, with seats, timers and current prices.";
 
 export const Route = createFileRoute("/_app/auctions")({
   // tab / sort / q / category are URL state: shareable, back/forward-safe.

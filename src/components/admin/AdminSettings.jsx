@@ -39,7 +39,7 @@ export default function AdminSettings() {
   const [form, setForm] = useState({
     site_name: "", tagline: "", timezone: "Asia/Jerusalem",
     contact_email: "", maintenance_mode: false, maintenance_message: "",
-    active_currency: "USD"
+    active_currency: "PHP"
   });
   const [saving, setSaving] = useState(false);
 
@@ -52,7 +52,7 @@ export default function AdminSettings() {
         contact_email: r.contact_email || "",
         maintenance_mode: !!r.maintenance_mode,
         maintenance_message: r.maintenance_message || "",
-        active_currency: r.active_currency || "USD"
+        active_currency: "PHP"
       });
   }, [row]);
 
@@ -173,12 +173,6 @@ export default function AdminSettings() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>{t.admin.settings.currency}</Label>
-            <SelectField value={form.active_currency} onChange={(e) => set("active_currency", e.target.value)} className={inputCls}>
-              {["USD", "EUR", "GBP", "JOD", "SAR", "AED", "EGP"].map((c) => <option key={c} value={c}>{c}</option>)}
-            </SelectField>
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
             <Label>{t.admin.settings.timezone}</Label>
             <div className="relative">
               <Clock className="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-muted-foreground" />

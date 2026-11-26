@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { CreditCard, Plus, Pencil, Trash2, Globe, X, Check } from "lucide-react";
+import React, { useCallback, useState } from "react";
+import { CreditCard, Plus, Pencil, Trash2, X, Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
@@ -18,16 +18,11 @@ import {
 } from "@/components/ui/dialog";
 import SelectField from "@/components/ui/select-field";
 
-const COMMON = ["USD", "EUR", "GBP", "JOD", "SAR", "AED", "EGP", "QAR", "KWD", "BHD", "OMR"];
-
 const NONE = [];
 
 const loadSection = async () => {
-  const [rows, settings] = await Promise.all([
-    base44.entities.PaymentMethod.list("display_order", 100),
-    base44.entities.SiteSettings.filter({ key: "global" }),
-  ]);
-  return { methods: rows || [], settings: settings?.[0] || null };
+  const rows = await base44.entities.PaymentMethod.list("display_order", 100);
+  return { methods: rows || [] };
 };
 
 /** Route loader: everything this panel paints, before it opens. */
@@ -43,15 +38,6 @@ export default function AdminPaymentMethods() {
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(emptyForm());
-  const [currency, setCurrency] = useState("USD");
-  const [settingsId, setSettingsId] = useState(null);
-
-  // Seed the editable currency field from the saved settings row.
-  useEffect(() => {
-    const s = data?.settings;
-    if (s) { setSettingsId(s.id); setCurrency(s.active_currency || "USD"); }
-  }, [data?.settings]);
-
   // Re-read this panel and the site-wide payment-method / settings caches.
   const load = useCallback(() => {
     refresh();
@@ -126,19 +112,6 @@ export default function AdminPaymentMethods() {
     } catch (e) { toast.error(e.message || "Error"); }
   };
 
-  const saveCurrency = async (code) => {
-    setCurrency(code);
-    try {
-      if (settingsId) await base44.entities.SiteSettings.update(settingsId, { active_currency: code });
-      else {
-        const created = await base44.entities.SiteSettings.create({ key: "global", active_currency: code });
-        setSettingsId(created.id);
-      }
-      qc.invalidateQueries({ queryKey: configKeys.settings() });
-      toast.success(t.admin.payments.currencySaved || "Saved");
-    } catch (e) { toast.error(e.message || "Error"); }
-  };
-
   if (loading) return null;
 
   const typeLabel = (type) => ({
@@ -153,23 +126,6 @@ export default function AdminPaymentMethods() {
           <p className="text-muted-foreground mt-1 text-sm">{t.admin.payments.methodsSub}</p>
         </div>
         <Button onClick={openNew} className="gap-2"><Plus className="w-4 h-4" />{m.addMethod}</Button>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3 flex-wrap">
-        <Globe className="w-5 h-5 text-muted-foreground" />
-        <span className="text-sm font-medium">{t.admin.payments.currency}</span>
-        <Input
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value.toUpperCase().slice(0, 4))}
-          placeholder="USD"
-          className="w-24 uppercase tracking-wide font-semibold"
-        />
-        <Button size="sm" onClick={() => { const c = currency.trim(); if (c) saveCurrency(c); }}>{t.admin.save}</Button>
-        <div className="flex gap-1 flex-wrap">
-          {COMMON.map((c) => (
-            <button key={c} onClick={() => saveCurrency(c)} className={cn("px-2.5 py-1 rounded-lg text-xs font-medium border", currency === c ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-secondary/60")}>{c}</button>
-          ))}
-        </div>
       </div>
 
       {methods.length === 0 ? (

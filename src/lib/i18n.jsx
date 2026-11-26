@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useCallback } from "react"
 const translations = {
   en: {
     dir: "ltr",
-    brand: "AscendAuction",
+    brand: "BidKita",
     tagline: "Ascending auctions with a fixed entry. Top up, join, and outbid.",
     nav: { auctions: "Auctions", wallet: "Wallet", balance: "Balance", admin: "Admin", account: "Account", home: "Home", explore: "Explore", bidboard: "My Bids", profile: "Profile" },
     home: {
@@ -412,7 +412,7 @@ const translations = {
       agoHour: "{n}h ago",
       noBidYet: "You haven't bid yet. Your turn.",
     },
-    common: { loading: "Loading...", logout: "Log out", currency: "$", close: "Close", cancel: "Cancel" },
+    common: { loading: "Loading...", logout: "Log out", currency: "₱", close: "Close", cancel: "Cancel" },
 
     authp: {
       or: "or",
@@ -537,10 +537,10 @@ const translations = {
         step3: "Place ascending bids until the timer ends. The highest bid takes the item home."
       },
       about: {
-        title: "About AscendAuction",
-        text: "AscendAuction is a competitive ascending-auction platform. We keep things fair and transparent: a flat entry fee, a limited number of seats per auction, and a live countdown. You always see the required minimum bid, so you can bid with confidence and win smart.",
+        title: "About BidKita",
+        text: "BidKita is a competitive ascending-auction platform. We keep things fair and transparent: a flat entry fee, a limited number of seats per auction, and a live countdown. You always see the required minimum bid, so you can bid with confidence and win smart.",
         bullets: ["Fixed entry fee, no hidden costs", "Limited seats for fair competition", "Live countdown and real-time leaderboard", "Top up your wallet and start bidding in minutes"],
-        cardTitle: "Why AscendAuction",
+        cardTitle: "Why BidKita",
         cardText: "Every auction is sealed by a countdown and a fixed seat count. Once the seats are full, the clock starts and the highest bid wins — simple, transparent, and competitive."
       },
       contact: {
@@ -549,7 +549,7 @@ const translations = {
         email: "Email",
         location: "Location",
         hours: "Support hours",
-        emailValue: "support@ascendauction.example",
+        emailValue: "support@bidkita.example",
         locationValue: "Amman, Jordan",
         hoursValue: "Sun–Thu, 9:00–18:00"
       },
@@ -563,7 +563,7 @@ const translations = {
         rights: "All rights reserved.",
         madeWith: "Built for fair, competitive bidding.",
         privacyText: "We respect your privacy. We collect only the information needed to run auctions and process wallet transactions, such as your name, email and transaction history. We never sell your data, and we only use it to operate the platform and provide support. You may request deletion of your account and associated data at any time by contacting support.",
-        termsText: "By using AscendAuction you agree to these terms. Entry fees are charged when you join an auction and are non-refundable once the auction goes live. Bids are binding; the highest valid bid at the end of the countdown wins. Wallet credits have no cash value outside the platform. We reserve the right to suspend accounts that violate these terms or attempt to manipulate auctions."
+        termsText: "By using BidKita you agree to these terms. Entry fees are charged when you join an auction and are non-refundable once the auction goes live. Bids are binding; the highest valid bid at the end of the countdown wins. Wallet credits have no cash value outside the platform. We reserve the right to suspend accounts that violate these terms or attempt to manipulate auctions."
       }
     },
     admin: {
@@ -1099,7 +1099,7 @@ const translations = {
       actions: "Actions",
       settings: {
         title: "General settings",
-        subtitle: "Site identity, timezone, maintenance mode, and currency.",
+        subtitle: "Site identity, timezone and maintenance mode.",
         screenTitle: "Profile & settings", screenSubtitle: "Manage your admin identity, security, and platform preferences.",
         profileTab: "Profile", securityTab: "Security", generalTab: "General",
         securityTitle: "Account security", securitySubtitle: "Protect admin access with a strong, private password.",

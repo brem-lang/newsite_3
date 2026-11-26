@@ -90,17 +90,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Mazady" },
+      { name: "apple-mobile-web-app-title", content: "BidKita" },
 
-      { title: "Mazady — Live Online Auctions" },
+      { title: "BidKita - Live Online Auction" },
       {
         name: "description",
-        content: "Bid on live auctions, track your wallet, and win exclusive items on Mazady.",
+        content: "Bid on live auctions, track your wallet, and win exclusive items on BidKita.",
       },
-      { property: "og:title", content: "Mazady — Live Online Auctions" },
+      { property: "og:title", content: "BidKita - Live Online Auction" },
       {
         property: "og:description",
-        content: "Bid on live auctions, track your wallet, and win exclusive items on Mazady.",
+        content: "Bid on live auctions, track your wallet, and win exclusive items on BidKita.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

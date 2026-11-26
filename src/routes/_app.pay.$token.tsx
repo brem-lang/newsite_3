@@ -5,13 +5,13 @@ import WinnerPayment from "@/pages/WinnerPayment";
 export const Route = createFileRoute("/_app/pay/$token")({
   head: () => ({
     meta: [
-      { title: "Complete your auction payment | Mazad Atna" },
+      { title: "Complete your auction payment | BidKita" },
       {
         name: "description",
         content:
           "Review the amount due for the auction you won and send your details so our team can confirm your payment and delivery.",
       },
-      { property: "og:title", content: "Complete your auction payment | Mazad Atna" },
+      { property: "og:title", content: "Complete your auction payment | BidKita" },
       {
         property: "og:description",
         content: "Review the amount due for the auction you won and finish your payment with our team.",

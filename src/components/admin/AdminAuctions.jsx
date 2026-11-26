@@ -441,7 +441,7 @@ const ARCHIVED_STATUSES = ["archived"];
 /** Full data view for ended auctions: search, filters, pagination, export, details and revenue. */
 /** onTransition(a, to) runs Relaunch / Archive; null = read-only (the Archived tab). */
 function EndedAuctions({ statuses, users: knownUsers, t, onEdit, onTransition, busyId, onReload }) {
-  const currency = t?.common?.currency || "$";
+  const currency = t?.common?.currency || "₱";
   const money = (n) => `${currency}${Number(n || 0).toFixed(2)}`;
   const date = (v) => (v ? new Date(v).toLocaleString("en-GB") : "—");
 

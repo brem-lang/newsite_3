@@ -28,7 +28,7 @@ export default function ReceiptModal({ transaction, open, onOpenChange }) {
     const html = [
       "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + t.receipt.title + "</title>",
       "<style>body{font-family:system-ui,sans-serif;padding:32px;color:#111}h1{font-size:18px;margin:0}.sub{color:#666;font-size:12px}.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #ddd;font-size:14px}.label{color:#666}.amt{font-weight:bold}.brand{color:#16a34a;font-weight:800;margin-bottom:4px}</style></head><body>",
-      "<div class='brand'>" + (t.receipt.title || "Mazady") + "</div>",
+      "<div class='brand'>" + (t.receipt.title || "BidKita") + "</div>",
       "<h1>" + t.receipt.desc + "</h1><div class='sub'>" + date + "</div>",
       "<div class='row'><span class='label'>" + t.receipt.type + "</span><span>" + labels[transaction.type] + "</span></div>",
       "<div class='row'><span class='label'>" + t.receipt.amount + "</span><span class='amt'>" + sign + symbol + amount.toFixed(2) + "</span></div>",

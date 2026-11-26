@@ -115,7 +115,7 @@ function NumberChip({ bid, currency }) {
   );
 }
 
-export default function LiveAuctionMonitor({ auction, users = {}, bids = [], credits = [], txns = [], loading = false, open, onOpenChange, currency = "$" }) {
+export default function LiveAuctionMonitor({ auction, users = {}, bids = [], credits = [], txns = [], loading = false, open, onOpenChange, currency = "₱" }) {
   const s = useLiveAuctionStats(auction, bids, credits, txns);
   // While this auction's bids/credits are still loading, never say "none yet".
   const empty = (text) => <Empty text={loading ? "Loading…" : text} />;

@@ -27,7 +27,9 @@ async function mustWrite<T extends { error: unknown }>(q: PromiseLike<T>): Promi
 }
 
 const CAPS = ["join_auctions", "place_bids", "topup_wallet"] as const;
-const CURRENCY_UNIT: Record<string, number> = { USD: 100, EUR: 100, GBP: 100, JOD: 1000, SAR: 100 };
+// The site trades in Philippine pesos only (Stripe: 100 centavos per peso).
+const CURRENCY = "PHP";
+const CURRENCY_UNIT = 100;
 
 function permissionState(user: Row, cap: string) {
   const value = (user?.permissions || {})[cap];
@@ -1068,12 +1070,9 @@ async function topup(user: Row, body: Payload) {
     const cred = await credentialFor(methodId);
     if (!cred?.secret_key) return fail("Payment method not configured");
 
-    // Currency is decided by the site settings on the server, never by the caller.
-    const { data: settingRows } = await admin.from("site_settings").select("key, active_currency").limit(20);
-    const configured = (settingRows || []).find((r: Row) => r["key"] === "global" || !r["key"]);
-    const currency = String(configured?.["active_currency"] || "USD").toUpperCase();
-    if (!CURRENCY_UNIT[currency]) return fail("unsupported_currency");
-    const unit = CURRENCY_UNIT[currency];
+    // Currency is fixed on the server (PHP), never chosen by the caller.
+    const currency = CURRENCY;
+    const unit = CURRENCY_UNIT;
     const origin = body["app_url"] || String(body["success_url"] || "").replace(/\/wallet.*$/, "") || "";
 
     const form = new URLSearchParams();

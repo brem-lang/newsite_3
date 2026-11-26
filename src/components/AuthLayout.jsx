@@ -19,14 +19,15 @@ function Glow() {
 }
 
 function Emblem({ icon: Icon, size = "lg" }) {
-  const box = size === "lg" ? "h-24 w-24" : "h-20 w-20";
-  const inner = size === "lg" ? "h-8 w-8" : "h-7 w-7";
+  // Three concentric circles: outer ring, inner ring, then the filled badge,
+  // each sized so the badge sits fully inside the inner ring.
+  const lg = size === "lg";
   return (
-    <div className={cn("relative grid place-items-center", box)}>
+    <div className={cn("relative grid place-items-center", lg ? "h-24 w-24" : "h-20 w-20")}>
       <span className="absolute inset-0 rounded-full border border-accent/20" />
-      <span className="absolute inset-3 rounded-full border border-primary/25" />
-      <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-primary shadow-[0_0_38px_hsl(var(--primary)/0.35)]">
-        <Icon className={cn("text-primary-foreground", inner)} aria-hidden="true" />
+      <span className="absolute inset-2.5 rounded-full border border-primary/25" />
+      <span className={cn("relative grid place-items-center rounded-full bg-primary shadow-[0_0_38px_hsl(var(--primary)/0.35)]", lg ? "h-14 w-14" : "h-12 w-12")}>
+        <Icon className={cn("text-primary-foreground", lg ? "h-7 w-7" : "h-6 w-6")} aria-hidden="true" />
       </span>
     </div>
   );
@@ -60,7 +61,7 @@ function CompactAuthLayout({ icon: Icon, title, subtitle, footer, children, isMo
       >
         <div className={cn("m-auto w-full", isMobile ? "max-w-md" : "max-w-xl")}>
           <div className={cn("flex items-center gap-3", isMobile ? "mb-3" : "mb-5 justify-center")}>
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary shadow-[0_0_28px_hsl(var(--primary)/0.35)]">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary shadow-[0_0_28px_hsl(var(--primary)/0.35)]">
               <Icon className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
             </span>
             <div className="min-w-0">
@@ -119,7 +120,7 @@ export default function AuthLayout({ icon: Icon, title, subtitle, footer, childr
                 {title}
               </h1>
               <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.4em] text-accent/70">
-                MIZAD
+                BIDKITA
               </p>
               {subtitle && (
                 <p className="text-sm text-muted-foreground mt-3 max-w-xs">{subtitle}</p>
@@ -146,7 +147,7 @@ export default function AuthLayout({ icon: Icon, title, subtitle, footer, childr
             {title}
           </h1>
           <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.45em] text-accent/70">
-            MIZAD
+            BIDKITA
           </p>
           {subtitle && <p className="text-muted-foreground mt-3 max-w-sm">{subtitle}</p>}
         </div>

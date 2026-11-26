@@ -5,8 +5,8 @@ import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const KEY = "mizad_onboarding_seen";
-const SPLASH_KEY = "mizad_splash_seen";
+const KEY = "bidkita_onboarding_seen";
+const SPLASH_KEY = "bidkita_splash_seen";
 
 const COPY = {
   en: {

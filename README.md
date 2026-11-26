@@ -1,4 +1,4 @@
-# Mazady
+# BidKita
 
 Auction web app: TanStack Start (static SPA) + Supabase.
 

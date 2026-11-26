@@ -36,7 +36,7 @@ import AuctionDetail from "@/pages/AuctionDetail";
 import { auctionQueries } from "@/lib/queries/auctions";
 
 export const Route = createFileRoute("/_app/auction/$id")({
-  head: () => ({ meta: [{ title: "Auction room | Mazad Atna" }] }),
+  head: () => ({ meta: [{ title: "Auction room | BidKita" }] }),
   loader: ({ context: { queryClient }, params }) =>
     queryClient.ensureQueryData(auctionQueries.detail(params.id)),
   component: AuctionDetail,

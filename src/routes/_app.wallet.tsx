@@ -4,9 +4,9 @@ import { configQueries } from "@/lib/queries/config";
 import { parseWalletSearch } from "@/lib/search";
 import Wallet from "@/pages/Wallet";
 
-const title = "Your wallet | Mazad Atna";
+const title = "Your wallet | BidKita";
 const description =
-  "Check your Mazad Atna balance, deposits, entry and bid fees, refunds and every wallet transaction.";
+  "Check your BidKita balance, deposits, entry and bid fees, refunds and every wallet transaction.";
 
 export const Route = createFileRoute("/_app/wallet")({
   // Stripe checkout returns here with ?session_id=…&method_id=….

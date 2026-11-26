@@ -7,10 +7,10 @@ import { configQueries } from "@/lib/queries/config";
 export const Route = createFileRoute("/faq")({
   head: () => ({
     meta: [
-      { title: "FAQ — Mazady" },
-      { name: "description", content: "Frequently asked questions about Mazady auctions, entry fees, bidding and payments." },
-      { property: "og:title", content: "FAQ — Mazady" },
-      { property: "og:description", content: "Frequently asked questions about Mazady auctions, entry fees, bidding and payments." },
+      { title: "FAQ — BidKita" },
+      { name: "description", content: "Frequently asked questions about BidKita auctions, entry fees, bidding and payments." },
+      { property: "og:title", content: "FAQ — BidKita" },
+      { property: "og:description", content: "Frequently asked questions about BidKita auctions, entry fees, bidding and payments." },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
     ],

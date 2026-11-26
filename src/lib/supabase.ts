@@ -46,7 +46,7 @@ function lazy(make: () => SupabaseClient): SupabaseClient {
 /** Customer session: kept across reloads and tabs. */
 export const supabase = lazy(() => createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    storageKey: "mazady-auth",
+    storageKey: "bidkita-auth",
     storage: browserStorage(() => window.localStorage),
     persistSession: true,
     autoRefreshToken: true,
@@ -60,7 +60,7 @@ export const supabase = lazy(() => createClient(SUPABASE_URL, SUPABASE_KEY, {
  */
 export const supabaseAdmin = lazy(() => createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    storageKey: "mazady-admin-auth",
+    storageKey: "bidkita-admin-auth",
     storage: browserStorage(() => window.sessionStorage),
     persistSession: true,
     autoRefreshToken: true,

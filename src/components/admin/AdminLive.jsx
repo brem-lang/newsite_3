@@ -48,7 +48,7 @@ export default function AdminLive() {
   const [openId, setOpenId] = useState(null);
   const users = useAdminUserMap();
 
-  const currency = t?.common?.currency || "$";
+  const currency = t?.common?.currency || "₱";
 
   // Live auctions: cached, 20s safety poll (paused in background tabs).
   // Realtime row changes are merged straight into the cache.

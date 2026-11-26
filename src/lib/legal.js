@@ -11,7 +11,7 @@ export const legalContent = {
       subtitle: "The rules for joining auctions, paying entry fees and bidding.",
       updatedLabel: "Last updated",
       intro:
-        "These terms are an agreement between you and Mazady. By creating an account, adding funds or joining an auction you accept them. If you do not agree, please do not use the platform.",
+        "These terms are an agreement between you and BidKita. By creating an account, adding funds or joining an auction you accept them. If you do not agree, please do not use the platform.",
       sections: [
         {
           id: "eligibility",

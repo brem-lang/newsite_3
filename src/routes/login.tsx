@@ -5,10 +5,10 @@ import Login from "@/pages/Login";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Log in — Mazady" },
-      { name: "description", content: "Log in to your Mazady account to join live auctions, place bids and manage your wallet." },
-      { property: "og:title", content: "Log in — Mazady" },
-      { property: "og:description", content: "Log in to your Mazady account to join live auctions, place bids and manage your wallet." },
+      { title: "Log in — BidKita" },
+      { name: "description", content: "Log in to your BidKita account to join live auctions, place bids and manage your wallet." },
+      { property: "og:title", content: "Log in — BidKita" },
+      { property: "og:description", content: "Log in to your BidKita account to join live auctions, place bids and manage your wallet." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

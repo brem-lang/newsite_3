@@ -61,7 +61,7 @@ export default function MobileHome({ auctions, loading, authed, userName, userId
         // Signed in, the greeting is personal; signed out it is the hero headline.
         greeting: userName ? `Welcome ${userName}` : hero.title,
         subtitle: hero.subtitle,
-        search: "Search for anything in MIZAD...",
+        search: "Search for anything in BidKita...",
         categories: ["Cars", "Watches", "Property", "Electronics"],
         live: "Live auctions",
         liveSub: "Live offers · bid your best price",
