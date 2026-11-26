@@ -841,7 +841,22 @@ html {
   --theme-font-body: var(--font-body);
   --theme-font-display: var(--font-display);
   --theme-heading: var(--foreground);
+  --theme-fg: var(--foreground);
+  --theme-card-fg: var(--card-foreground);
+  --theme-popover-fg: var(--popover-foreground);
+  --theme-secondary-fg: var(--secondary-foreground);
+  --theme-surface-fg: var(--surface-foreground);
   --theme-text: var(--muted-foreground);
+  --theme-ring: var(--ring);
+  --theme-accent: var(--accent);
+  --theme-accent-fg: var(--accent-foreground);
+  --theme-cyan-glow: var(--cyan-glow);
+  --theme-secondary: var(--secondary);
+  --theme-muted: var(--muted);
+  --theme-border: var(--border);
+  --theme-input: var(--input);
+  --theme-popover: var(--popover);
+  --theme-navy-raised: var(--navy-raised);
   --theme-primary: var(--primary);
   --theme-primary-fg: var(--primary-foreground);
   --theme-gold-soft: var(--gold-soft);
@@ -860,8 +875,24 @@ html[data-site-theme] body,
   --font-heading: var(--theme-font-heading);
   --font-body: var(--theme-font-body);
   --font-display: var(--theme-font-display);
-  /* Body text is the muted tone (subtitles, labels, descriptions). */
+  /* Main text, and the muted tone (subtitles, labels, descriptions). */
+  --foreground: var(--theme-fg);
+  --card-foreground: var(--theme-card-fg);
+  --popover-foreground: var(--theme-popover-fg);
+  --secondary-foreground: var(--theme-secondary-fg);
+  --surface-foreground: var(--theme-surface-fg);
   --muted-foreground: var(--theme-text);
+  --ring: var(--theme-ring);
+  /* Secondary accent (cyan) and the neutral surfaces. */
+  --accent: var(--theme-accent);
+  --accent-foreground: var(--theme-accent-fg);
+  --cyan-glow: var(--theme-cyan-glow);
+  --secondary: var(--theme-secondary);
+  --muted: var(--theme-muted);
+  --border: var(--theme-border);
+  --input: var(--theme-input);
+  --popover: var(--theme-popover);
+  --navy-raised: var(--theme-navy-raised);
   --primary: var(--theme-primary);
   --primary-foreground: var(--theme-primary-fg);
   --gold-soft: var(--theme-gold-soft);
@@ -901,6 +932,35 @@ html[data-site-theme] body,
   }
 }
 
+/* Navigation tabs (header nav, mobile bottom bar, footer links). The
+   fallbacks resolve on the element, so an unset active colour follows the
+   themed primary accent. */
+.theme-tab-active {
+  color: hsl(var(--theme-tab-active, var(--primary)));
+  --tw-ring-color: hsl(var(--theme-tab-active, var(--primary)) / 0.3);
+}
+.theme-tab-indicator {
+  background-color: hsl(var(--theme-tab-active, var(--primary)));
+  box-shadow: 0 0 12px hsl(var(--theme-tab-active, var(--primary)) / 0.8);
+}
+.theme-tab-hover:hover:not(.theme-tab-active) {
+  color: hsl(var(--theme-tab-hover, var(--accent)));
+}
+.theme-link-hover:hover {
+  color: hsl(var(--theme-tab-hover, var(--primary)));
+}
+
+/* Auction chat bubbles. Fallbacks resolve on the element, so unset colours
+   follow the themed secondary accent / muted surface / main text. */
+.theme-chat-mine {
+  background-color: hsl(var(--theme-chat-mine, var(--accent)));
+  color: hsl(var(--theme-chat-mine-fg, var(--accent-foreground)));
+}
+.theme-chat-other {
+  background-color: hsl(var(--theme-chat-other, var(--muted)));
+  color: hsl(var(--theme-chat-other-fg, var(--foreground)));
+}
+
 /* Status badges. Solid (hero featured card) and soft (auction cards). */
 .theme-badge-live {
   background-color: hsl(var(--theme-live-bg));
@@ -921,4 +981,26 @@ html[data-site-theme] body,
   background-color: hsl(var(--theme-open-bg) / 0.15);
   border-color: hsl(var(--theme-open-bg) / 0.3);
   color: hsl(var(--theme-open-bg));
+}
+
+/* Toasts (sonner, richColors). Its default light palette ignores the theme;
+   on customer pages it takes the menu surface, text and status colours.
+   Specificity (0,2,1) beats sonner's [data-sonner-toaster][data-sonner-theme]. */
+html[data-site-theme] [data-sonner-toaster] {
+  --normal-bg: hsl(var(--popover));
+  --normal-border: hsl(var(--border));
+  --normal-text: hsl(var(--popover-foreground));
+  --success-bg: color-mix(in srgb, hsl(var(--success)) 14%, hsl(var(--popover)));
+  --success-border: hsl(var(--success) / 0.35);
+  --success-text: hsl(var(--success));
+  --error-bg: color-mix(in srgb, hsl(var(--destructive)) 14%, hsl(var(--popover)));
+  --error-border: hsl(var(--destructive) / 0.35);
+  --error-text: hsl(var(--destructive));
+  --warning-bg: color-mix(in srgb, hsl(var(--warning)) 14%, hsl(var(--popover)));
+  --warning-border: hsl(var(--warning) / 0.35);
+  --warning-text: hsl(var(--warning));
+  --info-bg: color-mix(in srgb, hsl(var(--accent)) 14%, hsl(var(--popover)));
+  --info-border: hsl(var(--accent) / 0.35);
+  --info-text: hsl(var(--accent));
+  font-family: var(--font-body);
 }

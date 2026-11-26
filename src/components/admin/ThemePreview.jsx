@@ -42,10 +42,19 @@ function ThemePreview({ theme }) {
       </div>
 
       <div dir={dir} style={style} className="rounded-2xl border border-border overflow-hidden">
-        <div className="site-themed text-foreground" data-theme-heading={theme.heroHeading ? "" : undefined}>
+        <div className="site-themed text-foreground" data-theme-heading={theme.heroHeading || theme.bodyText ? "" : undefined}>
           {/* Header strip */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60">
             <span className="theme-brand font-display text-sm font-extrabold">{t.brand}</span>
+            <nav className="flex items-center gap-0.5 text-[10px] font-medium">
+              <span className="theme-tab-hover theme-tab-active bg-secondary ring-1 rounded-lg px-2 py-1">{t.nav?.auctions}</span>
+              <span className="theme-tab-hover cursor-default text-muted-foreground hover:bg-secondary/60 rounded-lg px-2 py-1">
+                {t.nav?.wallet}
+              </span>
+              <span className="theme-tab-hover cursor-default text-muted-foreground hover:bg-secondary/60 rounded-lg px-2 py-1">
+                {t.nav?.account}
+              </span>
+            </nav>
             <span className="gold-button rounded-lg px-2.5 py-1 text-[10px] font-bold">{t.auth?.register}</span>
           </div>
 
@@ -101,6 +110,33 @@ function ThemePreview({ theme }) {
                   <div className="h-1 rounded-full bg-muted overflow-hidden">
                     <div className="h-full w-3/5 rounded-full bg-accent" />
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main text, buttons and an input */}
+            <p className="text-xs text-foreground">{t.home?.heroSubtitle}</p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="native-control rounded-xl px-2.5 py-1 text-[10px] font-bold">{t.auth?.login}</span>
+              <span className="cyan-button rounded-xl px-2.5 py-1 text-[10px] font-bold">{t.site?.hero?.bidNow}</span>
+              <span className="rounded-lg bg-secondary text-secondary-foreground px-2 py-1 text-[10px] font-semibold">+5</span>
+              <span className="text-accent text-[10px] font-bold">{t.auction?.seats}</span>
+            </div>
+            <div className="h-7 rounded-lg border border-input bg-transparent px-2 text-[10px] text-muted-foreground flex items-center">
+              {t.common?.search || "Search"}
+            </div>
+
+            {/* Auction chat */}
+            <div className="native-panel rounded-xl p-2.5 space-y-1.5">
+              <div className="flex justify-start">
+                <div className="theme-chat-other max-w-[80%] rounded-2xl rounded-es-md px-2.5 py-1.5">
+                  <p className="text-[9px] font-bold opacity-75">Sara</p>
+                  <p className="text-[10px]">Good luck everyone!</p>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <div className="theme-chat-mine max-w-[80%] rounded-2xl rounded-ee-md px-2.5 py-1.5">
+                  <p className="text-[10px]">Thanks, you too</p>
                 </div>
               </div>
             </div>

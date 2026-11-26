@@ -5,13 +5,21 @@ import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-/** One bubble. Memoised so typing in the box doesn't re-render the whole list. */
+/**
+ * One bubble. Memoised so typing in the box doesn't re-render the whole list.
+ * Colours come from admin > Design (.theme-chat-mine / -other in styles.css).
+ * The tail corner uses logical radius classes, so it flips in RTL.
+ */
 const ChatMessage = memo(function ChatMessage({ message, mine }) {
   return (
-    <div className={`p-3 flex ${mine ? "justify-end" : "justify-start"}`}>
-      <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${mine ? "bg-accent text-accent-foreground" : "bg-muted text-foreground"}`}>
-        <p className="text-[10px] font-bold opacity-70 mb-0.5">{message.author_name}</p>
-        <p className="text-sm break-words">{message.body}</p>
+    <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[80%] rounded-2xl px-3 py-2 ${
+          mine ? "theme-chat-mine rounded-ee-md" : "theme-chat-other rounded-es-md"
+        }`}
+      >
+        {!mine && <p className="text-[10px] font-bold opacity-75 mb-0.5">{message.author_name}</p>}
+        <p className="text-sm break-words whitespace-pre-wrap">{message.body}</p>
       </div>
     </div>
   );
@@ -58,9 +66,9 @@ export default function AuctionChat({ auctionId, user, closed = false }) {
   return (
     <div className="native-panel rounded-xl overflow-hidden flex flex-col">
       <div className="p-5 border-b border-border"><h2 className="font-display text-lg font-bold text-foreground">{t.auction.chat}</h2></div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto max-h-72 divide-y divide-border">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto max-h-72 p-3 space-y-2">
         {messages.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">{t.auction.chatPlaceholder}</div>
+          <div className="p-5 text-center text-sm text-muted-foreground">{t.auction.chatPlaceholder}</div>
         ) : messages.map((m) => <ChatMessage key={m.id} message={m} mine={m.user_id === user?.id} />)}
       </div>
       {closed ? (

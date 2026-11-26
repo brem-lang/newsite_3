@@ -27,11 +27,11 @@ export default function SiteHeader() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 lg:gap-4">
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
           <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground grid place-items-center shadow-lg shadow-primary/25"><Gavel className="w-5 h-5" /></div>
-          <span className="font-display font-extrabold text-lg tracking-tight text-foreground">{t.brand}</span>
+          <span className="theme-brand font-display font-extrabold text-lg tracking-tight text-foreground">{t.brand}</span>
         </Link>
         <nav className="hidden md:flex items-center gap-1">
           {links.map((l) => (
-            <a key={l.href} href={l.href} className="px-2.5 lg:px-3.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-accent hover:bg-secondary transition-colors">{l.label}</a>
+            <a key={l.href} href={l.href} className="theme-tab-hover px-2.5 lg:px-3.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors">{l.label}</a>
           ))}
         </nav>
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 shrink-0">
@@ -55,7 +55,7 @@ export default function SiteHeader() {
         </div>
       </div>
       <nav className="md:hidden flex items-center gap-1 overflow-x-auto border-t border-border px-2 py-1.5">
-        {links.map((l) => (<a key={l.href} href={l.href} className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary whitespace-nowrap">{l.label}</a>))}
+        {links.map((l) => (<a key={l.href} href={l.href} className="theme-tab-hover px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary whitespace-nowrap">{l.label}</a>))}
       </nav>
     </header>
   );

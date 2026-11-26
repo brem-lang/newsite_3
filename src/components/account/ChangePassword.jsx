@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { KeyRound, Eye, EyeOff } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
@@ -8,14 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-export default function ChangePassword({ user, embedded = false }) {
+/**
+ * Change-password form. `embedded` stacks the fields (dialogs, narrow cards);
+ * otherwise it is a titled card with the three fields in a row on wide
+ * screens. `onCancel` adds a Cancel button next to the submit button.
+ */
+export default function ChangePassword({ user, embedded = false, onCancel }) {
   const { t } = useI18n();
-  const L = (o) => (o.en);
+  const id = useId();
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const submit = async () => {
+  const submit = async (e) => {
+    e?.preventDefault();
     if (!form.current || !form.next || !form.confirm) {
       toast.error("Please fill in all fields");
       return;
@@ -48,7 +54,13 @@ export default function ChangePassword({ user, embedded = false }) {
   };
 
   return (
-    <div className={embedded ? "space-y-4" : "rounded-2xl border border-border bg-card p-5 space-y-4"}>
+    <form
+      onSubmit={submit}
+      noValidate
+      className={embedded ? "space-y-4" : "rounded-2xl border border-border bg-card p-5 space-y-4"}
+    >
+      {/* Lets password managers tie the new password to this account. */}
+      <input type="email" name="username" autoComplete="username" value={user?.email || ""} readOnly hidden />
       {!embedded && (
         <div className="flex items-center gap-2">
           <KeyRound className="w-4 h-4 text-primary" />
@@ -56,28 +68,62 @@ export default function ChangePassword({ user, embedded = false }) {
         </div>
       )}
       <div className={embedded ? "space-y-3" : "grid sm:grid-cols-3 gap-3"}>
-        <div>
-          <Label className="text-xs">{"Current password"}</Label>
-          <Input type={show ? "text" : "password"} value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} className="mt-1" />
+        <div className="space-y-1.5">
+          <Label htmlFor={`${id}-current`} className="text-xs">{"Current password"}</Label>
+          <Input
+            id={`${id}-current`}
+            type={show ? "text" : "password"}
+            autoComplete="current-password"
+            value={form.current}
+            onChange={(e) => setForm({ ...form, current: e.target.value })}
+          />
         </div>
-        <div>
-          <Label className="text-xs">{"New password"}</Label>
-          <Input type={show ? "text" : "password"} value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} className="mt-1" />
+        <div className="space-y-1.5">
+          <Label htmlFor={`${id}-next`} className="text-xs">{"New password"}</Label>
+          <Input
+            id={`${id}-next`}
+            type={show ? "text" : "password"}
+            autoComplete="new-password"
+            aria-describedby={`${id}-hint`}
+            value={form.next}
+            onChange={(e) => setForm({ ...form, next: e.target.value })}
+          />
+          <p id={`${id}-hint`} className="text-[11px] text-muted-foreground">{"At least 8 characters."}</p>
         </div>
-        <div>
-          <Label className="text-xs">{"Confirm new password"}</Label>
-          <Input type={show ? "text" : "password"} value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} className="mt-1" />
+        <div className="space-y-1.5">
+          <Label htmlFor={`${id}-confirm`} className="text-xs">{"Confirm new password"}</Label>
+          <Input
+            id={`${id}-confirm`}
+            type={show ? "text" : "password"}
+            autoComplete="new-password"
+            value={form.confirm}
+            onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+          />
         </div>
       </div>
       <div className={cn("flex items-center gap-2", embedded ? "justify-between pt-1" : "justify-between flex-wrap")}>
-        <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => setShow((s) => !s)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-xs"
+          aria-pressed={show}
+          onClick={() => setShow((s) => !s)}
+        >
           {show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           {show ? "Hide" : "Show"}
         </Button>
-        <Button onClick={submit} disabled={busy} className={cn("gap-1.5", embedded && "min-w-[9rem]")}>
-          {busy ? (t.admin?.saving || "…") : "Update password"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
+              {t.common?.cancel || "Cancel"}
+            </Button>
+          )}
+          <Button type="submit" disabled={busy} className={cn("gap-1.5", embedded && "min-w-[9rem]")}>
+            {busy ? (t.admin?.saving || "…") : "Update password"}
+          </Button>
+        </div>
       </div>
-    </div>
+    </form>
   );
 }

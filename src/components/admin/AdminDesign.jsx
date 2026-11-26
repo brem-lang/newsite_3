@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Palette, Check, RotateCcw, Trash2, Sparkles, Undo2, X } from "lucide-react";
+import { Palette, Check, RotateCcw, Trash2, Sparkles, Undo2, X, Eraser } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { useI18n } from "@/lib/i18n";
@@ -11,6 +11,15 @@ import { Slider } from "@/components/ui/slider";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import ThemePreview from "@/components/admin/ThemePreview";
+
+// Fields that follow another colour until set on their own.
+const FOLLOWS = {
+  navActive: "heroPrimary",
+  navHover: "accent",
+  chatMine: "accent",
+  chatMineText: "accentText",
+  chatOtherText: "bodyText",
+};
 
 /** Keep only the keys the hero theme uses (older saved themes carry more). */
 const toHeroTheme = (theme) =>
@@ -145,7 +154,10 @@ export default function AdminDesign() {
     const hex = (v) => hslChannelsToHex(css?.getPropertyValue(v));
     return {
       heroHeading: hex("--foreground"),
+      bodyText: hex("--foreground"),
       heroText: hex("--muted-foreground"),
+      accent: hex("--accent"),
+      accentText: hex("--accent-foreground"),
       heroPrimary: hex("--primary"),
       heroPrimaryText: hex("--primary-foreground"),
       heroCard: hex("--card"),
@@ -154,6 +166,12 @@ export default function AdminDesign() {
       heroOpenBadge: hex("--success"),
       heroOpenBadgeText: hex("--success-foreground"),
       pageBackground: hex("--background"),
+      navActive: hex("--primary"),
+      navHover: hex("--accent"),
+      chatMine: hex("--accent"),
+      chatMineText: hex("--accent-foreground"),
+      chatOther: hex("--muted"),
+      chatOtherText: hex("--foreground"),
     };
   }, []);
 
@@ -191,6 +209,21 @@ export default function AdminDesign() {
     } catch {
       toast.error(t.admin.design.failed);
     }
+  };
+
+  // Every field back to the built-in look, in the draft. It goes live only
+  // when published, so visitors see nothing until then.
+  const onResetAll = async () => {
+    if (
+      !(await askConfirm({
+        title: t.admin.design.resetAllTitle,
+        description: t.admin.design.resetAllConfirm,
+        confirmLabel: t.admin.design.resetAll,
+      }))
+    )
+      return;
+    setTheme(toHeroTheme(DEFAULT_THEME));
+    toast.success(t.admin.design.resetAllDone);
   };
 
   const onDiscard = async () => {
@@ -236,27 +269,40 @@ export default function AdminDesign() {
   };
 
   const hasDraft = !!draft;
+  const isDefault = JSON.stringify(theme) === JSON.stringify(toHeroTheme(DEFAULT_THEME));
   const d = t.admin.design;
   const radiusSet = typeof theme.heroCardRadius === "number";
-  const colorOf = (key) => theme[key] || defaults[key];
+  // An unset active tab follows the primary accent.
+  const colorOf = (key) => theme[key] || (FOLLOWS[key] ? colorOf(FOLLOWS[key]) : defaults[key]);
   // Readability checks (WCAG AA for normal text is 4.5:1).
   const buttonContrast = contrastRatio(colorOf("heroPrimaryText"), colorOf("heroPrimary"));
+  const accentContrast = contrastRatio(colorOf("accentText"), colorOf("accent"));
+  const chatMineContrast = contrastRatio(colorOf("chatMineText"), colorOf("chatMine"));
+  const chatOtherContrast = contrastRatio(colorOf("chatOtherText"), colorOf("chatOther"));
   const liveContrast = contrastRatio(colorOf("heroLiveBadgeText"), colorOf("heroLiveBadge"));
   const openContrast = contrastRatio(colorOf("heroOpenBadgeText"), colorOf("heroOpenBadge"));
   // Heading and body text sit on both the cards and the page background.
   const textOn = (surface) =>
     Math.min(
       contrastRatio(colorOf("heroHeading"), colorOf(surface)) ?? 21,
+      contrastRatio(colorOf("bodyText"), colorOf(surface)) ?? 21,
       contrastRatio(colorOf("heroText"), colorOf(surface)) ?? 21,
     );
   const cardContrast = textOn("heroCard");
   const bgContrast = textOn("pageBackground");
   const textContrast = Math.min(cardContrast, bgContrast);
+  // Tabs sit on the header (card surface) and the bottom bar (card surface).
+  const tabContrast = Math.min(
+    contrastRatio(colorOf("navActive"), colorOf("heroCard")) ?? 21,
+    contrastRatio(colorOf("navHover"), colorOf("heroCard")) ?? 21,
+    contrastRatio(colorOf("navActive"), colorOf("pageBackground")) ?? 21,
+    contrastRatio(colorOf("navHover"), colorOf("pageBackground")) ?? 21,
+  );
   const colorField = (key, label) => (
     <ColorField
       label={label}
       value={theme[key]}
-      defaultHex={defaults[key]}
+      defaultHex={FOLLOWS[key] ? colorOf(FOLLOWS[key]) : defaults[key]}
       onChange={(v) => update({ [key]: v })}
       resetLabel={d.useDefault}
     />
@@ -286,7 +332,7 @@ export default function AdminDesign() {
 
       <div className="grid lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 space-y-4">
-          <Accordion type="multiple" defaultValue={["background", "typography", "card", "badges"]}>
+          <Accordion type="multiple" defaultValue={["background", "typography", "card", "tabs", "chat", "badges"]}>
             <AccordionItem value="background">
               <AccordionTrigger className="text-sm font-semibold">{d.tabs.background}</AccordionTrigger>
               <AccordionContent className="space-y-1">
@@ -304,11 +350,16 @@ export default function AdminDesign() {
                 <SelectField label={d.fontBody} value={theme.fontBody} onChange={(v) => update({ fontBody: v })} options={FONT_OPTIONS} />
                 <div className="pt-2">
                   {colorField("heroHeading", d.headingColor)}
+                  {colorField("bodyText", d.bodyTextColor)}
                   {colorField("heroText", d.textColor)}
                   {contrastNote(textContrast)}
                   {colorField("heroPrimary", d.primary)}
                   {colorField("heroPrimaryText", d.primaryText)}
                   {contrastNote(buttonContrast)}
+                  {colorField("accent", d.accent)}
+                  {colorField("accentText", d.accentText)}
+                  {contrastNote(accentContrast)}
+                  <p className="text-[11px] text-muted-foreground">{d.accentHint}</p>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -351,6 +402,29 @@ export default function AdminDesign() {
               </AccordionContent>
             </AccordionItem>
 
+            <AccordionItem value="tabs">
+              <AccordionTrigger className="text-sm font-semibold">{d.tabs.nav}</AccordionTrigger>
+              <AccordionContent className="space-y-1">
+                {colorField("navActive", d.navActive)}
+                {colorField("navHover", d.navHover)}
+                {contrastNote(tabContrast)}
+                <p className="text-[11px] text-muted-foreground">{d.navHint}</p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="chat">
+              <AccordionTrigger className="text-sm font-semibold">{d.tabs.chat}</AccordionTrigger>
+              <AccordionContent className="space-y-1">
+                {colorField("chatMine", d.chatMine)}
+                {colorField("chatMineText", d.chatMineText)}
+                {contrastNote(chatMineContrast)}
+                {colorField("chatOther", d.chatOther)}
+                {colorField("chatOtherText", d.chatOtherText)}
+                {contrastNote(chatOtherContrast)}
+                <p className="text-[11px] text-muted-foreground">{d.chatHint}</p>
+              </AccordionContent>
+            </AccordionItem>
+
             <AccordionItem value="badges">
               <AccordionTrigger className="text-sm font-semibold">{d.tabs.badges}</AccordionTrigger>
               <AccordionContent className="space-y-1">
@@ -368,6 +442,15 @@ export default function AdminDesign() {
           <div className="sticky bottom-4 flex items-center gap-2 bg-background/90 backdrop-blur border border-border rounded-xl p-3">
             <Button onClick={onPublish} disabled={saving} className="gap-2">
               <Check className="w-4 h-4" /> {d.publish}
+            </Button>
+            <Button
+              onClick={onResetAll}
+              variant="outline"
+              disabled={saving || isDefault}
+              className="gap-2"
+              title={d.resetAllHint}
+            >
+              <Eraser className="w-4 h-4" /> {d.resetAll}
             </Button>
             <Button onClick={onDiscard} variant="outline" disabled={saving || !hasDraft} className="gap-2">
               <Trash2 className="w-4 h-4" /> {d.discard}

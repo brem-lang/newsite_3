@@ -74,7 +74,7 @@ export default function SupportPage() {
             rel="noreferrer"
             className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/70 transition"
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500/12 text-emerald-500">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-success/15 text-success">
               <MessageCircle className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">

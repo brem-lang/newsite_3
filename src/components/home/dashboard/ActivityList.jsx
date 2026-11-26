@@ -38,7 +38,7 @@ export default function ActivityList({ transactions = [], loading, limit = 6 }) 
             <span
               className={cn(
                 "grid h-9 w-9 shrink-0 place-items-center rounded-xl",
-                credit ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
+                credit ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
               )}
             >
               {credit ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
@@ -49,7 +49,7 @@ export default function ActivityList({ transactions = [], loading, limit = 6 }) 
                   {tx.type === "topup" ? t.wallet.typeTopup : tx.description || tx.type || (credit ? t.wallet.typeTopup : t.wallet.typeWinning)}
                 </span>
                 {tx.status === "pending" ? (
-                  <span className="shrink-0 rounded-full bg-amber-500/12 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-600">
+                  <span className="shrink-0 rounded-full bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-warning">
                     {t.wallet.pending}
                   </span>
                 ) : null}
@@ -63,7 +63,7 @@ export default function ActivityList({ transactions = [], loading, limit = 6 }) 
             <span
               className={cn(
                 "shrink-0 text-sm font-extrabold tabular-nums",
-                credit ? "text-emerald-600" : "text-rose-600"
+                credit ? "text-success" : "text-destructive"
               )}
             >
               {credit ? "+" : "−"}{t.common.currency}{Math.abs(amount).toFixed(2)}

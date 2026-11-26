@@ -45,7 +45,7 @@ export default function AuctionTimeline({ auction, status, className }) {
                   aria-hidden="true"
                   className={cn(
                     "w-7 h-7 shrink-0 rounded-full grid place-items-center",
-                    active ? "bg-blue-600 text-white" : "bg-muted text-muted-foreground"
+                    active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   )}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -64,7 +64,7 @@ export default function AuctionTimeline({ auction, status, className }) {
                   aria-hidden="true"
                   className={cn(
                     "flex-1 h-px",
-                    i < activeIndex ? "bg-blue-600" : "bg-border"
+                    i < activeIndex ? "bg-primary" : "bg-border"
                   )}
                 />
               )}

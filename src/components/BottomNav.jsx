@@ -45,11 +45,11 @@ export default function BottomNav() {
             search={tb.search}
             className={cn(
               "flex-1 tap-44 flex flex-col items-center justify-center gap-1 text-[9px] font-bold transition-colors relative active:scale-95",
-               active ? "text-primary" : "text-muted-foreground",
+               active ? "theme-tab-active" : "text-muted-foreground",
               tb.center && "-translate-y-3"
             )}
           >
-            {active && !tb.center && <span className="absolute top-0 h-[3px] w-8 rounded-full bg-primary shadow-[0_0_12px_hsl(var(--primary)/0.8)]" />}
+            {active && !tb.center && <span className="theme-tab-indicator absolute top-0 h-[3px] w-8 rounded-full" />}
             <span className={cn("grid place-items-center", tb.center && "h-12 w-12 rounded-full gold-button ring-4 ring-background text-primary-foreground") }>
               <tb.icon className={cn("w-[22px] h-[22px] transition-transform duration-200", active && "scale-110")} />
             </span>

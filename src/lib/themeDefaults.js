@@ -23,7 +23,10 @@ export const DEFAULT_THEME = {
   fontBody: "Inter",
   fontDisplay: "Inter",
   heroHeading: null,
+  bodyText: null,
   heroText: null,
+  accent: null,
+  accentText: null,
   heroPrimary: null,
   heroPrimaryText: null,
   heroLiveBadge: null,
@@ -33,6 +36,12 @@ export const DEFAULT_THEME = {
   heroCard: null,
   heroCardRadius: null,
   pageBackground: null,
+  navActive: null,
+  navHover: null,
+  chatMine: null,
+  chatMineText: null,
+  chatOther: null,
+  chatOtherText: null,
 };
 
 /** WCAG contrast ratio of two hex colours (1–21), or null if either is invalid. */
@@ -138,6 +147,14 @@ export function themeVars(theme, { withDefaults = false } = {}) {
   set("--theme-font-display", t.fontDisplay && fontStack(t.fontDisplay), "var(--font-display)");
 
   set("--theme-heading", channels(t.heroHeading), "var(--foreground)");
+  // Main text: every text-foreground, plain body text and text on cards,
+  // menus, secondary buttons and surfaces.
+  const fg = channels(t.bodyText);
+  set("--theme-fg", fg, "var(--foreground)");
+  set("--theme-card-fg", fg, "var(--card-foreground)");
+  set("--theme-popover-fg", fg, "var(--popover-foreground)");
+  set("--theme-secondary-fg", fg, "var(--secondary-foreground)");
+  set("--theme-surface-fg", fg, "var(--surface-foreground)");
   set("--theme-text", channels(t.heroText), "var(--muted-foreground)");
   set("--theme-primary", channels(t.heroPrimary), "var(--primary)");
   set("--theme-primary-fg", channels(t.heroPrimaryText), "var(--primary-foreground)");
@@ -148,6 +165,20 @@ export function themeVars(theme, { withDefaults = false } = {}) {
     "--theme-gold-soft",
     primary && `${primary.h} ${primary.s}% ${Math.min(95, primary.l + 8)}%`,
     "var(--gold-soft)",
+  );
+
+  // Focus rings follow the primary accent.
+  set("--theme-ring", channels(t.heroPrimary), "var(--ring)");
+
+  // Secondary accent (the cyan): icons, highlights, the cyan button and the
+  // hover colour of outline / ghost / secondary buttons.
+  const accent = hexToHsl(t.accent);
+  set("--theme-accent", channels(t.accent), "var(--accent)");
+  set("--theme-accent-fg", channels(t.accentText), "var(--accent-foreground)");
+  set(
+    "--theme-cyan-glow",
+    accent && `${accent.h} ${Math.min(100, accent.s + 5)}% ${Math.min(95, accent.l + 4)}%`,
+    "var(--cyan-glow)",
   );
 
   // Status badges: "Live now" and "Open for entry".
@@ -162,6 +193,17 @@ export function themeVars(theme, { withDefaults = false } = {}) {
   // making the surface a touch lighter (or darker, on a light card).
   const surfaceL = card && (card.l > 60 ? card.l - 3 : card.l + 2);
   set("--theme-surface", card && `${card.h} ${card.s}% ${surfaceL}%`, "var(--surface)");
+  // Neutral surfaces (outline buttons, inputs, chips, dividers, menus) are
+  // shades of the card colour: lighter on a dark card, darker on a light one.
+  const shade = (dl, ds = 0) =>
+    card &&
+    `${card.h} ${Math.max(0, Math.min(100, card.s + ds))}% ${Math.max(0, Math.min(100, card.l > 60 ? card.l - dl : card.l + dl))}%`;
+  set("--theme-secondary", shade(5, -6), "var(--secondary)");
+  set("--theme-muted", shade(4, -12), "var(--muted)");
+  set("--theme-border", shade(14, -10), "var(--border)");
+  set("--theme-input", shade(13, -10), "var(--input)");
+  set("--theme-popover", channels(t.heroCard), "var(--popover)");
+  set("--theme-navy-raised", shade(4), "var(--navy-raised)");
 
   // Page background: one colour; the gradient's darker end is derived from it.
   const bg = hexToHsl(t.pageBackground);
@@ -171,6 +213,18 @@ export function themeVars(theme, { withDefaults = false } = {}) {
     bg && `${bg.h} ${Math.min(100, bg.s + 4)}% ${bg.l > 60 ? bg.l - 6 : Math.max(0, bg.l - 2)}%`,
     "var(--navy-deep)",
   );
+
+  // Navigation tabs. Unset, the active tab follows the primary accent and
+  // hover the site accent (fallbacks in the .theme-tab-* rules).
+  set("--theme-tab-active", channels(t.navActive), "var(--theme-primary)");
+  set("--theme-tab-hover", channels(t.navHover), "var(--theme-accent)");
+
+  // Auction chat bubbles. Unset, your own follow the secondary accent and
+  // others the muted surface (fallbacks in the .theme-chat-* rules).
+  set("--theme-chat-mine", channels(t.chatMine), "var(--theme-accent)");
+  set("--theme-chat-mine-fg", channels(t.chatMineText), "var(--theme-accent-fg)");
+  set("--theme-chat-other", channels(t.chatOther), "var(--theme-muted)");
+  set("--theme-chat-other-fg", channels(t.chatOtherText), "var(--theme-fg)");
 
   // rounded-xl (cards, buttons) = the chosen radius; rounded-lg (badges) 4px less.
   set(
@@ -186,7 +240,22 @@ const THEME_VARS = [
   "--theme-font-body",
   "--theme-font-display",
   "--theme-heading",
+  "--theme-fg",
+  "--theme-card-fg",
+  "--theme-popover-fg",
+  "--theme-secondary-fg",
+  "--theme-surface-fg",
   "--theme-text",
+  "--theme-ring",
+  "--theme-accent",
+  "--theme-accent-fg",
+  "--theme-cyan-glow",
+  "--theme-secondary",
+  "--theme-muted",
+  "--theme-border",
+  "--theme-input",
+  "--theme-popover",
+  "--theme-navy-raised",
   "--theme-primary",
   "--theme-primary-fg",
   "--theme-gold-soft",
@@ -199,6 +268,12 @@ const THEME_VARS = [
   "--theme-bg",
   "--theme-bg-deep",
   "--theme-radius-base",
+  "--theme-tab-active",
+  "--theme-tab-hover",
+  "--theme-chat-mine",
+  "--theme-chat-mine-fg",
+  "--theme-chat-other",
+  "--theme-chat-other-fg",
 ];
 // Written by older versions of applyTheme; cleared so they cannot linger.
 const LEGACY_VARS = [
@@ -257,7 +332,12 @@ export function applyTheme(theme) {
   });
   root.dataset.themeColor = themeColorFor(theme);
   // Heading colour rules only apply when a heading colour is chosen.
-  root.toggleAttribute("data-theme-heading", vars["--theme-heading"] != null);
+  // (also when only the main text is set, so headings keep the default
+  // heading colour instead of turning into body text).
+  root.toggleAttribute(
+    "data-theme-heading",
+    vars["--theme-heading"] != null || vars["--theme-fg"] != null,
+  );
   syncThemeColorMeta();
   ensureThemeFonts(theme);
 }

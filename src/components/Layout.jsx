@@ -60,7 +60,7 @@ export default function Layout() {
             <div className="w-9 h-9 shrink-0 rounded-lg border border-primary/50 bg-primary text-primary-foreground grid place-items-center shadow-[0_0_22px_hsl(var(--primary)/0.2)]">
               <Gavel className="w-5 h-5" />
             </div>
-            <span className="truncate font-heading font-semibold text-base sm:text-lg tracking-tight">
+            <span className="theme-brand truncate font-heading font-semibold text-base sm:text-lg tracking-tight">
               {t.brand}
             </span>
           </Link>
@@ -73,10 +73,10 @@ export default function Layout() {
                   key={item.to}
                   to={item.to}
                   className={cn(
-                    "flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors",
+                    "theme-tab-hover flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors",
                     active
-                      ? "bg-secondary text-primary ring-1 ring-primary/30"
-                      : "text-muted-foreground hover:text-accent hover:bg-secondary/60",
+                      ? "theme-tab-active bg-secondary ring-1"
+                      : "text-muted-foreground hover:bg-secondary/60",
                   )}
                 >
                   <item.icon className="w-4 h-4" />

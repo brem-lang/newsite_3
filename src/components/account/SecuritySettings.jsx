@@ -14,7 +14,6 @@ const STATUS = {
 export default function SecuritySettings({ user }) {
   const { t } = useI18n();
   const p = t.account.profile;
-  const L = (o) => (o.en);
   const [showPw, setShowPw] = useState(false);
 
   const status = STATUS[user?.verification_status] || STATUS.unverified;
@@ -46,7 +45,15 @@ export default function SecuritySettings({ user }) {
 
       {/* Change password entry */}
       {showPw ? (
-        <ChangePassword user={user} />
+        // Stacked inside its own card: the dialog is too narrow for the
+        // three-in-a-row layout ChangePassword uses on wide pages.
+        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-primary" />
+            <h2 className="font-heading text-base font-semibold">{p.changePassword}</h2>
+          </div>
+          <ChangePassword user={user} embedded onCancel={() => setShowPw(false)} />
+        </div>
       ) : (
         <Button
           type="button"
