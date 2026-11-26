@@ -60,7 +60,7 @@ export default function Layout() {
             <div className="w-9 h-9 shrink-0 rounded-lg border border-primary/50 bg-primary text-primary-foreground grid place-items-center shadow-[0_0_22px_hsl(var(--primary)/0.2)]">
               <Gavel className="w-5 h-5" />
             </div>
-            <span className="truncate font-heading font-semibold text-base sm:text-lg tracking-tight">
+            <span className="theme-brand truncate font-heading font-semibold text-base sm:text-lg tracking-tight">
               {t.brand}
             </span>
           </Link>

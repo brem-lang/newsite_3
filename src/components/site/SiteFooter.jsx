@@ -14,7 +14,7 @@ export default function SiteFooter() {
         <div className="space-y-3">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground grid place-items-center"><Gavel className="w-5 h-5" /></div>
-            <span className="font-display font-extrabold text-lg">{t.brand}</span>
+            <span className="theme-brand font-display font-extrabold text-lg">{t.brand}</span>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">{t.site.footer.about}</p>
         </div>
