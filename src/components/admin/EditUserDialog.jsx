@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import SelectField from "@/components/ui/select-field";
+import { KeyRound } from "lucide-react";
+import SetPasswordDialog from "@/components/admin/SetPasswordDialog";
 
 export default function EditUserDialog({ user, actorIsSuper, open, onOpenChange, onSaved }) {
   const { t } = useI18n();
   const [form, setForm] = useState({ full_name: "", verification_status: "pending", verification_note: "", role: "user" });
   const [busy, setBusy] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -81,12 +84,21 @@ export default function EditUserDialog({ user, actorIsSuper, open, onOpenChange,
               {!actorIsSuper && <p className="text-xs text-muted-foreground mt-1">{t.admin.users.roleSuperOnly}</p>}
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="sm:justify-between">
+            {/* Staff passwords: super admins only (the server checks too). */}
+            {actorIsSuper || user.role !== "admin" ? (
+              <Button type="button" variant="ghost" onClick={() => setPwOpen(true)} className="gap-1.5 sm:me-auto">
+                <KeyRound className="w-4 h-4" /> Set password
+              </Button>
+            ) : <span />}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
             <Button type="submit" disabled={busy}>{busy ? t.admin.saving : t.admin.save}</Button>
+            </div>
           </DialogFooter>
         </DialogForm>
       </DialogContent>
+      <SetPasswordDialog user={user} open={pwOpen} onOpenChange={setPwOpen} />
     </Dialog>
   );
 }

@@ -12,6 +12,7 @@ import { useI18n } from "@/lib/i18n";
 import { formatCountdown, formatCountdownCompact, formatDuration, timeRemaining } from "@/lib/auction";
 import { useNow } from "@/lib/useNow";
 import MyBidsCard from "@/components/auction/MyBidsCard";
+import VerificationNotice from "@/components/auction/VerificationNotice";
 import PullToRefresh from "@/components/PullToRefresh";
 import BottomSheet from "@/components/ui/bottom-sheet";
 import useSwipe from "@/lib/useSwipe";
@@ -171,7 +172,7 @@ function StatCell({ icon: Icon, label, value }) {
 
 export default function MobileAuctionDetail({
   auction, bids, user, status, totalMs, nextBid,
-  bidAmount, setBidAmount, maxBid, setMaxBid, onBid, onJoin,
+  bidAmount, setBidAmount, maxBid, setMaxBid, onBid, onJoin, mustVerify = false,
   actionLoading, subscribed, watched, onWatch, onShare, outbid,
   filled, seatsLeft, symbol, backTo, onRefresh, sealed: sealedProp, bidState,
   onBuyCredits, buyingCredits, balance
@@ -404,8 +405,9 @@ export default function MobileAuctionDetail({
             </Button>
           )}
 
-          {/* Join CTA */}
-          {status !== "ended" && !subscribed && (
+          {/* Join CTA (or, before approval, why joining isn't possible yet) */}
+          {status !== "ended" && !subscribed && mustVerify && <VerificationNotice user={user} compact />}
+          {status !== "ended" && !subscribed && !mustVerify && (
             <div className="space-y-1.5">
               <Button onClick={onJoin} disabled={actionLoading} className="gold-button h-12 w-full rounded-xl text-[15px] font-bold shadow-md">
                 {actionLoading ? t.auction.joining : t.auction.join.replace("{fee}", `${symbol}${Number(auction.entry_fee || 0)}`)}

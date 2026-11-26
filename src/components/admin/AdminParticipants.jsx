@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { displayVerification } from "@/lib/verification";
 import ParticipantDetailDialog from "@/components/admin/ParticipantDetailDialog";
 import AdminPagination from "@/components/admin/AdminPagination";
 
@@ -18,7 +19,9 @@ import AdminPagination from "@/components/admin/AdminPagination";
 const statusStyle = {
   pending: "bg-warning/15 text-warning",
   verified: "bg-success/15 text-success",
-  rejected: "bg-destructive/15 text-destructive"
+  rejected: "bg-destructive/15 text-destructive",
+  // Staff never need verification (the server skips the check for them).
+  staff: "bg-primary/10 text-primary"
 };
 
 const NONE = [];
@@ -216,7 +219,7 @@ export default function AdminParticipants() {
               </thead>
               <tbody className="divide-y divide-border">
                 {visible.map((u) => {
-                  const v = u.verification_status || "pending";
+                  const v = displayVerification(u);
                   return (
                     <tr key={u.id} className={cn("hover:bg-secondary/30", picked.has(u.id) && "bg-primary/5")}>
                       <td className="px-4 py-3">

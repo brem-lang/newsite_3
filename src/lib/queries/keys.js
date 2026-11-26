@@ -141,6 +141,7 @@ export const adminKeys = {
   winnerPaymentsAll: () => admin("winnerpayments"),
   winnerPaymentsPage: (params) => admin("winnerpayments", "page", params),
   winnerPaymentsTotals: () => admin("winnerpayments", "totals"),
+  winnerPaymentsByAuctions: (ids) => admin("winnerpayments", "byAuctions", ids),
   paymentMethods: () => admin("payment_methods"),
 
   // Operations

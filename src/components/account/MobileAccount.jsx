@@ -19,6 +19,7 @@ import {
 
 import { useI18n } from "@/lib/i18n";
 import { usePublishedPages } from "@/lib/queries/config";
+import { isStaffUser } from "@/lib/verification";
 import { cn } from "@/lib/utils";
 import ProfileSection from "@/components/account/profile/ProfileSection";
 import ChangePassword from "@/components/account/ChangePassword";
@@ -78,7 +79,7 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
             </div>
             <div className="mt-2 flex items-center gap-1.5">
               <h2 className="max-w-[280px] truncate text-[17px] font-extrabold text-foreground">{name}</h2>
-              {user?.verification_status === "verified" && <BadgeCheck className="h-4 w-4 shrink-0 fill-accent text-background" />}
+              {(user?.verification_status === "verified" || isStaffUser(user)) && <BadgeCheck className="h-4 w-4 shrink-0 fill-accent text-background" />}
             </div>
             <p className="mt-0.5 max-w-[280px] truncate text-[11px] text-muted-foreground">{user?.email || ""}</p>
           </div>

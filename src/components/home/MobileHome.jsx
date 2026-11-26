@@ -22,6 +22,7 @@ import LiveCountdown from "@/components/auction/LiveCountdown";
 import { selectHomeAuctions } from "@/lib/homeShowcase";
 import { Image } from "@/components/ui/image";
 import BottomNav from "@/components/BottomNav";
+import NotificationBell from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
 import { homeHighlights, feedAuctionIds } from "@/lib/homeHighlights";
 import { useRecentBids } from "@/lib/queries/auctions";
@@ -135,14 +136,19 @@ export default function MobileHome({ auctions, loading, authed, userName, userId
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <Link
-              to={authed ? "/account" : "/login"}
-              aria-label={t.notifications.title}
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-primary"
-            >
-              <Bell className="h-[18px] w-[18px]" />
-              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-destructive ring-2 ring-card" />
-            </Link>
+            {authed ? (
+              // The real notification list (unread count, tap to open; the
+              // win notification opens the payment page).
+              <NotificationBell buttonClassName="h-10 w-10 rounded-full border-border bg-card text-primary" />
+            ) : (
+              <Link
+                to="/login"
+                aria-label={t.notifications.title}
+                className="relative grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-primary"
+              >
+                <Bell className="h-[18px] w-[18px]" />
+              </Link>
+            )}
           </div>
         </div>
 

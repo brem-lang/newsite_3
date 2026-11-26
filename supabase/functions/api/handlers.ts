@@ -1479,12 +1479,13 @@ async function approveTopup(actor: Row, body: Payload) {
   if (txn["status"] !== "pending") return fail("Transaction not pending");
 
   const approved = decision === "approve";
+  const reason = String(body["reason"] || "").trim().slice(0, 300);
   // Conditional on "pending": two admins clicking at once cannot credit twice.
   const { data: updated, error: updErr } = await admin
     .from("wallet_transactions")
     .update({
       status: approved ? "confirmed" : "failed",
-      notes: `${approved ? "Approved" : "Rejected"} by ${actor["email"] || actor["id"]}`,
+      notes: `${approved ? "Approved" : "Rejected"} by ${actor["email"] || actor["id"]}${reason ? `: ${reason}` : ""}`,
     })
     .eq("id", txnId)
     .eq("status", "pending")
@@ -1497,7 +1498,9 @@ async function approveTopup(actor: Row, body: Payload) {
     title: approved ? "Top-up approved" : "Top-up rejected",
     body: approved
       ? "Your wallet top-up has been confirmed."
-      : "Your wallet top-up request was rejected. Please contact support.",
+      : reason
+        ? `Your wallet top-up request was rejected: ${reason}`
+        : "Your wallet top-up request was rejected. Please contact support.",
     type: approved ? "success" : "warning",
   });
   return ok({ status: approved ? "approved" : "rejected" });
@@ -1566,6 +1569,24 @@ async function resolveRefund(_actor: Row, body: Payload) {
   return ok({ ok: true, status: decision });
 }
 
+/**
+ * True once the winner's payment for this auction is settled. The payment
+ * record (winner_payments, set by markWinnerPaid) is the source of truth;
+ * auctions.paid is also accepted for wins marked paid before that existed.
+ */
+async function winnerHasPaid(auctionId: string, winnerId: string): Promise<boolean> {
+  const { data } = await admin
+    .from("winner_payments")
+    .select("status")
+    .eq("auction_id", auctionId)
+    .eq("user_id", winnerId)
+    .eq("status", "paid")
+    .limit(1);
+  if ((data || []).length) return true;
+  const a = await getRow("auctions", auctionId);
+  return !!a?.["paid"] && a?.["winner_id"] === winnerId;
+}
+
 async function updateFulfilment(_actor: Row, body: Payload) {
   const id = body["fulfilment_id"];
   if (!id) return fail("Missing fulfilment_id");
@@ -1573,7 +1594,16 @@ async function updateFulfilment(_actor: Row, body: Payload) {
   const f = await getRow("fulfilments", id);
   if (!f) return fail("not_found", 404);
 
-  const patch: Row = { status: body["status"] || f["status"] };
+  // The winner may enter delivery details before paying, but nothing ships
+  // (or is handed over) until the win is paid.
+  const nextStatus = String(body["status"] || f["status"]);
+  if (nextStatus !== String(f["status"]) && nextStatus !== "pending") {
+    if (!(await winnerHasPaid(String(f["auction_id"]), String(f["winner_id"])))) {
+      return fail("payment_required", 409);
+    }
+  }
+
+  const patch: Row = { status: nextStatus };
   if (body["carrier"] !== undefined) patch["carrier"] = body["carrier"];
   if (body["tracking_number"] !== undefined) patch["tracking_number"] = body["tracking_number"];
   if (body["notes"] !== undefined) patch["notes"] = body["notes"];
@@ -1588,6 +1618,36 @@ async function updateFulfilment(_actor: Row, body: Payload) {
   const winner = await getRow("profiles", f["winner_id"]);
   await emailUser(winner?.["email"], "Delivery update", text);
   return ok({ ok: true, status: patch["status"] });
+}
+
+/**
+ * Admin: set a member's password directly (for someone who can't receive the
+ * reset email). Staff accounts can only be changed by a super admin, and a
+ * super admin only by another super admin.
+ */
+async function setUserPassword(actor: Row, body: Payload) {
+  const userId = body["user_id"];
+  const password = typeof body["password"] === "string" ? body["password"] : "";
+  if (!userId) return fail("Missing user_id");
+  if (password.length < 8) return fail("password_too_short", 422);
+  if (password.length > 72) return fail("password_too_long", 422);
+
+  const target = await getUser(String(userId));
+  if (!target) return fail("User not found", 404);
+  if (target["is_super"] && !actor["is_super"]) return fail("Cannot edit a super admin", 403);
+  if (target["role"] === "admin" && !actor["is_super"]) return fail("Only a super admin can change a staff password", 403);
+
+  const { error } = await admin.auth.admin.updateUserById(String(userId), { password });
+  if (error) return fail(error.message, 422);
+
+  await logAdminAction(actor, "user_password_set", "user", String(userId), String(target["email"] || ""));
+  await notify({
+    user_id: userId,
+    title: "Password changed",
+    body: "An administrator set a new password for your account. If you didn't ask for this, contact support.",
+    type: "warning",
+  });
+  return ok({ ok: true });
 }
 
 async function inviteUser(actor: Row, body: Payload) {
@@ -2140,6 +2200,7 @@ async function saveRoleAccess(actor: Row, body: Payload) {
 const ADMIN_HANDLERS: Record<string, (actor: Row, body: Payload) => Promise<Result>> = {
   adminDashboard,
   updateUser,
+  setUserPassword,
   pauseUser,
   grantBidCredits,
 
@@ -2174,6 +2235,7 @@ const ACTION_CAPABILITY: Record<string, string> = {
   listUsers: "users.view",
   getParticipantFile: "users.view",
   updateUser: "users.edit",
+  setUserPassword: "users.edit",
   resolveVerification: "users.verify",
   pauseUser: "users.suspend",
   deleteUser: "users.delete",

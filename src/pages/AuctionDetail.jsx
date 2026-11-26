@@ -23,6 +23,8 @@ import BidPaceMeter from "@/components/auction/BidPaceMeter";
 import ActivityFeed from "@/components/auction/ActivityFeed";
 import Leaderboard from "@/components/auction/Leaderboard";
 import AuctionChat from "@/components/auction/AuctionChat";
+import VerificationNotice from "@/components/auction/VerificationNotice";
+import { needsVerification } from "@/lib/verification";
 import WinnerCelebration from "@/components/auction/WinnerCelebration";
 import WatchShareBar from "@/components/auction/WatchShareBar";
 import WinnerClaim from "@/components/auction/WinnerClaim";
@@ -96,6 +98,9 @@ export default function AuctionDetail() {
   const seatsLeft = auction ? Math.max(0, closeQuota(auction) - filled) : 0;
   const totalMs = auction ? auction.duration_minutes * 60000 : 0;
   const showQuickBid = subscribed && status === "live" && !sealed;
+  // Not yet approved: the server would refuse the join, so show why instead
+  // of the Join button (staff and "allow" overrides are exempt).
+  const mustVerify = needsVerification(user, "join_auctions");
 
   // outbid detection
   useEffect(() => {
@@ -382,6 +387,7 @@ export default function AuctionDetail() {
         buyingCredits={buyingCredits}
         balance={balance}
         onJoin={handleJoin}
+        mustVerify={mustVerify}
         actionLoading={actionLoading}
         subscribed={subscribed}
         watched={watched}
@@ -451,18 +457,6 @@ export default function AuctionDetail() {
             {subscribed && <MyBidsCard auction={auction} bidState={bidState} />}
           </div>
 
-          {user && user.is_verified === false && status !== "ended" && (
-            <div className="rounded-xl bg-warning/10 border border-warning/30 p-3 flex items-start gap-2 text-sm text-warning">
-              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-              <div className="min-w-0">
-                <p className="font-bold">{t.auction.verifyNoticeTitle || "Verification needed"}</p>
-                <p className="text-xs mt-0.5">{t.auction.needVerification}</p>
-                <Link to="/account" className="inline-block mt-1.5 text-xs font-bold underline">
-                  {t.auction.verifyNoticeCta || "Complete verification"}
-                </Link>
-              </div>
-            </div>
-          )}
 
           {outbid && status === "live" && !sealed && (
             <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 flex items-center gap-2 text-sm text-destructive font-bold">
@@ -471,7 +465,9 @@ export default function AuctionDetail() {
           )}
 
 
-          {status !== "ended" && !subscribed && (
+          {status !== "ended" && !subscribed && mustVerify && <VerificationNotice user={user} />}
+
+          {status !== "ended" && !subscribed && !mustVerify && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{t.auction.entryFee}</span>
@@ -549,6 +545,7 @@ export default function AuctionDetail() {
           <AuctionChat
             auctionId={id}
             user={user}
+            joined={!!subscribed}
             closed={status === "ended" || ["voided", "voiding"].includes(auction.status)}
           />
         </div>

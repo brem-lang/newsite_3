@@ -12,12 +12,7 @@ export default function SiteHero({ auctions, loading, authed, content, contentLo
   const { t } = useI18n();
   const { title: heroTitle, subtitle: heroSubtitle } = heroCopy(content, t);
   const arrowCls = "";
-  const curated = auctions
-    .filter((a) => a.featured && effectiveStatus(a) !== "ended")
-    .sort((a, b) => (a.featured_order || 0) - (b.featured_order || 0));
-  const pool = curated.length > 0 ? curated : auctions;
-  const featured = pool.find((a) => effectiveStatus(a) === "live") || pool[0];
-  const live = featured && effectiveStatus(featured) === "live";
+  const featured = pickHeroFeatured(auctions);
 
   return (
     <section className="relative overflow-hidden">
@@ -103,69 +98,95 @@ export default function SiteHero({ auctions, loading, authed, content, contentLo
             {loading || !featured ? (
               <div className="rounded-xl border border-border bg-card p-6 animate-pulse h-72" />
             ) : (
-              <div className="native-panel relative overflow-hidden rounded-xl">
-                {/* The photo fills the card; the details sit on a fade over it. */}
-                <div className="absolute inset-0 bg-muted">
-                  <Image
-                    src={featured.image_url}
-                    alt={featured.title}
-                    className="w-full h-full"
-                    fittingType="fill"
-                  />
-                </div>
-                <div className="relative aspect-[16/8]">
-                  <span
-                    className={cn(
-                      "absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-lg border",
-                      live
-                        ? "theme-badge-live animate-pulse"
-                        : "theme-badge-open",
-                    )}
-                  >
-                    {live ? t.auction.statusLive : t.site.hero.notLive}
-                  </span>
-                  <span className="absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-primary text-primary-foreground border border-primary">
-                    {t.site.hero.featured}
-                  </span>
-                </div>
-                <div className="photo-fade relative -mt-12 p-5 pt-12 space-y-3">
-                  <h3 className="font-display font-extrabold text-base text-foreground line-clamp-1">
-                    {featured.title}
-                  </h3>
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <p className="text-[11px] text-muted-foreground">{t.auction.currentPrice}</p>
-                      <p className="font-display text-2xl font-extrabold text-primary">
-                        {t.common.currency}
-                        {featured.current_price?.toFixed(2) || "0.00"}
-                      </p>
-                    </div>
-                    <div className="text-end">
-                      <p className="text-[11px] text-muted-foreground">{t.auction.seats}</p>
-                      <p className="font-bold text-foreground">
-                        {featured.subscriber_ids?.length || 0}/{featured.max_subscribers}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-accent"
-                      style={{
-                        width: `${Math.min(100, ((featured.subscriber_ids?.length || 0) / Math.max(1, featured.max_subscribers)) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <Link to="/auction/$id" params={{ id: featured.id }}>
-                    <Button className="w-full h-11 font-bold gap-2">
-                      <Flame className="w-4 h-4" /> {t.site.hero.bidNow}
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+              <FeaturedHeroCard auction={featured} />
             )}
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+/** The auction the hero features: the first curated (featured, not ended)
+ *  one, preferring a live auction; otherwise the first live/any auction. */
+export function pickHeroFeatured(auctions) {
+  const curated = (auctions || [])
+    .filter((a) => a.featured && effectiveStatus(a) !== "ended")
+    .sort((a, b) => (a.featured_order || 0) - (b.featured_order || 0));
+  const pool = curated.length > 0 ? curated : auctions || [];
+  return pool.find((a) => effectiveStatus(a) === "live") || pool[0] || null;
+}
+
+/** The featured auction card beside the hero copy. `preview` (admin → Hero)
+ *  renders it without the link, so clicking the preview stays in admin. */
+export function FeaturedHeroCard({ auction, preview = false }) {
+  const { t } = useI18n();
+  const live = effectiveStatus(auction) === "live";
+  return (
+    <div className="native-panel relative overflow-hidden rounded-xl">
+      {/* The photo fills the card; the details sit on a fade over it. */}
+      <div className="absolute inset-0 bg-muted">
+        <Image
+          src={auction.image_url}
+          alt={auction.title}
+          className="w-full h-full"
+          fittingType="fill"
+        />
+      </div>
+      <div className="relative aspect-[16/8]">
+        <span
+          className={cn(
+            "absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-lg border",
+            live
+              ? "theme-badge-live animate-pulse"
+              : "theme-badge-open",
+          )}
+        >
+          {live ? t.auction.statusLive : t.site.hero.notLive}
+        </span>
+        <span className="absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-primary text-primary-foreground border border-primary">
+          {t.site.hero.featured}
+        </span>
+      </div>
+      <div className="photo-fade relative -mt-12 p-5 pt-12 space-y-3">
+        <h3 className="font-display font-extrabold text-base text-foreground line-clamp-1">
+          {auction.title}
+        </h3>
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-[11px] text-muted-foreground">{t.auction.currentPrice}</p>
+            <p className="font-display text-2xl font-extrabold text-primary">
+              {t.common.currency}
+              {auction.current_price?.toFixed(2) || "0.00"}
+            </p>
+          </div>
+          <div className="text-end">
+            <p className="text-[11px] text-muted-foreground">{t.auction.seats}</p>
+            <p className="font-bold text-foreground">
+              {auction.subscriber_ids?.length || 0}/{auction.max_subscribers}
+            </p>
+          </div>
+        </div>
+        <div className="h-2 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full bg-accent"
+            style={{
+              width: `${Math.min(100, ((auction.subscriber_ids?.length || 0) / Math.max(1, auction.max_subscribers)) * 100)}%`,
+            }}
+          />
+        </div>
+        {preview ? (
+          <Button type="button" tabIndex={-1} className="w-full h-11 font-bold gap-2 pointer-events-none">
+            <Flame className="w-4 h-4" /> {t.site.hero.bidNow}
+          </Button>
+        ) : (
+          <Link to="/auction/$id" params={{ id: auction.id }}>
+            <Button className="w-full h-11 font-bold gap-2">
+              <Flame className="w-4 h-4" /> {t.site.hero.bidNow}
+            </Button>
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }

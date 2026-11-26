@@ -39,6 +39,8 @@ export default function WinnerClaim({ auction, user }) {
       const res = await base44.functions.invoke("claimFulfilment", body);
       if (res.data?.error) { toast.error(res.data.error); return; }
       setF(res.data.fulfilment);
+      // The bell drops "Pay now" for a win once its details are in.
+      qc.invalidateQueries({ queryKey: ["fulfilment", "mine", user.id] });
       toast.success(t.fulfilment.yourOrder);
     } catch (e) {
       toast.error(e.message || "Error");
@@ -59,7 +61,9 @@ export default function WinnerClaim({ auction, user }) {
         <p className="text-xs text-muted-foreground leading-relaxed">
           {paid
             ? (t.pay?.paidNote || "Your payment is confirmed. We will process your order.")
-            : (t.pay?.manualHint || "Nothing was deducted from your wallet. Send your details and our team will contact you with the payment instructions.")}
+            : f
+              ? (t.pay?.detailsReceivedHint || "We have your delivery details. Our team will contact you with the payment instructions; your item ships (or is ready for pickup) once your payment is received.")
+              : (t.pay?.payFirstHint || "Nothing was deducted from your wallet. Send your delivery details below and our team will contact you with the payment instructions. Your item ships once your payment is received.")}
         </p>
       </div>
     );

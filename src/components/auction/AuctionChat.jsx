@@ -31,9 +31,11 @@ const ChatMessage = memo(function ChatMessage({ message, mine }) {
  * and no realtime channel is opened. The database refuses new messages on a
  * closed auction as well.
  */
-export default function AuctionChat({ auctionId, user, closed = false }) {
+export default function AuctionChat({ auctionId, user, closed = false, joined = false }) {
   const { t } = useI18n();
-  const { messages, send: sendMessage, isPending } = useAuctionChat(auctionId, { closed });
+  // Only participants may read a room (database rule), so for everyone else
+  // the chat isn't read at all and a "join to see it" notice shows instead.
+  const { messages, send: sendMessage, isPending } = useAuctionChat(auctionId, { closed, enabled: joined });
   const [text, setText] = useState("");
   const sending = sendMessage.isPending;
   const scrollRef = useRef(null);
@@ -43,7 +45,7 @@ export default function AuctionChat({ auctionId, user, closed = false }) {
   }, [messages]);
 
   const body = text.trim();
-  const canSend = !closed && !!user && !!body && !sending;
+  const canSend = joined && !closed && !!user && !!body && !sending;
 
   const send = async () => {
     if (!canSend) return;
@@ -59,6 +61,22 @@ export default function AuctionChat({ auctionId, user, closed = false }) {
       setText(body);
     }
   };
+
+  if (!joined) {
+    // A finished auction the visitor never joined: nothing to show or join.
+    if (closed) return null;
+    return (
+      <div className="native-panel rounded-xl overflow-hidden flex flex-col">
+        <div className="p-5 border-b border-border"><h2 className="font-display text-lg font-bold text-foreground">{t.auction.chat}</h2></div>
+        <div className="p-6 flex flex-col items-center gap-2 text-center">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-muted text-muted-foreground">
+            <Lock className="w-4 h-4" aria-hidden="true" />
+          </span>
+          <p className="text-sm text-muted-foreground max-w-xs">{t.auction.chatJoinToRead}</p>
+        </div>
+      </div>
+    );
+  }
 
   // A closed room with no history has nothing to show.
   if (closed && !isPending && messages.length === 0) return null;

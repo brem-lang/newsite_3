@@ -2,13 +2,16 @@ import React, { useState } from "react";
 import { ShieldCheck, Mail, IdCard, CalendarDays, KeyRound, BadgeCheck, Clock3, ShieldAlert, ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { displayVerification } from "@/lib/verification";
 import ChangePassword from "@/components/account/ChangePassword";
 import { Button } from "@/components/ui/button";
 
 const STATUS = {
   verified: { icon: BadgeCheck, cls: "bg-success/10 text-success border-success/30" },
   pending: { icon: Clock3, cls: "bg-warning/10 text-warning border-warning/30" },
-  unverified: { icon: ShieldAlert, cls: "bg-muted text-muted-foreground border-border" }
+  unverified: { icon: ShieldAlert, cls: "bg-muted text-muted-foreground border-border" },
+  // Staff accounts never need verification (joinAuction / placeBid skip it).
+  staff: { icon: BadgeCheck, cls: "bg-primary/10 text-primary border-primary/30" }
 };
 
 export default function SecuritySettings({ user }) {
@@ -16,7 +19,8 @@ export default function SecuritySettings({ user }) {
   const p = t.account.profile;
   const [showPw, setShowPw] = useState(false);
 
-  const status = STATUS[user?.verification_status] || STATUS.unverified;
+  const statusKey = displayVerification(user, "unverified");
+  const status = STATUS[statusKey] || STATUS.unverified;
   const StatusIcon = status.icon;
   const joined = user?.created_date
     ? new Date(user.created_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
@@ -32,7 +36,7 @@ export default function SecuritySettings({ user }) {
         </div>
         <p className="text-xs text-muted-foreground">{p.securityOverviewSubtitle}</p>
         <span className={cn("inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border", status.cls)}>
-          <StatusIcon className="w-3.5 h-3.5" /> {p[user?.verification_status] || p.unverified}
+          <StatusIcon className="w-3.5 h-3.5" /> {p[statusKey] || p.unverified}
         </span>
       </div>
 

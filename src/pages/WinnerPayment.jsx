@@ -1,8 +1,9 @@
 import React from "react";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { auctionQueries } from "@/lib/queries/auctions";
-import { Trophy, Clock, CheckCircle2, XCircle, Mail } from "lucide-react";
+import { auctionQueries, useFulfilment } from "@/lib/queries/auctions";
+import { useAuth } from "@/lib/AuthContext";
+import { Trophy, Clock, CheckCircle2, XCircle, Mail, PackageCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 
@@ -17,6 +18,10 @@ export default function WinnerPayment() {
   const { t } = useI18n();
   const { data, isPending, error } = useQuery(auctionQueries.paymentByToken(token));
   const state = { error: error?.message || null, payment: data?.payment || null, auction: data?.auction || null };
+  // Delivery details already sent? Then there is nothing left to do here
+  // but wait for the team's payment instructions.
+  const { user } = useAuth();
+  const { data: fulfilment = null } = useFulfilment(state.auction?.id, user?.id, !!state.auction?.id && !!user?.id);
 
   // The route loader waits for the payment (success or error) first.
   if (isPending) return null;
@@ -77,8 +82,11 @@ export default function WinnerPayment() {
 
         {!paid && !voided && (
           <p className="text-sm text-muted-foreground leading-relaxed">
-            {t.pay?.manualHint ||
-              "Nothing was deducted from your wallet. Send your details and our team will contact you with the payment instructions and confirm your order."}
+            {fulfilment
+              ? (t.pay?.detailsReceivedHint ||
+                "We have your delivery details. Our team will contact you with the payment instructions; your item ships (or is ready for pickup) once your payment is received.")
+              : (t.pay?.manualHint ||
+                "Nothing was deducted from your wallet. Send your details and our team will contact you with the payment instructions and confirm your order.")}
           </p>
         )}
 
@@ -89,10 +97,10 @@ export default function WinnerPayment() {
         )}
 
         {!paid && !voided && (
-          <Button asChild className="w-full gap-2">
+          <Button asChild variant={fulfilment ? "outline" : "default"} className="w-full gap-2">
             <Link to="/auction/$id" params={{ id: auction?.id || "" }}>
-              <Mail className="w-4 h-4" />
-              {t.pay?.sendDetails || "Send your details"}
+              {fulfilment ? <PackageCheck className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
+              {fulfilment ? (t.pay?.viewOrder || "View your order") : (t.pay?.sendDetails || "Send your details")}
             </Link>
           </Button>
         )}

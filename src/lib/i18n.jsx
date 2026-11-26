@@ -172,13 +172,19 @@ const translations = {
       chatPlaceholder: "Send a message…",
       chatSend: "Send",
       chatClosed: "Chat is closed for this auction.",
+      chatJoinToRead: "Join this auction to see the chat and talk to other bidders.",
       winTitle: "You won! 🎉",
       winSub: "You placed the highest bid on this auction.",
       prize: "Your prize",
       gallery: "Item",
       scheduledBadge: "Scheduled",
       needVerification: "Your identity must be verified by an admin before you can join or bid.",
-      verifyNoticeTitle: "Verification needed",
+      verifyNoticeTitle: "Waiting for approval",
+      verifyPendingText: "An admin reviews every new account. You can join auctions and bid as soon as yours is approved.",
+      verifyRejectedTitle: "Account not approved",
+      verifyRejectedText: "Your account was not approved, so you can't join auctions yet.",
+      verifyNoteLabel: "Reason",
+      verifyContactSupport: "Contact support",
       verifyNoticeCta: "Complete verification",
       bidder: "Bidder",
       showAllBids: "Show all bids ({count})",
@@ -308,6 +314,7 @@ const translations = {
         verified: "Verified",
         pending: "Verification pending",
         unverified: "Not verified",
+        staff: "Staff account",
         superAdmin: "Super admin",
         verificationNote: "Note from our team",
         savePersonal: "Save personal details",
@@ -473,7 +480,7 @@ const translations = {
     },
     auth: { login: "Log in", register: "Sign up", suspended: "Account suspended", suspendedDesc: "Your account has been suspended by an administrator. Please contact support." },
     street: { live: "LIVE", bid: "bid", newBid: "New bid" },
-    notifications: { title: "Notifications", markAll: "Mark all read", empty: "You're all caught up", outbid: "You were outbid!", outbidBody: "Your bid on \"{title}\" was topped — re-bid before time runs out.", bidChanged: "Bid updated", bidChangedBody: "The price on \"{title}\" is now {price}.", newRound: "New round started", newRoundBody: "\"{title}\" moved to round {round}." },
+    notifications: { title: "Notifications", markAll: "Mark all read", payNow: "Pay now", paid: "Paid", empty: "You're all caught up", outbid: "You were outbid!", outbidBody: "Your bid on \"{title}\" was topped — re-bid before time runs out.", bidChanged: "Bid updated", bidChangedBody: "The price on \"{title}\" is now {price}.", newRound: "New round started", newRoundBody: "\"{title}\" moved to round {round}." },
     fulfilment: {
       claim: "Send your details",
       methodShip: "Ship to me",
@@ -687,6 +694,14 @@ const translations = {
         totalDeposits: "Total deposited",
         noData: "No activity in this period."
       },
+      approvals: {
+        subtitle: "Match each payment with your bank or wallet before approving.", totalWaiting: "Waiting", oldest: "Oldest",
+        awaiting: "Awaiting approval", method: "Method", reference: "Reference", phone: "Phone", email: "Email",
+        copy: "Copy", copied: "Copied", details: "Details", detailsTitle: "Top-up details", amount: "Amount", submitted: "Submitted",
+        approveTitle: "Approve this top-up?", approveText: "{amount} will be added to {name}'s wallet.",
+        rejectTitle: "Reject this top-up", reason: "Reason (optional)", reasonHint: "e.g. No matching transfer found", reasonNote: "The member sees this reason in their notification.",
+        emptyTitle: "No top-ups waiting", emptyText: "New manual and bank-transfer top-ups appear here for approval."
+      },
       payments: {
         title: "Payments",
         subtitle: "Wallet transactions, revenue, and manual balance adjustments.",
@@ -744,7 +759,7 @@ const translations = {
       },
       fulfilment: {
         title: "Fulfilment",
-        subtitle: "Track won-item delivery and manage orders.",
+        subtitle: "Track won-item delivery. Orders ship only after the winner has paid.",
         empty: "No fulfilment orders yet.",
         colAuction: "Auction", colWinner: "Winner", colMethod: "Method", colStatus: "Status",
         colAddress: "Address / pickup notes",
@@ -753,6 +768,10 @@ const translations = {
         notesPrompt: "Notes (optional)",
         markPaid: "Mark paid", paid: "Paid",
         saved: "Fulfilment updated", paidDone: "Marked as paid",
+        awaitingPayment: "Awaiting payment", waitingForPayment: "Waiting for payment",
+        paymentRequired: "The winner hasn't paid yet. Mark the payment as received before shipping or handing over the item.",
+        paymentReference: "Payment reference (optional)", paymentNote: "Note (optional)",
+        markPaidTitle: "Mark payment received", noPaymentRecord: "No payment record",
         stats: { pending: "Pending", inTransit: "In transit", delivered: "Delivered", done: "Completed" }
       },
       refunds: {
@@ -772,7 +791,7 @@ const translations = {
         colName: "Name", colEmail: "Email", colStatus: "Status", colDate: "Registered",
         recent: "Recently reviewed",
         note: "Note (optional)",
-        status: { pending: "Pending", verified: "Verified", rejected: "Rejected" }
+        status: { pending: "Pending", verified: "Verified", rejected: "Rejected", staff: "Staff · no verification" }
       },
       live: {
         title: "Live auctions",
@@ -788,6 +807,10 @@ const translations = {
         ended: "Auction ended and winner set",
         byYou: "Admin action",
         you: "you"
+      },
+      reminder: {
+        button: "Remind to pay", sending: "Sending…", sentShort: "Reminder sent", sent: "Payment reminder sent to the winner's notifications",
+        confirmTitle: "Send a payment reminder?", confirmText: "The winner gets an in-app notification that their payment is still due, with a link to their payment page.", send: "Send reminder"
       },
       results: {
         title: "Auction results",
@@ -810,7 +833,10 @@ const translations = {
         sending: "Sending...",
         sent: "Email sent to winner",
         markPaidDone: "Marked as paid",
-        noBids: "No bids"
+        noBids: "No bids",
+        sendInApp: "Send in-app", sentInApp: "Message sent to the winner's notifications",
+        phone: "Phone", email: "Email", notProvided: "Not provided", copy: "Copy", copied: "Copied",
+        contactHint: "In-app messages reach the winner now. Email and WhatsApp are only logged until those channels are connected."
       },
       broadcast: {
         title: "Broadcast center",

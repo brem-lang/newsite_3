@@ -6,6 +6,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { adminKeys } from "@/lib/queries/keys";
 import { useAdminData, useAdminUsersByIds, adminSection, adminRpc, warmAdmin } from "@/lib/queries/admin";
 import AdminPagination from "@/components/admin/AdminPagination";
+import AdminTopupApprovals from "@/components/admin/AdminTopupApprovals";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -58,7 +59,6 @@ export default function AdminPayments() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [deciding, setDeciding] = useState("");
   const [form, setForm] = useState({ userId: "", amount: "", reason: "", dir: "credit" });
 
   /**
@@ -66,7 +66,6 @@ export default function AdminPayments() {
    * itself is paginated in Postgres, so this screen stays fast as the ledger grows.
    */
   const summary = useAdminData(adminKeys.paymentsSummary(), loadSummary);
-  const pending = summary.data?.pending ?? NONE;
   const loading = summary.isPending;
   const { data: users = NONE } = useQuery({ ...pickerQuery(), enabled: dialog });
 
@@ -86,18 +85,6 @@ export default function AdminPayments() {
   const load = useCallback(() => qc.invalidateQueries({ queryKey: adminKeys.paymentsAll() }), [qc]);
   const loadPage = useCallback(() => {}, []);
 
-  const decide = async (txn, decision) => {
-    setDeciding(txn.id);
-    try {
-      await base44.functions.invoke("approveTopup", { transaction_id: txn.id, decision });
-      toast.success(decision === "approve" ? t.admin.payments.approvedTx : t.admin.payments.rejectedTx);
-      load(); loadPage();
-    } catch (e) {
-      toast.error(e.message || "Error");
-    } finally {
-      setDeciding("");
-    }
-  };
 
   // Money totals only count settled records (summed on the server): pending and failed top-ups are not income.
   const stats = {
@@ -126,7 +113,7 @@ export default function AdminPayments() {
   }, [summary.data]);
 
   // Names for the approvals queue and the ledger page on screen.
-  const userMap = useAdminUsersByIds([...pending.map((x) => x.user_id), ...rows.map((x) => x.user_id)]);
+  const userMap = useAdminUsersByIds(rows.map((x) => x.user_id));
 
   const apply = async () => {
     const amt = parseFloat(form.amount);
@@ -187,28 +174,8 @@ export default function AdminPayments() {
         ))}
       </div>
 
-      {pending.length > 0 && (
-        <div className="rounded-2xl border border-warning/40 bg-warning/5 p-5 space-y-3">
-          <h3 className="font-heading text-lg font-semibold flex items-center gap-2 text-warning">{t.admin.payments.approvals} <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-warning/20 text-warning">{pending.length}</span></h3>
-          <div className="divide-y divide-warning/15">
-            {pending.map((x) => {
-              const u = userMap[x.user_id];
-              return (
-                <div key={x.id} className="flex items-center justify-between py-3 gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{u ? (u.full_name || u.email) : `…${x.user_id?.slice(-4)}`}</p>
-                    <p className="text-xs text-muted-foreground">{t.common.currency}{Math.abs(x.amount || 0).toFixed(2)} · {x.reference || "—"}</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button size="sm" disabled={deciding === x.id} onClick={() => decide(x, "approve")} className="gap-1"><Plus className="w-3.5 h-3.5" />{t.admin.payments.approve}</Button>
-                    <Button size="sm" variant="outline" disabled={deciding === x.id} onClick={() => decide(x, "reject")} className="gap-1"><Minus className="w-3.5 h-3.5" />{t.admin.payments.reject}</Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Top-ups waiting for staff (compact list; full request in a dialog). */}
+      <AdminTopupApprovals />
 
       <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
         <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingUp className="w-4 h-4" />{t.admin.payments.totalDeposits} · {t.admin.payments.entryFees}</h3>

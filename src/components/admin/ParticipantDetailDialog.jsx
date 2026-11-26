@@ -9,6 +9,8 @@ import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { displayVerification } from "@/lib/verification";
+import SetPasswordDialog from "@/components/admin/SetPasswordDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +24,9 @@ import {
 const statusStyle = {
   pending: "bg-warning/15 text-warning",
   verified: "bg-success/15 text-success",
-  rejected: "bg-destructive/15 text-destructive"
+  rejected: "bg-destructive/15 text-destructive",
+  // Staff never need verification (the server skips the check for them).
+  staff: "bg-primary/10 text-primary"
 };
 
 const dt = (v) => (v ? new Date(v).toLocaleString("en-GB") : "—");
@@ -44,6 +48,7 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
   const [adj, setAdj] = useState({ dir: "credit", amount: "", reason: "" });
   const [busyAdj, setBusyAdj] = useState(false);
   const [busyReset, setBusyReset] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
 
   // The participant file, cached per user while the dialog is open.
   const fileQuery = useAdminData(
@@ -102,7 +107,8 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
 
   if (!participant) return null;
   const p = payload?.profile || participant;
-  const v = p.verification_status || "pending";
+  // The profile read may not carry the role, so take it from the list row.
+  const v = displayVerification({ ...p, role: participant.role ?? p.role });
   const vSt = t.admin.verification.status;
 
   const sendReset = async () => {
@@ -151,6 +157,9 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
               </Button>
               <Button size="sm" variant="outline" onClick={sendReset} disabled={busyReset || !p.email} className="gap-1.5">
                 <KeyRound className="w-4 h-4" />{busyReset ? (d.sendingReset || "…") : (d.resetPassword || "Reset password")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setPwOpen(true)} className="gap-1.5">
+                <KeyRound className="w-4 h-4" />{d.setPassword || "Set password"}
               </Button>
             </div>
           </DialogTitle>
@@ -294,6 +303,7 @@ export default function ParticipantDetailDialog({ participant, open, onOpenChang
         )}
         </Tabs>
       </DialogContent>
+      <SetPasswordDialog user={p} open={pwOpen} onOpenChange={setPwOpen} />
     </Dialog>
   );
 }

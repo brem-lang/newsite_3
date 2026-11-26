@@ -432,6 +432,7 @@ async function loadProfile(client: AuthClient) {
     staff_role: staffRole,
     verification_status: profile?.verification_status || "unverified",
     is_verified: profile?.verification_status === "verified",
+    verification_note: profile?.verification_note || "",
     paused: !!profile?.paused,
     permissions: profile?.permissions || {},
     watched_auction_ids: profile?.watched_auction_ids || [],
@@ -509,6 +510,16 @@ const auth = {
       },
     });
     if (error) throw error;
+    // Supabase answers a sign-up for an email that already has an account
+    // with a user that has no identities (and no error), to avoid revealing
+    // which emails exist. Without this check the page would wait for a code
+    // that is never sent.
+    if (!data?.session && data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      throw Object.assign(new Error("An account with this email already exists. Sign in instead, or reset your password."), {
+        status: 409,
+        code: "email_taken",
+      });
+    }
     return data;
   },
   async verifyOtp({ email, otpCode }: { email: string; otpCode: string }) {

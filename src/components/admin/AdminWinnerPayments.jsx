@@ -5,6 +5,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useAdminUsersByIds, useAdminAuctionsByIds, adminSection, adminRpc, warmAdmin } from "@/lib/queries/admin";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import AdminPagination from "@/components/admin/AdminPagination";
+import PaymentReminderButton from "@/components/admin/PaymentReminderButton";
 import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -189,6 +190,7 @@ export default function AdminWinnerPayments() {
                   </Button>
                   {r.status === "pending" && (
                     <>
+                      <PaymentReminderButton payment={r} auction={a} />
                       <Button size="sm" className="gap-2" disabled={busy} onClick={() => { setPayDialog(r); setForm({ reference: "", note: "" }); }}>
                         <CheckCircle2 className="w-4 h-4" />{t.admin.winnerPayments?.markPaid || "Mark as paid"}
                       </Button>

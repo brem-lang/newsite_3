@@ -1,7 +1,10 @@
 import React, { useState } from "react";
-import { Trophy, Mail, MessageCircle, CheckCircle2, Users } from "lucide-react";
+import { Trophy, Mail, MessageCircle, CheckCircle2, Users, Bell, Phone, Copy } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminPage, useAdminUserMap, useAdminUsersByIds, adminPageQuery, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUserMap, useAdminUsersByIds, useAdminWinnerPaymentsByAuctions, winnerPaymentFor, adminPageQuery, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { useQueryClient } from "@tanstack/react-query";
+import { useConfirm } from "@/components/admin/ConfirmDialog";
+import PaymentReminderButton from "@/components/admin/PaymentReminderButton";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
@@ -11,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { sendEmail, sendWhatsApp } from "@/lib/messaging";
+import { sendEmail, sendWhatsApp, sendInApp } from "@/lib/messaging";
 import AuctionBidsLog from "@/components/admin/AuctionBidsLog";
 
 import {
@@ -35,15 +38,30 @@ export default function AdminResults() {
   // Full winner profiles (email, phone, WhatsApp) for just this page.
   const users = useAdminUsersByIds(ended.map((a) => a.winner_id), "*");
   const bidders = useAdminUserMap(); // shared name lookup for the bid logs
+  // Payment records decide "paid" (same as Winner payments and Fulfilment).
+  const payments = useAdminWinnerPaymentsByAuctions(ended.filter((a) => a.winner_id).map((a) => a.id));
+  const qc = useQueryClient();
+  const askConfirm = useConfirm();
   const [contact, setContact] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState({ subject: "", body: "" });
 
 
-  const markPaid = async (a) => {
+  // Same server action as Winner payments: updates the payment record and
+  // the auction, releases the winner's hold and tells them.
+  const markPaid = async (a, payment) => {
+    if (!payment) return;
+    const ok = await askConfirm({
+      title: t.admin.results.markPaid,
+      description: `${a.title} · ${t.common.currency}${Number(payment.amount || 0).toFixed(2)}`,
+      confirmLabel: t.admin.results.markPaid,
+    });
+    if (!ok) return;
     try {
-      await base44.entities.Auction.update(a.id, { paid: true });
+      const res = await base44.functions.invoke("markWinnerPaid", { payment_id: payment.id });
+      if (res.data?.error) { toast.error(res.data.error); return; }
       toast.success(t.admin.results.markPaidDone);
+      qc.invalidateQueries({ queryKey: adminKeys.winnerPaymentsAll() });
       load();
     } catch (e) { toast.error(e.message || "Error"); }
   };
@@ -52,13 +70,20 @@ export default function AdminResults() {
     if (!contact?.winner) return toast.error(t.admin.results.noWinner);
     setBusy(true);
     try {
-      if (channel === "email") {
-        await sendEmail(contact.winner, msg.subject || t.admin.results.title, msg.body);
+      const subject = msg.subject || t.admin.results.title;
+      if (channel === "inapp") {
+        if (!msg.body.trim()) { toast.error(t.admin.results.message); return; }
+        // Opens the auction when tapped in the winner's bell.
+        await sendInApp(contact.winner, subject, msg.body.trim(), "info", { auction_id: contact.auction.id });
+      } else if (channel === "email") {
+        await sendEmail(contact.winner, subject, msg.body);
       } else {
-        await sendWhatsApp(contact.winner, msg.subject || t.admin.results.title, msg.body);
+        await sendWhatsApp(contact.winner, subject, msg.body);
       }
       await base44.entities.Auction.update(contact.auction.id, { winner_notified: true });
-      toast.success(channel === "email" ? t.admin.results.sent : t.admin.broadcast.waNote);
+      toast.success(
+        channel === "inapp" ? t.admin.results.sentInApp : channel === "email" ? t.admin.results.sent : t.admin.broadcast.waNote
+      );
       setContact(null);
       setMsg({ subject: "", body: "" });
       load();
@@ -85,6 +110,9 @@ export default function AdminResults() {
           {ended.map((a) => {
             const u = users[a.winner_id];
             const filled = a.subscriber_ids?.length || 0;
+            const payment = a.winner_id ? winnerPaymentFor(payments, a.id, a.winner_id) : null;
+            // Paid on the payment record, or (older wins) on the auction.
+            const paid = payment ? payment.status === "paid" : !!a.paid;
             return (
               <div key={a.id} className="rounded-2xl border border-border bg-card overflow-hidden">
                 <div className="p-5 space-y-4">
@@ -95,8 +123,8 @@ export default function AdminResults() {
                     <p className="text-xs text-muted-foreground">{t.admin.results.endedAt}: {a.end_time ? new Date(a.end_time).toLocaleDateString("en-GB") : "—"}</p>
                   </div>
                   {a.winner_id ? (
-                    <span className={cn("shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full", a.paid ? "bg-success/15 text-success" : "bg-warning/15 text-warning")}>
-                      {a.paid ? t.admin.results.paid : t.admin.results.unpaid}
+                    <span className={cn("shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full", paid ? "bg-success/15 text-success" : "bg-warning/15 text-warning")}>
+                      {paid ? t.admin.results.paid : t.admin.results.unpaid}
                     </span>
                   ) : (
                     // No bids means no winner, so there is nothing to pay.
@@ -112,6 +140,9 @@ export default function AdminResults() {
                   <Field label={t.admin.results.participants} value={filled} />
                 </div>
 
+                {/* Winner's contact details, so staff can reach them directly. */}
+                {a.winner_id && u ? <WinnerContact user={u} t={t} /> : null}
+
                 {a.winner_notified && <span className="inline-flex items-center gap-1 text-xs text-success"><CheckCircle2 className="w-3.5 h-3.5" />{t.admin.results.notified}</span>}
 
                 <div className="flex flex-wrap gap-2 pt-1">
@@ -120,7 +151,12 @@ export default function AdminResults() {
                       <Mail className="w-4 h-4" />{t.admin.results.contactWinner}
                     </Button>
                   )}
-                  {a.winner_id && !a.paid && <Button size="sm" className="gap-2" onClick={() => markPaid(a)}><CheckCircle2 className="w-4 h-4" />{t.admin.results.markPaid}</Button>}
+                  {a.winner_id && !paid && payment?.status === "pending" && (
+                    <>
+                      <PaymentReminderButton payment={payment} auction={a} />
+                      <Button size="sm" className="gap-2" onClick={() => markPaid(a, payment)}><CheckCircle2 className="w-4 h-4" />{t.admin.results.markPaid}</Button>
+                    </>
+                  )}
                 </div>
                 </div>
                 <AuctionBidsLog auction={a} users={bidders} />
@@ -143,6 +179,7 @@ export default function AdminResults() {
             )}
           </DialogHeader>
           <div className="grid gap-4">
+            <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">{t.admin.results.contactHint}</p>
             <div>
               <Label>{t.admin.results.subject}</Label>
               <Input value={msg.subject} onChange={(e) => setMsg({ ...msg, subject: e.target.value })} className="mt-1" />
@@ -155,10 +192,54 @@ export default function AdminResults() {
           <DialogFooter className="flex gap-2">
             <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
             <Button variant="outline" className="gap-2" onClick={() => send("whatsapp")} disabled={busy}><MessageCircle className="w-4 h-4" />{t.admin.broadcast.whatsapp}</Button>
-            <Button className="gap-2" onClick={() => send("email")} disabled={busy}><Mail className="w-4 h-4" />{busy ? t.admin.results.sending : t.admin.results.send}</Button>
+            <Button variant="outline" className="gap-2" onClick={() => send("email")} disabled={busy}><Mail className="w-4 h-4" />{t.admin.results.send}</Button>
+            <Button className="gap-2" onClick={() => send("inapp")} disabled={busy}><Bell className="w-4 h-4" />{busy ? t.admin.results.sending : t.admin.results.sendInApp}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function WinnerContact({ user, t }) {
+  const r = t.admin.results;
+  const copy = async (value) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(r.copied);
+    } catch {
+      toast.error("Error");
+    }
+  };
+  const rows = [
+    // Plain text (no tap-to-call); copy it with the button.
+    { key: "phone", icon: Phone, label: r.phone, value: user.phone, href: null },
+    { key: "email", icon: Mail, label: r.email, value: user.email, href: user.email ? `mailto:${user.email}` : null },
+  ];
+  return (
+    <div className="grid gap-2 rounded-xl border border-border bg-secondary/30 p-3 sm:grid-cols-2">
+      {rows.map(({ key, icon: Icon, label, value, href }) => (
+        <div key={key} className="flex min-w-0 items-center gap-2">
+          <Icon className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] text-muted-foreground">{label}</p>
+            {value && href ? (
+              <a href={href} dir="ltr" className="block truncate text-sm font-semibold text-foreground hover:text-primary hover:underline">
+                {value}
+              </a>
+            ) : value ? (
+              <p dir="ltr" className="truncate text-sm font-semibold text-foreground select-all">{value}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">{r.notProvided}</p>
+            )}
+          </div>
+          {value ? (
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => copy(value)} aria-label={`${r.copy} ${label}`}>
+              <Copy className="w-3.5 h-3.5" />
+            </Button>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }

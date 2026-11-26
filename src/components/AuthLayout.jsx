@@ -32,9 +32,70 @@ function Emblem({ icon: Icon, size = "lg" }) {
   );
 }
 
-export default function AuthLayout({ icon: Icon, title, subtitle, footer, children }) {
+/**
+ * `compact`: the page fits one screen height (no page scroll) for long forms
+ * such as sign-up: smaller header, tighter card. On a very short screen the
+ * form area alone scrolls, so nothing is ever cut off.
+ */
+function CompactAuthLayout({ icon: Icon, title, subtitle, footer, children, isMobile, t, dir }) {
+  return (
+    <div className="relative h-[100dvh] overflow-hidden bg-background flex flex-col" dir={dir}>
+      <Glow />
+      {isMobile ? (
+        <header className="relative shrink-0 h-12 px-2 flex items-center gap-1 pt-[env(safe-area-inset-top)]">
+          <Link
+            to="/"
+            aria-label={t.nav.home}
+            className="w-10 h-10 rounded-xl grid place-items-center text-muted-foreground transition-colors hover:bg-secondary hover:text-accent"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </Link>
+        </header>
+      ) : null}
+      <div
+        className={cn(
+          "relative flex-1 min-h-0 overflow-y-auto flex flex-col",
+          isMobile ? "px-4 pb-[calc(12px+env(safe-area-inset-bottom))]" : "px-4 py-6"
+        )}
+      >
+        <div className={cn("m-auto w-full", isMobile ? "max-w-md" : "max-w-xl")}>
+          <div className={cn("flex items-center gap-3", isMobile ? "mb-3" : "mb-5 justify-center")}>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary shadow-[0_0_28px_hsl(var(--primary)/0.35)]">
+              <Icon className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h1 className={cn("font-display font-extrabold tracking-tight text-foreground leading-tight", isMobile ? "text-xl" : "text-2xl")}>
+                {title}
+              </h1>
+              {subtitle ? <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p> : null}
+            </div>
+          </div>
+          <div
+            className={cn(
+              "native-panel rounded-2xl",
+              isMobile ? "p-4" : "p-6 shadow-[0_24px_60px_-30px_hsl(var(--primary)/0.25)]"
+            )}
+          >
+            {children}
+          </div>
+          {footer ? <p className={cn("text-center text-sm text-muted-foreground", isMobile ? "mt-3" : "mt-4")}>{footer}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AuthLayout({ icon: Icon, title, subtitle, footer, children, compact = false }) {
   const isMobile = useIsMobileView();
   const { t, dir } = useI18n();
+
+  if (compact) {
+    return (
+      <CompactAuthLayout icon={Icon} title={title} subtitle={subtitle} footer={footer} isMobile={isMobile} t={t} dir={dir}>
+        {children}
+      </CompactAuthLayout>
+    );
+  }
 
   if (isMobile) {
     // Native app shell: full-screen sheet, back affordance, no card chrome.

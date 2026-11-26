@@ -357,23 +357,26 @@ const upsertMessage = (list = [], m) => {
  * archived, voided) the history is read once and never re-fetched, and no
  * realtime channel is opened.
  */
-export function useAuctionChat(auctionId, { closed = false } = {}) {
+export function useAuctionChat(auctionId, { closed = false, enabled = true } = {}) {
   const qc = useQueryClient();
   const key = chatKeys.byAuction(auctionId);
+  // `enabled` is false for visitors who haven't joined: the database only
+  // lets participants read a room, so the read would come back empty.
+  const on = !!auctionId && enabled;
   const query = useQuery({
     queryKey: key,
     queryFn: async () => {
       const rows = await base44.entities.AuctionMessage.filter({ auction_id: auctionId }, "-created_date", CHAT_LIMIT);
       return [...(rows || [])].reverse();
     },
-    enabled: !!auctionId,
+    enabled: on,
     // A closed room never changes. An open one re-reads on return visits
     // (messages sent while away), and realtime covers the rest.
     staleTime: closed ? Infinity : 30_000,
   });
 
   useEffect(() => {
-    if (!auctionId || closed) return;
+    if (!on || closed) return;
     const k = chatKeys.byAuction(auctionId);
     return base44.entities.AuctionMessage.subscribe(
       (ev) => {
@@ -385,7 +388,7 @@ export function useAuctionChat(auctionId, { closed = false } = {}) {
       },
       { filter: `auction_id=eq.${auctionId}`, onReconnect: () => qc.invalidateQueries({ queryKey: k }) },
     );
-  }, [auctionId, closed, qc]);
+  }, [auctionId, closed, on, qc]);
 
   const send = useMutation({
     mutationFn: (values) => {
@@ -425,6 +428,9 @@ export function useAuctionActions(auctionId, userId) {
       if (!ok(res)) return;
       refreshWallet();
       refreshRoom();
+      // The chat was unreadable before joining (participants only), so drop
+      // any empty copy and read the room now.
+      qc.invalidateQueries({ queryKey: chatKeys.byAuction(auctionId) });
       if (userId) qc.invalidateQueries({ queryKey: auctionKeys.mine(userId) });
       qc.invalidateQueries({ queryKey: auctionKeys.lists() });
     },

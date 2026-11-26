@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PackageCheck, Truck, MapPin, Loader2 } from "lucide-react";
+import { PackageCheck, Truck, MapPin, Loader2, CreditCard, Lock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminPage, useAdminUsersByIds, useAdminAuctionsByIds, adminPageQuery, adminSection, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUsersByIds, useAdminAuctionsByIds, useAdminWinnerPaymentsByAuctions, winnerPaymentFor, adminPageQuery, adminSection, firstPage, warmAdmin } from "@/lib/queries/admin";
+import PaymentReminderButton from "@/components/admin/PaymentReminderButton";
 import { adminKeys } from "@/lib/queries/keys";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { useI18n } from "@/lib/i18n";
@@ -21,6 +22,9 @@ const STATUS_CLS = {
 };
 
 const ORDERS = { sort: "-created_date" };
+
+/** The winner's payment record for an order. */
+const paymentFor = (payments, o) => winnerPaymentFor(payments, o.auction_id, o.winner_id);
 
 /** Stat cards: one exact count per stage, straight from Postgres. */
 const STAGES = {
@@ -52,10 +56,14 @@ export default function AdminFulfilment() {
   // Labels for just the orders on this page.
   const auctions = useAdminAuctionsByIds(orders.map((o) => o.auction_id));
   const users = useAdminUsersByIds(orders.map((o) => o.winner_id));
+  const payments = useAdminWinnerPaymentsByAuctions(orders.map((o) => o.auction_id));
+  const [payDialog, setPayDialog] = useState(null);
+  const [payForm, setPayForm] = useState({ reference: "", note: "" });
   const loading = table.isPending;
   const load = () => {
     qc.invalidateQueries({ queryKey: adminKeys.fulfilmentAll() });
     qc.invalidateQueries({ queryKey: adminKeys.auctionsByIds() }); // "paid" flag
+    qc.invalidateQueries({ queryKey: adminKeys.winnerPaymentsAll() });
   };
   const [advance, setAdvance] = useState(null);
   const [form, setForm] = useState({ carrier: "", tracking_number: "", notes: "" });
@@ -85,7 +93,10 @@ export default function AdminFulfilment() {
         tracking_number: form.tracking_number,
         notes: form.notes
       });
-      if (res.data?.error) { toast.error(res.data.error); return; }
+      if (res.data?.error) {
+        toast.error(res.data.error === "payment_required" ? t.admin.fulfilment.paymentRequired : res.data.error);
+        return;
+      }
       toast.success(t.admin.fulfilment.saved);
       setAdvance(null);
       load();
@@ -96,13 +107,29 @@ export default function AdminFulfilment() {
     }
   };
 
-  const markPaid = async (o) => {
+  // Same action as Admin → Winner payments, so both screens always agree
+  // (it also releases the winner's escrow hold and tells them).
+  const openMarkPaid = (payment) => {
+    setPayDialog(payment);
+    setPayForm({ reference: "", note: "" });
+  };
+  const confirmPaid = async () => {
+    if (!payDialog) return;
+    setBusy(true);
     try {
-      await base44.entities.Auction.update(o.auction_id, { paid: true });
+      const res = await base44.functions.invoke("markWinnerPaid", {
+        payment_id: payDialog.id,
+        reference: payForm.reference,
+        note: payForm.note,
+      });
+      if (res.data?.error) { toast.error(res.data.error); return; }
       toast.success(t.admin.fulfilment.paidDone);
+      setPayDialog(null);
       load();
     } catch (e) {
       toast.error(e.message || "Error");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -152,6 +179,9 @@ export default function AdminFulfilment() {
                 const a = auctions[o.auction_id];
                 const u = users[o.winner_id];
                 const ns = nextStatus(o);
+                const payment = paymentFor(payments, o);
+                // Paid on the payment record, or (older wins) on the auction.
+                const paid = payment?.status === "paid" || (!!a?.paid && !payment);
                 return (
                   <tr key={o.id} className="hover:bg-secondary/30">
                     <td className="px-4 py-3 font-medium">{a?.title || "—"}</td>
@@ -165,13 +195,38 @@ export default function AdminFulfilment() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn("inline-block text-xs font-semibold rounded-full px-2.5 py-1", STATUS_CLS[o.status])}>{t.fulfilment.status[o.status]}</span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className={cn("inline-block text-xs font-semibold rounded-full px-2.5 py-1", STATUS_CLS[o.status])}>{t.fulfilment.status[o.status]}</span>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5",
+                            paid ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"
+                          )}
+                        >
+                          <CreditCard className="w-3 h-3" aria-hidden="true" />
+                          {paid ? t.admin.fulfilment.paid : t.admin.fulfilment.awaitingPayment}
+                        </span>
+                      </div>
                       {o.carrier && <span className="block text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><Truck className="w-3 h-3" />{o.carrier} {o.tracking_number}</span>}
                     </td>
                     <td className="px-4 py-3 text-end">
                       <div className="flex items-center justify-end gap-2">
-                        {ns && <Button size="sm" onClick={() => openAdvance(o)}>{t.admin.fulfilment.advance.replace("{status}", t.fulfilment.status[ns])}</Button>}
-                        {a && !a.paid && <Button size="sm" variant="outline" onClick={() => markPaid(o)}>{t.admin.fulfilment.markPaid}</Button>}
+                        {!paid && payment?.status === "pending" && (
+                          <>
+                            <PaymentReminderButton payment={payment} auction={a} />
+                            <Button size="sm" variant="outline" onClick={() => openMarkPaid(payment)}>{t.admin.fulfilment.markPaid}</Button>
+                          </>
+                        )}
+                        {!paid && !payment && (
+                          <span className="text-[11px] text-muted-foreground">{t.admin.fulfilment.noPaymentRecord}</span>
+                        )}
+                        {ns && (paid ? (
+                          <Button size="sm" onClick={() => openAdvance(o)}>{t.admin.fulfilment.advance.replace("{status}", t.fulfilment.status[ns])}</Button>
+                        ) : (
+                          <Button size="sm" disabled title={t.admin.fulfilment.paymentRequired} className="gap-1">
+                            <Lock className="w-3.5 h-3.5" aria-hidden="true" /> {t.admin.fulfilment.waitingForPayment}
+                          </Button>
+                        ))}
                       </div>
                     </td>
                   </tr>
@@ -202,6 +257,33 @@ export default function AdminFulfilment() {
             <DialogFooter>
               <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
               <Button type="submit" disabled={busy}>{busy ? t.admin.saving : t.admin.save}</Button>
+            </DialogFooter>
+          </DialogForm>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!payDialog} onOpenChange={(o) => !o && setPayDialog(null)}>
+        <DialogContent size="sm">
+          <DialogForm onSubmit={(e) => { e.preventDefault(); confirmPaid(); }}>
+            <DialogHeader><DialogTitle>{t.admin.fulfilment.markPaidTitle}</DialogTitle></DialogHeader>
+            {payDialog && (
+              <div className="grid gap-4">
+                <p className="text-sm text-muted-foreground">
+                  {t.common.currency}{Number(payDialog.amount || 0).toFixed(2)}
+                </p>
+                <div>
+                  <Label htmlFor="fulfilment-pay-ref">{t.admin.fulfilment.paymentReference}</Label>
+                  <Input id="fulfilment-pay-ref" value={payForm.reference} onChange={(e) => setPayForm({ ...payForm, reference: e.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="fulfilment-pay-note">{t.admin.fulfilment.paymentNote}</Label>
+                  <Input id="fulfilment-pay-note" value={payForm.note} onChange={(e) => setPayForm({ ...payForm, note: e.target.value })} className="mt-1" />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">{t.admin.cancel}</Button></DialogClose>
+              <Button type="submit" disabled={busy}>{busy ? t.admin.saving : t.admin.fulfilment.markPaid}</Button>
             </DialogFooter>
           </DialogForm>
         </DialogContent>

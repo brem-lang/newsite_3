@@ -126,6 +126,7 @@ export function useAdminAuctionMap() {
   return data;
 }
 const EMPTY_MAP = {};
+const EMPTY_LIST = [];
 
 export { toMap };
 
@@ -402,3 +403,24 @@ export async function fetchAllRows(entity, opts = {}) {
     if (page >= res.pageCount) return out;
   }
 }
+
+/**
+ * Winner payment records (winner_payments) for the given auctions, read on
+ * the staff session. These, not auctions.paid, decide whether a win is paid.
+ */
+export function useAdminWinnerPaymentsByAuctions(auctionIds) {
+  const ids = uniqIds(auctionIds);
+  const { data = EMPTY_LIST } = useQuery({
+    queryKey: adminKeys.winnerPaymentsByAuctions(ids),
+    queryFn: async () => (await base44.entities.WinnerPayment.filter({ auction_id: ids }, "-created_date", 500)) || [],
+    enabled: ids.length > 0,
+    staleTime: 30_000,
+  });
+  return data;
+}
+
+/** The winner's payment record for an auction (a paid one first), or null. */
+export const winnerPaymentFor = (payments, auctionId, winnerId) =>
+  payments.find((p) => p.auction_id === auctionId && p.user_id === winnerId && p.status === "paid") ||
+  payments.find((p) => p.auction_id === auctionId && p.user_id === winnerId) ||
+  null;

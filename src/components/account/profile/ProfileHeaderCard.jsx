@@ -3,11 +3,14 @@ import { BadgeCheck, ShieldAlert, Clock3, Mail, Globe } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { countryName } from "@/lib/countries";
 import { cn } from "@/lib/utils";
+import { displayVerification } from "@/lib/verification";
 
 const STATUS = {
   verified: { icon: BadgeCheck, cls: "bg-success/15 text-success border-success/30", key: "verified" },
   pending: { icon: Clock3, cls: "bg-warning/15 text-warning border-warning/30", key: "pending" },
   unverified: { icon: ShieldAlert, cls: "bg-muted text-muted-foreground border-border", key: "unverified" },
+  // Staff accounts never need verification (joinAuction / placeBid skip it).
+  staff: { icon: BadgeCheck, cls: "bg-primary/10 text-primary border-primary/30", key: "staff" },
 };
 
 export default function ProfileHeaderCard({ user }) {
@@ -25,7 +28,7 @@ export default function ProfileHeaderCard({ user }) {
     .map((s) => s.charAt(0).toUpperCase())
     .join("") || "?";
 
-  const status = STATUS[user?.verification_status] || STATUS.unverified;
+  const status = STATUS[displayVerification(user, "unverified")] || STATUS.unverified;
   const StatusIcon = status.icon;
   const country = user?.country || countryName(user?.country_code, "en");
   const since = user?.created_date
