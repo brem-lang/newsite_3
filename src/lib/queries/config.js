@@ -36,6 +36,15 @@ export const configQueries = {
       queryFn: () => base44.entities.Content.list(50),
       ...CONFIG,
     }),
+  // CMS pages (admin → Pages). `pages` is not in the realtime publication,
+  // so edits reach open tabs on the 10-minute re-read (or a reload).
+  // Readers pick the published row by slug (usePublishedPage).
+  pages: () =>
+    queryOptions({
+      queryKey: configKeys.pages(),
+      queryFn: () => base44.entities.Page.list("-updated_date", 100),
+      ...SLOW_CONFIG,
+    }),
   categories: () =>
     queryOptions({
       queryKey: configKeys.categories(),
@@ -90,6 +99,37 @@ export function useContentQuery() {
   const query = useQuery(configQueries.content());
   useConfigRealtime(base44.entities.Content, configKeys.content());
   return query;
+}
+
+/**
+ * The published CMS page for a slug ("terms", "privacy", "about", "faq"), or
+ * null when there is none. `isPending` is true until the first read returns.
+ */
+export function usePublishedPage(slug) {
+  const { pages, isPending, isError } = usePublishedPages();
+  const want = String(slug || "").trim().toLowerCase();
+  return { page: pages.get(want) || null, isPending, isError };
+}
+
+const NO_PAGES = new Map();
+
+/**
+ * Published CMS pages by slug (newest edit wins when a slug is repeated).
+ * A page counts only when it is published and has a body.
+ */
+export function usePublishedPages() {
+  const query = useQuery(configQueries.pages());
+  const pages = useMemo(() => {
+    if (!query.data?.length) return NO_PAGES;
+    const map = new Map();
+    // The query is sorted newest first, so the first row per slug wins.
+    query.data.forEach((p) => {
+      const slug = String(p?.slug || "").trim().toLowerCase();
+      if (p?.published && slug && (p.body_en || "").trim() && !map.has(slug)) map.set(slug, p);
+    });
+    return map;
+  }, [query.data]);
+  return { pages, isPending: query.isPending, isError: query.isError };
 }
 
 export function useCategories() {

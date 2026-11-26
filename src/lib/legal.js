@@ -174,3 +174,63 @@ export function getLegalDoc(kind) {
   const doc = legalContent[kind] || legalContent.terms;
   return doc.en;
 }
+
+const slugify = (s, i) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || `section-${i + 1}`;
+
+/**
+ * Turn a published CMS page (admin → Pages) into the same shape as the
+ * built-in docs above, so LegalPage renders both the same way.
+ *
+ * Body format (plain text):
+ *   Text before the first heading is the intro.
+ *   "## Heading" starts a section.
+ *   Every other non-empty line in a section is one bullet ("- " is optional).
+ */
+export function pageToDoc(row, fallback = null) {
+  const intro = [];
+  const sections = [];
+  let current = null;
+  String(row?.body_en || "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .forEach((raw) => {
+      const line = raw.trim();
+      if (!line) return;
+      const heading = line.match(/^#{1,3}\s+(.*)$/);
+      if (heading) {
+        current = { id: slugify(heading[1], sections.length), heading: heading[1].trim(), body: [] };
+        sections.push(current);
+        return;
+      }
+      const text = line.replace(/^[-*•]\s+/, "");
+      if (current) current.body.push(text);
+      else intro.push(text);
+    });
+  // No headings at all: the first paragraph is the intro, the rest one section.
+  if (!sections.length && intro.length > 1) {
+    sections.push({ id: "section-1", heading: "", body: intro.splice(1) });
+  }
+  return {
+    title: (row?.title_en || "").trim() || fallback?.title || row?.slug || "",
+    subtitle: fallback?.subtitle || "",
+    updatedLabel: fallback?.updatedLabel || "Last updated",
+    intro: intro.join(" "),
+    sections,
+  };
+}
+
+/**
+ * The CMS pages the site has a route for. admin → Pages offers exactly these
+ * slugs; each shows at /<slug>. `builtIn` pages fall back to the copy above
+ * when nothing is published; the others are linked only once published.
+ */
+export const SITE_PAGES = [
+  { slug: "terms", label: "Terms of Service", builtIn: true },
+  { slug: "privacy", label: "Privacy Policy", builtIn: true },
+  { slug: "about", label: "About us", builtIn: false },
+  { slug: "faq", label: "FAQ", builtIn: false },
+];

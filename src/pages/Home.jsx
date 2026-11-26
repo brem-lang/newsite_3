@@ -41,7 +41,6 @@ export default function Home() {
           auctions={auctions}
           loading={loading}
           authed={authed}
-          content={content}
           stats={{ liveCount, seatsFilled, topBid }}
         />
       </PullToRefresh>

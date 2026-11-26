@@ -27,7 +27,6 @@ export const PANEL_IMPORTS = {
   verification: () => import("@/components/admin/AdminVerification"),
   roles: () => import("@/components/admin/AdminRoles"),
   hero: () => import("@/components/admin/AdminHero"),
-  content: () => import("@/components/admin/AdminContent"),
   pages: () => import("@/components/admin/AdminPages"),
   design: () => import("@/components/admin/AdminDesign"),
   broadcast: () => import("@/components/admin/AdminBroadcast"),

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import LegalPage from "@/pages/LegalPage";
+import { configQueries } from "@/lib/queries/config";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -19,5 +20,10 @@ export const Route = createFileRoute("/privacy")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  // Load the CMS pages before the route renders, so the page opens with its
+  // final text (no skeleton, no flash of the built-in copy). A failed read
+  // falls back to the built-in text.
+  loader: ({ context: { queryClient } }) =>
+    queryClient.ensureQueryData(configQueries.pages()).catch(() => null),
   component: () => <LegalPage kind="privacy" />,
 });

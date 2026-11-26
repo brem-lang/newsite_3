@@ -6,6 +6,8 @@ import {
   CircleHelp,
   FileText,
   Gavel,
+  Info,
+  MessageCircleQuestion,
   KeyRound,
   LogOut,
   Pencil,
@@ -16,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { useI18n } from "@/lib/i18n";
+import { usePublishedPages } from "@/lib/queries/config";
 import { cn } from "@/lib/utils";
 import ProfileSection from "@/components/account/profile/ProfileSection";
 import ChangePassword from "@/components/account/ChangePassword";
@@ -28,6 +31,10 @@ const noScroll = "[&::-webkit-scrollbar]:hidden [scrollbar-width:none]";
 
 export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
   const { t, dir } = useI18n();
+  // About / FAQ rows appear only once published in admin → Pages.
+  const { pages } = usePublishedPages();
+  const aboutPage = pages.get("about");
+  const faqPage = pages.get("faq");
   const [pwOpen, setPwOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -97,6 +104,8 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
           <section className="overflow-hidden rounded-xl border border-border bg-card">
             <ProfileMenuRow icon={FileText} label={t.site.footer.terms} to="/terms" arrow={arrow} />
             <ProfileMenuRow icon={ShieldCheck} label={t.site.footer.privacy} to="/privacy" arrow={arrow} />
+            {aboutPage ? <ProfileMenuRow icon={Info} label={aboutPage.title_en || t.site.nav.about} to="/about" arrow={arrow} /> : null}
+            {faqPage ? <ProfileMenuRow icon={MessageCircleQuestion} label={faqPage.title_en || "FAQ"} to="/faq" arrow={arrow} /> : null}
             <ProfileMenuRow icon={CircleHelp} label={"Help & support"} to="/support" arrow={arrow} />
             <ProfileMenuRow icon={LogOut} label={t.common.logout} onClick={onLogout} arrow={arrow} destructive />
           </section>

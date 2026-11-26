@@ -65,6 +65,7 @@ export const configKeys = {
   all: ["config"],
   settings: () => ["config", "settings"],
   content: () => ["config", "content"],
+  pages: () => ["config", "pages"],
   categories: () => ["config", "categories"],
   brands: () => ["config", "brands"],
   paymentMethods: () => ["config", "paymentMethods"],

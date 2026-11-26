@@ -2,16 +2,15 @@ import React from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Flame, Users, Clock, ShieldCheck, Zap } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { contentValue } from "@/lib/useContent";
+import { heroCopy } from "@/lib/useContent";
 import { effectiveStatus } from "@/lib/auction";
 import { Image } from "@/components/ui/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function SiteHero({ auctions, loading, authed, content, contentLoading = false }) {
-  const { t, lang } = useI18n();
-  const heroTitle = contentValue(content, "hero_title", lang, t.home.heroTitle);
-  const heroSubtitle = contentValue(content, "hero_subtitle", lang, t.home.heroSubtitle);
+  const { t } = useI18n();
+  const { title: heroTitle, subtitle: heroSubtitle } = heroCopy(content, t);
   const arrowCls = "";
   const curated = auctions
     .filter((a) => a.featured && effectiveStatus(a) !== "ended")

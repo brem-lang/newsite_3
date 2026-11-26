@@ -50,7 +50,6 @@ const SECTION_CAPABILITY = {
   support: "support.manage",
   reports: "support.manage",
   hero: "system.manage",
-  content: "system.manage",
   pages: "system.manage",
   design: "system.manage",
   settings: "system.manage",

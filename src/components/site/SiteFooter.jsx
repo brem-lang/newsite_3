@@ -2,10 +2,15 @@ import React from "react";
 import { Link } from "@tanstack/react-router";
 import { Gavel } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { usePublishedPages } from "@/lib/queries/config";
 
 export default function SiteFooter() {
   const { t, dir } = useI18n();
   const year = new Date().getFullYear();
+  // About / FAQ are linked only once published in admin → Pages.
+  const { pages } = usePublishedPages();
+  const about = pages.get("about");
+  const faq = pages.get("faq");
 
 
   return (
@@ -23,7 +28,16 @@ export default function SiteFooter() {
           <ul className="space-y-1.5 text-sm text-muted-foreground">
             <li><a href="#auctions" className="theme-link-hover transition-colors">{t.site.nav.auctions}</a></li>
             <li><a href="#how" className="theme-link-hover transition-colors">{t.site.nav.howItWorks}</a></li>
-            <li><a href="#about" className="theme-link-hover transition-colors">{t.site.nav.about}</a></li>
+            <li>
+              {about ? (
+                <Link to="/about" className="theme-link-hover transition-colors">{t.site.nav.about}</Link>
+              ) : (
+                <a href="#about" className="theme-link-hover transition-colors">{t.site.nav.about}</a>
+              )}
+            </li>
+            {faq ? (
+              <li><Link to="/faq" className="theme-link-hover transition-colors">{faq.title_en || "FAQ"}</Link></li>
+            ) : null}
             <li><a href="#contact" className="theme-link-hover transition-colors">{t.site.nav.contact}</a></li>
           </ul>
         </div>

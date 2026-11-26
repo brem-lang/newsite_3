@@ -278,11 +278,11 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
                 <div key={f.key} className="space-y-1.5">
                   {f.type !== "boolean" && <Label>{L(f.label)}{f.required && " *"}</Label>}
                   {f.type === "text" || f.type === "url" || !f.type ? (
-                    <Input value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
+                    <Input value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} placeholder={f.placeholder} />
                   ) : f.type === "number" ? (
                     <Input type="number" value={form[f.key] ?? 0} onChange={(e) => set(f.key, e.target.value)} />
                   ) : f.type === "textarea" || f.type === "json" ? (
-                    <Textarea rows={f.rows || 4} value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} className="font-mono" />
+                    <Textarea rows={f.rows || 4} value={form[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} className="font-mono" placeholder={f.placeholder} />
                   ) : f.type === "select" ? (
                     <SelectField
                       className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
@@ -297,6 +297,7 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
                       <Label>{L(f.label)}</Label>
                     </div>
                   ) : null}
+                  {f.hint ? <p className="text-xs text-muted-foreground">{L(f.hint)}</p> : null}
                 </div>
               ))}
             </div>

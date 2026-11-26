@@ -16,6 +16,7 @@ import { CategoryIcon } from "@/lib/categoryIcons";
 
 const NO_CATEGORIES = [];
 import { useI18n } from "@/lib/i18n";
+import { useHeroContent } from "@/lib/useContent";
 import { effectiveStatus } from "@/lib/auction";
 import LiveCountdown from "@/components/auction/LiveCountdown";
 import { selectHomeAuctions } from "@/lib/homeShowcase";
@@ -52,11 +53,13 @@ export default function MobileHome({ auctions, loading, authed, userName, userId
   const featured = rest[0] || (spotlight ? null : list[0]);
   const trending = rest.slice(1, 3);
   const ArrowIcon = ChevronRight;
-
+  // Same admin-edited hero copy as the desktop SiteHero (admin → Hero).
+  const hero = useHeroContent(t);
 
   const copy = {
-        greeting: userName ? `Welcome ${userName}` : "Welcome to MIZAD",
-        subtitle: "Your opportunity starts here",
+        // Signed in, the greeting is personal; signed out it is the hero headline.
+        greeting: userName ? `Welcome ${userName}` : hero.title,
+        subtitle: hero.subtitle,
         search: "Search for anything in MIZAD...",
         categories: ["Cars", "Watches", "Property", "Electronics"],
         live: "Live auctions",
@@ -117,10 +120,19 @@ export default function MobileHome({ auctions, loading, authed, userName, userId
             >
               <UserRound className="h-5 w-5" />
             </Link>
-            <div className="min-w-0">
-              <p className="truncate text-[15px] font-extrabold text-foreground">{copy.greeting}</p>
-              <p className="mt-0.5 truncate text-[10px] font-semibold text-muted-foreground">{copy.subtitle}</p>
-            </div>
+            {/* Placeholder bars until the content loads, so the built-in
+                default never flashes before the admin copy (as in SiteHero). */}
+            {hero.loading ? (
+              <div className="min-w-0 flex-1 space-y-1.5" role="status" aria-busy="true" aria-label="Loading">
+                <div className="h-4 w-40 max-w-full rounded bg-muted animate-pulse" />
+                <div className="h-2.5 w-52 max-w-full rounded bg-muted animate-pulse" />
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-extrabold text-foreground">{copy.greeting}</p>
+                <p className="mt-0.5 line-clamp-2 text-[10px] font-semibold leading-snug text-muted-foreground">{copy.subtitle}</p>
+              </div>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <Link
