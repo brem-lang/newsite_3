@@ -102,8 +102,8 @@ export default function AdminTestMode() {
     const ok = await askConfirm({
       title: "Delete all test data?",
       description: keepAccounts
-        ? "Stops anything still running, then permanently removes every test auction, its bids, payments and deliveries, and every test wallet row. The test accounts are kept for the next run. Real data is not touched."
-        : "Stops anything still running, then permanently removes every test auction, its bids, payments and deliveries, every test wallet row, and the test accounts themselves. Real data is not touched.",
+        ? "Stops anything still running, then permanently removes every test auction, its bids, payments and deliveries, and the test accounts' wallet rows. The test accounts are kept for the next run. Real data is not touched."
+        : "Stops anything still running, then permanently removes every test auction, its bids, payments and deliveries, the test accounts' wallet rows, and the test accounts themselves. Real data is not touched.",
       confirmLabel: "Delete test data",
       destructive: true,
     });

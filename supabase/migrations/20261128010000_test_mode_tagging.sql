@@ -6,6 +6,9 @@
 -- carries its own copy (set on insert) because the reports sum that table
 -- directly and test funding rows have no auction.
 --
+-- A wallet row is test only when its ACCOUNT is a test account: a real
+-- member's money is never hidden from the reports or deleted as test.
+--
 -- Only the api function (service_role) can set the tag. Test accounts and real
 -- members can never share an auction. The public view, the home page and the
 -- money reports leave test data out, and delete_test_data() removes it.
@@ -63,7 +66,8 @@ drop trigger if exists protect_is_test on public.profiles;
 create trigger protect_is_test before insert or update on public.profiles
   for each row execute function public.protect_is_test();
 
--- Wallet rows follow their user or auction, whoever writes them; the tag never changes afterwards.
+-- Wallet rows follow their account (never their auction), whoever writes
+-- them; the tag never changes afterwards.
 create or replace function public.tag_test_wallet_txn()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -71,9 +75,7 @@ begin
     new.is_test := old.is_test;
     return new;
   end if;
-  new.is_test :=
-       exists (select 1 from public.profiles p where p.id = new.user_id and p.is_test)
-    or (new.auction_id is not null and exists (select 1 from public.auctions a where a.id = new.auction_id and a.is_test));
+  new.is_test := exists (select 1 from public.profiles p where p.id = new.user_id and p.is_test);
   return new;
 end; $$;
 
@@ -137,8 +139,7 @@ update public.profiles set is_test = true
  where not is_test and lower(email) like '%@seat.bidkita.test';
 update public.wallet_transactions w set is_test = true
  where not w.is_test
-   and (exists (select 1 from public.profiles p where p.id = w.user_id and p.is_test)
-        or exists (select 1 from public.auctions a where a.id = w.auction_id and a.is_test));
+   and exists (select 1 from public.profiles p where p.id = w.user_id and p.is_test);
 
 /* 6. Signed-out visitors never see test auctions ------------------------------------- */
 create or replace view public.auctions_public
@@ -506,9 +507,9 @@ begin
 end; $$;
 
 -- Removes every test auction with everything recorded against it, and every
--- test wallet row. With _keep_accounts = false it also removes the test
--- accounts' other records and profiles (the api function then deletes their
--- sign-ins). Only tagged rows are touched. Returns per-table counts.
+-- test account's wallet row. With _keep_accounts = false it also removes the
+-- test accounts' other records and profiles (the api function then deletes
+-- their sign-ins). Only tagged rows are touched. Returns per-table counts.
 create or replace function public.delete_test_data(_keep_accounts boolean default true)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
@@ -527,12 +528,12 @@ declare
     'bids', 'bid_credits', 'bid_events', 'bid_holds', 'winner_payments', 'fulfilments',
     'notifications', 'refund_requests', 'support_tickets', 'participant_notes'];
 begin
-  select coalesce(array_agg(id), '{}') into v_auctions from public.auctions where is_test;
-  select coalesce(array_agg(id), '{}') into v_users from public.profiles where is_test;
-
   if exists (select 1 from public.auctions where is_test and status in ('open', 'live', 'scheduled')) then
     raise exception 'Stop the running test auctions first.' using errcode = 'P0001';
   end if;
+
+  select coalesce(array_agg(id), '{}') into v_auctions from public.auctions where is_test;
+  select coalesce(array_agg(id), '{}') into v_users from public.profiles where is_test;
 
   foreach v_table in array v_by_auction loop
     if to_regclass('public.' || v_table) is not null and exists (
@@ -553,6 +554,7 @@ begin
     delete from public.refund_requests where user_id = any(v_users);
   end if;
 
+  -- Test accounts' rows only (wallet rows are tagged by account).
   delete from public.wallet_transactions where is_test;
   get diagnostics v_n = row_count;
   v_counts := v_counts || jsonb_build_object('wallet_transactions', v_n);
@@ -561,7 +563,7 @@ begin
   get diagnostics v_n = row_count;
   v_counts := v_counts || jsonb_build_object('auctions', v_n);
 
-  if not _keep_accounts and array_length(v_users, 1) > 0 then
+  if not _keep_accounts and coalesce(array_length(v_users, 1), 0) > 0 then
     foreach v_table in array v_by_user loop
       if to_regclass('public.' || v_table) is not null and exists (
            select 1 from information_schema.columns

@@ -382,6 +382,7 @@ async function logTestAction(actor: Row, action: string, details: Record<string,
   }
 }
 
+
 /** How much test data exists right now (for the Test mode screen). */
 export async function testModeStatus(_actor: Row, _body: Payload): Promise<Result> {
   const count = async (table: string, build: (q: Row) => Row) => {
@@ -416,8 +417,8 @@ export async function stopTestAuctions(actor: Row, _body: Payload): Promise<Resu
 
 /**
  * Delete test data: stops anything still running, then removes every test
- * auction and everything recorded against it, and every test wallet row.
- * keep_accounts (default true) keeps the test sign-ins for the next run;
+ * auction and everything recorded against it, and every test account's wallet
+ * row. keep_accounts (default true) keeps the test sign-ins for the next run;
  * false also deletes the test accounts.
  */
 export async function deleteTestData(actor: Row, body: Payload): Promise<Result> {
