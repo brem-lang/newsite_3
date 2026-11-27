@@ -14,6 +14,7 @@ import AuctionBidsLog from "@/components/admin/AuctionBidsLog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
+import TestBadge from "@/components/admin/TestBadge";
 import { cn } from "@/lib/utils";
 import { MAX_HOME_SLOTS } from "@/lib/homeShowcase";
 import SelectField from "@/components/ui/select-field";
@@ -312,7 +313,7 @@ export default function AdminAuctions() {
                           <div className="w-10 h-10 rounded-lg bg-muted grid place-items-center text-muted-foreground text-xs shrink-0">{t.admin.fields.noImage}</div>
                         )}
                         <div className="min-w-0">
-                          <span className="font-medium line-clamp-1 block">{a.title}</span>
+                          <span className="font-medium line-clamp-1 block">{a.title} <TestBadge show={a.is_test} /></span>
                           {status === "open" && a.scheduled_start_time && (
                             <span className="text-[10px] font-semibold text-warning inline-flex items-center gap-1 mt-0.5"><Clock className="w-3 h-3" />{t.auction.scheduledBadge}: {new Date(a.scheduled_start_time).toLocaleString("en-GB")}</span>
                           )}
@@ -640,7 +641,7 @@ function EndedAuctions({ statuses, users: knownUsers, t, onEdit, onTransition, b
               return (
                 <div key={a.id} className="space-y-1">
                   <div className="flex items-center justify-between gap-3 text-xs">
-                    <span className="truncate text-muted-foreground">{a.title}</span>
+                    <span className="truncate text-muted-foreground">{a.title} <TestBadge show={a.is_test} /></span>
                     <span className="shrink-0 font-semibold">{money(r.total)}</span>
                   </div>
                   <div className="h-2 rounded-full bg-secondary overflow-hidden flex">
@@ -678,7 +679,7 @@ function EndedAuctions({ statuses, users: knownUsers, t, onEdit, onTransition, b
                     <div className="w-12 h-12 rounded-xl bg-muted shrink-0" />
                   )}
                   <div className="min-w-0">
-                    <h3 className="font-heading text-lg font-semibold truncate">{a.title}</h3>
+                    <h3 className="font-heading text-lg font-semibold truncate">{a.title} <TestBadge show={a.is_test} /></h3>
                     <p className="text-xs text-muted-foreground truncate">
                       {closest ? (t.admin.fields?.modeClosest || "Closest price") : (t.admin.fields?.modeAscending || "Ascending")}
                       {" · "}{t.admin.results?.endedAt || "Ended"}: {date(a.end_time)}

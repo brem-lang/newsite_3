@@ -21,7 +21,13 @@ export const auctionQueries = {
   list: (viewer, limit = 200) =>
     queryOptions({
       queryKey: auctionKeys.list(viewer, limit),
-      queryFn: async () => (await base44.entities.Auction.list("-created_date", limit)) || [],
+      // Test-mode auctions never reach members' lists. Signed-out visitors
+      // read auctions_public, which already leaves them out (and has no
+      // is_test column to filter on).
+      queryFn: async () =>
+        (viewer
+          ? await base44.entities.Auction.filter({ is_test: false }, "-created_date", limit)
+          : await base44.entities.Auction.list("-created_date", limit)) || [],
       staleTime: 30_000,
     }),
   detail: (id) =>
@@ -124,8 +130,9 @@ export const bidQueries = {
 
 /* --------------------------------- hooks -------------------------------- */
 
-export function useAuctionList(viewer, limit) {
-  return useQuery(auctionQueries.list(viewer, limit));
+/** `options` adds query settings for one screen (e.g. the guest home's slow poll). */
+export function useAuctionList(viewer, limit, options = {}) {
+  return useQuery({ ...auctionQueries.list(viewer, limit), ...options });
 }
 
 /**

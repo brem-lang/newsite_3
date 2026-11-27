@@ -48,6 +48,7 @@ export default function SiteFooter() {
             <li><Link to="/register" className="theme-link-hover transition-colors">{t.auth.register}</Link></li>
             <li><Link to="/wallet" className="theme-link-hover transition-colors">{t.nav.wallet}</Link></li>
             <li><Link to="/account" className="theme-link-hover transition-colors">{t.nav.account}</Link></li>
+            <li><Link to="/support" className="theme-link-hover transition-colors">{t.site.footer.support}</Link></li>
           </ul>
         </div>
         <div className="space-y-2.5">

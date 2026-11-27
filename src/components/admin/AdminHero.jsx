@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuctionList } from "@/lib/queries/auctions";
-import { FeaturedHeroCard, pickHeroFeatured } from "@/components/home/SiteHero";
+import { FeaturedHeroCard, EmptyHeroCard, pickHeroFeatured } from "@/components/home/SiteHero";
 
 const NONE = [];
 // Soft limits: past these the headline wraps to 3+ lines on desktop and the
@@ -78,10 +78,11 @@ function DesktopPreview({ title, subtitle, t, featured, auctionsLoading }) {
       <div className="min-w-0">
         {featured ? (
           <FeaturedHeroCard auction={featured} preview />
+        ) : auctionsLoading ? (
+          <div className="h-56 rounded-xl border border-border bg-card animate-pulse" />
         ) : (
-          <div className="grid h-56 place-items-center rounded-xl border border-dashed border-border bg-card px-4 text-center text-xs text-muted-foreground">
-            {auctionsLoading ? "" : "No auction to feature yet. The homepage shows a card here once an auction exists."}
-          </div>
+          // Nothing running: the homepage shows this card instead of an auction.
+          <EmptyHeroCard preview />
         )}
       </div>
     </div>

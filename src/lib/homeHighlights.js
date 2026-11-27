@@ -1,5 +1,5 @@
 import { effectiveStatus, timeRemaining, isClosestMode } from "@/lib/auction";
-import { selectHomeAuctions } from "@/lib/homeShowcase";
+import { selectHomeAuctions, isRunningAuction } from "@/lib/homeShowcase";
 
 const HOUR = 60 * 60 * 1000;
 
@@ -16,10 +16,7 @@ export const endingKey = (a, now = Date.now()) => {
   return left > 0 ? left : Infinity;
 };
 
-const isRunning = (a) => {
-  const s = effectiveStatus(a);
-  return s !== "ended" && a.status !== "voided" && a.status !== "voiding";
-};
+const isRunning = isRunningAuction;
 
 /**
  * Everything the /home screens use to pull people in, derived only from real

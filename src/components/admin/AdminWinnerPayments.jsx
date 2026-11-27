@@ -6,6 +6,7 @@ import { useAdminUsersByIds, useAdminAuctionsByIds, adminSection, adminRpc, warm
 import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import AdminPagination from "@/components/admin/AdminPagination";
+import TestBadge from "@/components/admin/TestBadge";
 import PaymentReminderButton from "@/components/admin/PaymentReminderButton";
 import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
@@ -177,7 +178,7 @@ export default function AdminWinnerPayments() {
               <div key={r.id} className="rounded-2xl border border-border bg-card p-4 space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold truncate">{a?.title || (isLabelLoading(auctions, r.auction_id) ? <LabelPlaceholder className="w-40" /> : r.auction_id)}</p>
+                    <p className="font-semibold truncate">{a?.title || (isLabelLoading(auctions, r.auction_id) ? <LabelPlaceholder className="w-40" /> : r.auction_id)} <TestBadge show={a?.is_test} /></p>
                     <p className="text-xs text-muted-foreground truncate">
                       {u?.full_name || u?.email || (isLabelLoading(users, r.user_id) ? <LabelPlaceholder /> : r.user_id)} · {t.admin.winnerPayments?.round || "Round"} {r.round}
                     </p>

@@ -129,10 +129,11 @@ export function useMyClaimedAuctionIds(userId, enabled) {
  * the team follows up with payment instructions.) After that it opens the
  * auction, where the order and payment status are shown; once paid or voided
  * it isn't a link at all. Other notifications about an auction open that
- * auction. null = not clickable.
+ * auction. Support replies open Help & support. null = not clickable.
  */
 export function notificationTarget(n, paymentStatus = {}, claimed = null) {
   if (!n) return null;
+  if (n.type === "support") return "/support";
   const pay = payPathOf(n);
   if (pay) {
     const status = paymentStatus[pay.token];

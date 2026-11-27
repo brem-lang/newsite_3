@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Settings as SettingsIcon, Clock, Mail, Wrench, UserRound, ShieldCheck, Crown, BadgeCheck, CalendarDays, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, Clock, Mail, MessageCircle, Wrench, UserRound, ShieldCheck, Crown, BadgeCheck, CalendarDays, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdminData, useAdminMe, useAdminCapabilities, adminSection, adminLookups, warmAdmin } from "@/lib/queries/admin";
@@ -38,7 +38,7 @@ export default function AdminSettings() {
   const setRow = (next) => qc.setQueryData(rowKey, next);
   const [form, setForm] = useState({
     site_name: "", tagline: "", timezone: "Asia/Jerusalem",
-    contact_email: "", maintenance_mode: false, maintenance_message: "",
+    contact_email: "", support_whatsapp: "", maintenance_mode: false, maintenance_message: "",
     active_currency: "PHP"
   });
   const [saving, setSaving] = useState(false);
@@ -50,6 +50,7 @@ export default function AdminSettings() {
         site_name: r.site_name || "", tagline: r.tagline || "",
         timezone: r.timezone || "Asia/Jerusalem",
         contact_email: r.contact_email || "",
+        support_whatsapp: r.support_whatsapp || "",
         maintenance_mode: !!r.maintenance_mode,
         maintenance_message: r.maintenance_message || "",
         active_currency: "PHP"
@@ -172,6 +173,14 @@ export default function AdminSettings() {
               <Input value={form.contact_email} onChange={(e) => set("contact_email", e.target.value)} type="email" placeholder="support@example.com" className="h-11 border-accent/20 bg-background ps-9 focus-visible:ring-accent/30" />
             </div>
           </div>
+          <div className="space-y-1.5">
+            <Label>{t.admin.settings.supportWhatsapp}</Label>
+            <div className="relative">
+              <MessageCircle className="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-muted-foreground" />
+              <Input value={form.support_whatsapp} onChange={(e) => set("support_whatsapp", e.target.value)} type="tel" inputMode="tel" placeholder="+63 917 123 4567" className="h-11 border-accent/20 bg-background ps-9 focus-visible:ring-accent/30" />
+            </div>
+          </div>
+          <p className="sm:col-span-2 -mt-2 text-xs text-muted-foreground">{t.admin.settings.supportContactHint}</p>
           <div className="space-y-1.5">
             <Label>{t.admin.settings.timezone}</Label>
             <div className="relative">

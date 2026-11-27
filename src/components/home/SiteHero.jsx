@@ -4,6 +4,7 @@ import { ArrowRight, Flame, Users, Clock, ShieldCheck, Zap } from "lucide-react"
 import { useI18n } from "@/lib/i18n";
 import { heroCopy } from "@/lib/useContent";
 import { effectiveStatus } from "@/lib/auction";
+import { isRunningAuction } from "@/lib/homeShowcase";
 import { Image } from "@/components/ui/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -95,8 +96,10 @@ export default function SiteHero({ auctions, loading, authed, content, contentLo
           </div>
 
           <div className="hidden lg:block lg:col-span-6">
-            {loading || !featured ? (
+            {loading ? (
               <div className="rounded-xl border border-border bg-card p-6 animate-pulse h-72" />
+            ) : !featured ? (
+              <EmptyHeroCard authed={authed} />
             ) : (
               <FeaturedHeroCard auction={featured} />
             )}
@@ -107,14 +110,41 @@ export default function SiteHero({ auctions, loading, authed, content, contentLo
   );
 }
 
-/** The auction the hero features: the first curated (featured, not ended)
- *  one, preferring a live auction; otherwise the first live/any auction. */
+/** The auction the hero features, or null when nothing is running. Only
+ *  running auctions qualify (never ended, archived or cancelled ones): the
+ *  admin's featured picks in their order first, else the newest running
+ *  auctions; a live one is preferred within that pool. */
 export function pickHeroFeatured(auctions) {
-  const curated = (auctions || [])
-    .filter((a) => a.featured && effectiveStatus(a) !== "ended")
+  const running = (auctions || []).filter(isRunningAuction);
+  const curated = running
+    .filter((a) => a.featured)
     .sort((a, b) => (a.featured_order || 0) - (b.featured_order || 0));
-  const pool = curated.length > 0 ? curated : auctions || [];
+  const pool = curated.length > 0
+    ? curated
+    : [...running].sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
   return pool.find((a) => effectiveStatus(a) === "live") || pool[0] || null;
+}
+
+/** Hero card when no auction is running: no stale auction, no endless skeleton. */
+export function EmptyHeroCard({ authed = false, preview = false }) {
+  const { t } = useI18n();
+  const h = t.site.hero;
+  return (
+    <div className="native-panel rounded-xl h-72 grid place-items-center p-6 text-center">
+      <div className="max-w-xs space-y-3">
+        <div className="mx-auto w-12 h-12 rounded-2xl bg-primary/10 text-primary grid place-items-center">
+          <Clock className="w-6 h-6" aria-hidden="true" />
+        </div>
+        <h3 className="font-display font-extrabold text-base text-foreground">{h.emptyTitle}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed">{authed ? h.emptyBodyAuthed : h.emptyBody}</p>
+        {!preview && !authed && (
+          <Link to="/register" className="inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:underline">
+            {t.auth.register} <ArrowRight className="w-4 h-4" />
+          </Link>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** The featured auction card beside the hero copy. `preview` (admin → Hero)

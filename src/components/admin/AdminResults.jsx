@@ -5,6 +5,7 @@ import { useAdminPage, useAdminUserMap, useAdminUsersByIds, useAdminWinnerPaymen
 import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
+import TestBadge from "@/components/admin/TestBadge";
 import PaymentReminderButton from "@/components/admin/PaymentReminderButton";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { adminKeys } from "@/lib/queries/keys";
@@ -129,7 +130,7 @@ export default function AdminResults() {
                 <div className="flex items-start justify-between gap-3">
 
                   <div className="min-w-0">
-                    <h3 className="font-heading text-lg font-semibold truncate">{a.title}</h3>
+                    <h3 className="font-heading text-lg font-semibold truncate">{a.title} <TestBadge show={a.is_test} /></h3>
                     <p className="text-xs text-muted-foreground">{t.admin.results.endedAt}: {a.end_time ? new Date(a.end_time).toLocaleDateString("en-GB") : "—"}</p>
                   </div>
                   {payLoading ? (

@@ -67,7 +67,8 @@ const loadSection = async (range) => {
   const trendSince = since || sinceFor("30"); // "all" still charts the last 30 days
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const [a, sums, daily, ci, ov] = await Promise.all([
-    fetchAllRows("Auction", { sort: "-created_date" }),
+    // Test-mode auctions are not business: the report leaves them out.
+    fetchAllRows("Auction", { sort: "-created_date", where: { is_test: false } }),
     adminRpc("admin_revenue_by_auction", { _since: since ? since.toISOString() : null }),
     adminRpc("admin_revenue_daily", { _since: trendSince.toISOString(), _tz: tz }),
     fetchAllRows("AuctionCostItem", { sort: "-created_date" }).catch(() => []),

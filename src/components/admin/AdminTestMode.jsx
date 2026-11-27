@@ -1,6 +1,11 @@
 import React, { useState } from "react";
-import { FlaskConical, Play, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink, Scale } from "lucide-react";
+import { FlaskConical, Play, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink, Scale, Square, Trash2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { adminKeys } from "@/lib/queries/keys";
+import { useConfirm } from "@/components/admin/ConfirmDialog";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +38,16 @@ const CATEGORY_LABEL = {
   winner_charge: "Winner charge",
 };
 
+/** How much test data exists (testModeStatus). */
+const STATUS_KEY = ["admin", "testmode", "status"];
+const NO_STATUS = { running: 0, auctions: 0, accounts: 0, transactions: 0 };
+const invoke = async (name, body = {}) => {
+  const res = await base44.functions.invoke(name, body);
+  const data = res?.data || res;
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
+
 function Field({ label, ...props }) {
   return (
     <div className="space-y-1.5">
@@ -47,6 +62,66 @@ function Field({ label, ...props }) {
  * numbers and selling price) and reconcile every money movement of any auction.
  */
 export default function AdminTestMode() {
+  const qc = useQueryClient();
+  const askConfirm = useConfirm();
+  const { data: status = NO_STATUS, refetch: refetchStatus } = useQuery({
+    queryKey: STATUS_KEY,
+    queryFn: () => invoke("testModeStatus"),
+    staleTime: 10_000,
+  });
+  const [stopping, setStopping] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [keepAccounts, setKeepAccounts] = useState(true);
+  // Test runs change auctions, wallets and reports: refresh what staff look at.
+  const afterChange = () => {
+    refetchStatus();
+    qc.invalidateQueries({ queryKey: adminKeys.all });
+  };
+
+  const stopTest = async () => {
+    const ok = await askConfirm({
+      title: "Stop test?",
+      description: `Ends ${status.running} running test auction(s) now, without a winner. Real auctions are not touched.`,
+      confirmLabel: "Stop test",
+      destructive: true,
+    });
+    if (!ok) return;
+    setStopping(true);
+    try {
+      const data = await invoke("stopTestAuctions");
+      toast.success(`Stopped ${(data.stopped || []).length} test auction(s).`);
+      afterChange();
+    } catch (e) {
+      toast.error(e?.message || "Could not stop the test");
+    } finally {
+      setStopping(false);
+    }
+  };
+
+  const deleteTestData = async () => {
+    const ok = await askConfirm({
+      title: "Delete all test data?",
+      description: keepAccounts
+        ? "Stops anything still running, then permanently removes every test auction, its bids, payments and deliveries, and every test wallet row. The test accounts are kept for the next run. Real data is not touched."
+        : "Stops anything still running, then permanently removes every test auction, its bids, payments and deliveries, every test wallet row, and the test accounts themselves. Real data is not touched.",
+      confirmLabel: "Delete test data",
+      destructive: true,
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const data = await invoke("deleteTestData", { keep_accounts: keepAccounts });
+      toast.success(`Deleted ${data.auctions || 0} test auction(s) and ${data.wallet_transactions || 0} test wallet row(s).`);
+      setCreated(null);
+      setRecon(null);
+      afterChange();
+    } catch (e) {
+      toast.error(e?.message || "Could not delete the test data");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const [form, setForm] = useState(DEFAULTS);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState(null);
@@ -75,6 +150,7 @@ export default function AdminTestMode() {
       const data = res?.data || res;
       if (data?.error) throw new Error(data.error);
       setCreated(data);
+      afterChange();
       if (data?.auction?.id) { setAuctionId(data.auction.id); reconcile(data.auction.id); }
     } catch (e) {
       setError(e?.message || "Failed to create the test auction");
@@ -109,6 +185,53 @@ export default function AdminTestMode() {
           charge was applied exactly once.
         </p>
       </div>
+
+      {/* What exists, and the two ways to wind a test down. */}
+      <section className="rounded-2xl border border-warning/30 bg-warning/5 p-4 sm:p-5 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-semibold">Test data</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Everything test mode creates is tagged as test: it is hidden from members and guests, kept out of
+              Revenue, Analytics and the payment totals, and can never mix with real members.
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => refetchStatus()} className="gap-1.5">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </Button>
+        </div>
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          {[
+            ["Running test auctions", status.running],
+            ["Test auctions", status.auctions],
+            ["Test accounts", status.accounts],
+            ["Test wallet rows", status.transactions],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl border border-border bg-card p-3">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-lg font-bold tabular-nums">{value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="destructive" onClick={stopTest} disabled={stopping || deleting || !status.running} className="gap-1.5">
+            {stopping ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Square className="w-4 h-4" />}
+            Stop test
+          </Button>
+          <Button variant="outline" onClick={deleteTestData} disabled={stopping || deleting || (!status.auctions && !status.transactions && (keepAccounts || !status.accounts))} className="gap-1.5 text-destructive">
+            {deleting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Delete test data
+          </Button>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Switch checked={keepAccounts} onCheckedChange={setKeepAccounts} />
+            Keep test accounts
+          </label>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          <strong>Stop test</strong> ends every running test auction now, without a winner. <strong>Delete test data</strong>{" "}
+          removes all of it permanently.
+        </p>
+      </section>
 
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
         <h2 className="font-semibold">Test auction generator</h2>
@@ -152,7 +275,10 @@ export default function AdminTestMode() {
                 Open auction <ExternalLink className="w-3 h-3" />
               </a>
             </div>
-            <p className="text-xs text-muted-foreground">Test accounts password: {created.password}</p>
+            <p className="text-xs text-muted-foreground">
+              Test accounts password: {created.password}. Test auctions are hidden from guests and real members, so open
+              the auction while signed in as one of the test seats below.
+            </p>
             <div className="space-y-1.5">
               {(created.seats || []).map((s) => (
                 <div key={s.seat} className="rounded-lg bg-background border border-border p-2">

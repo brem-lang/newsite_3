@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { LifeBuoy, Send, RotateCcw, CheckCircle2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAdminPage, adminPageQuery, adminSection, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { useAdminPage, useAdminMe, adminPageQuery, adminSection, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { useInvalidateOn } from "@/lib/queries/live";
+import { sendInApp } from "@/lib/messaging";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
@@ -32,10 +34,10 @@ const filtersFor = (filter) => ({ sort: "-created_date", where: filter === "all"
 /** Filter chip counts, one exact count each. */
 const loadCounts = async () => {
   const T = base44.entities.SupportTicket;
-  const [all, open, pending, resolved] = await Promise.all([
-    T.count(), T.count({ where: { status: "open" } }), T.count({ where: { status: "pending" } }), T.count({ where: { status: "resolved" } }),
+  const [all, open, pending, resolved, closed] = await Promise.all([
+    T.count(), T.count({ where: { status: "open" } }), T.count({ where: { status: "pending" } }), T.count({ where: { status: "resolved" } }), T.count({ where: { status: "closed" } }),
   ]);
-  return { all, open, pending, resolved };
+  return { all, open, pending, resolved, closed };
 };
 const countsQuery = () => adminSection(adminKeys.supportCounts(), loadCounts);
 
@@ -51,8 +53,11 @@ export default function AdminSupport() {
   const [filter, setFilter] = useState("all");
   const table = useAdminPage("SupportTicket", adminKeys.supportPage, filtersFor(filter));
   const { rows: filtered, isPending: loading } = table;
-  const { data: counts = { all: 0, open: 0, pending: 0, resolved: 0 } } = useQuery(countsQuery());
+  const { data: counts = { all: 0, open: 0, pending: 0, resolved: 0, closed: 0 } } = useQuery(countsQuery());
   const load = () => qc.invalidateQueries({ queryKey: adminKeys.supportAll() });
+  const me = useAdminMe();
+  // New tickets (and other staff's changes) refresh the list and the counts.
+  useInvalidateOn(base44.entities.SupportTicket, adminKeys.supportAll(), { throttleMs: 2000 });
   const [active, setActive] = useState(null);
   const replyGuard = useDiscardGuard(!!active);
   const [reply, setReply] = useState("");
@@ -64,15 +69,31 @@ export default function AdminSupport() {
 
   const updateTicket = async (status, withReply) => {
     if (!active) return;
+    const text = reply.trim();
+    // The member can only read a reply (they can't answer in the ticket), so
+    // "Awaiting user" and "Send & resolve" both need one.
+    if (withReply && !text) return toast.error(t.admin.support.replyRequired);
+    // Only a new or changed reply is announced to the member.
+    const announce = withReply && text !== (active.staff_reply || "").trim() && !!active.user_id;
     setSaving(true);
     try {
       const payload = { status };
       if (withReply) {
-        payload.staff_reply = reply;
+        payload.staff_reply = text;
         payload.replied_at = new Date().toISOString();
+        if (me?.id) payload.replied_by_id = me.id;
       }
       await base44.entities.SupportTicket.update(active.id, payload);
-      toast.success(status === "resolved" ? t.admin.support.resolved : status === "closed" ? t.admin.support.closed : t.admin.saved);
+      if (announce) {
+        const s = t.supportCenter;
+        await sendInApp(
+          { id: active.user_id },
+          s.replyNoticeTitle.replace("{subject}", active.subject || ""),
+          s.replyNoticeBody,
+          "support",
+        ).catch(() => toast.error("Reply saved, but the member could not be notified."));
+      }
+      toast.success(announce ? t.admin.support.replyNotified : status === "resolved" ? t.admin.support.resolved : status === "closed" ? t.admin.support.closed : t.admin.saved);
       setActive(null);
       load();
     } catch (e) {
@@ -107,6 +128,7 @@ export default function AdminSupport() {
         <FilterChip id="open" label={t.admin.support.filterOpen} />
         <FilterChip id="pending" label={t.admin.support.filterPending} />
         <FilterChip id="resolved" label={t.admin.support.filterResolved} />
+        <FilterChip id="closed" label={t.admin.support.filterClosed} />
       </div>
 
       {loading ? null : table.total === 0 ? (
@@ -162,6 +184,11 @@ export default function AdminSupport() {
                 <p className="text-xs text-muted-foreground mb-1">{active.user_name || active.user_email || "Member"} · {new Date(active.created_date).toLocaleString("en-GB")}</p>
                 <p className="text-sm whitespace-pre-line">{active.body}</p>
               </div>
+              {active.staff_reply && active.replied_at && (
+                <p className="text-xs text-muted-foreground">
+                  {t.admin.support.previousReply}: {new Date(active.replied_at).toLocaleString("en-GB")}
+                </p>
+              )}
               <div className="space-y-1.5">
                 <Label>{t.admin.support.reply}</Label>
                 <Textarea rows={4} value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Type your reply…" />
@@ -169,7 +196,7 @@ export default function AdminSupport() {
             </div>
           )}
           <DialogFooter className="flex-wrap gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => updateTicket("pending", true)} disabled={saving} className="gap-1.5">
+            <Button variant="outline" onClick={() => updateTicket("pending", true)} disabled={saving || !reply.trim()} className="gap-1.5">
               <RotateCcw className="w-4 h-4" /> {t.admin.support.setPending}
             </Button>
             <Button variant="ghost" onClick={() => updateTicket("closed", false)} disabled={saving}>

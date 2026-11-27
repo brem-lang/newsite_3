@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useContent } from "@/lib/useContent";
 import { useIsMobileView } from "@/lib/useIsMobileView";
 import { effectiveStatus } from "@/lib/auction";
+import { isRunningAuction } from "@/lib/homeShowcase";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 import SiteHero from "@/components/home/SiteHero";
@@ -17,17 +18,25 @@ import MobileHome from "@/components/home/MobileHome";
 
 const EMPTY = [];
 
+// Signed-out visitors get no realtime auction updates, so their list is
+// re-read every minute (paused in background tabs) and when they come back
+// to the tab: an auction staff end disappears without a reload.
+const GUEST_REFRESH = { refetchInterval: 60_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true };
+const NO_OPTIONS = {};
+
 export default function Home() {
   const { dir } = useI18n();
   const { content, loading: contentLoading } = useContent();
   const isMobile = useIsMobileView();
   const { user, isAuthenticated: authed } = useAuth();
-  const { data: auctions = EMPTY, isPending: loading } = useAuctionList(user?.id, 50);
+  const { data: auctions = EMPTY, isPending: loading } = useAuctionList(user?.id, 50, authed ? NO_OPTIONS : GUEST_REFRESH);
   const reload = useRefreshAuctionLists();
 
-  const liveCount = auctions.filter((a) => effectiveStatus(a) === "live").length;
-  const seatsFilled = auctions.reduce((s, a) => s + (a.subscriber_ids?.length || 0), 0);
-  const topBid = auctions.reduce((m, a) => Math.max(m, a.current_price || 0), 0);
+  // The stats strip only counts auctions still running (ended rounds don't count).
+  const running = auctions.filter(isRunningAuction);
+  const liveCount = running.filter((a) => effectiveStatus(a) === "live").length;
+  const seatsFilled = running.reduce((s, a) => s + (a.subscriber_ids?.length || 0), 0);
+  const topBid = running.reduce((m, a) => Math.max(m, a.current_price || 0), 0);
 
   if (isMobile) {
     return (

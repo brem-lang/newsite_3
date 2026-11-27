@@ -326,7 +326,7 @@ export function useAdminUsersByIds(ids, fields) {
   return useLabelMap(useQuery(usersByIdsQuery(ids, fields)));
 }
 
-const AUCTION_LABEL_FIELDS = "id, title, paid, status";
+const AUCTION_LABEL_FIELDS = "id, title, paid, status, is_test";
 
 export const auctionsByIdsQuery = (ids) => {
   const list = uniqIds(ids);

@@ -8,6 +8,13 @@
  * 2. reconcileAuctionPayments — reconciles every money movement of one auction
  *    (entry fees, bid fees, extra bid credits, winner charge) against what the
  *    auction state implies, flagging missing / duplicated / mismatched charges.
+ * 3. stopTestAuctions / deleteTestData — end every running test auction, and
+ *    remove all test data.
+ *
+ * Everything test mode makes is tagged is_test (the auction and the test
+ * accounts; their wallet rows are tagged by the database). The database keeps
+ * test and real apart and leaves test data out of the public site and the
+ * reports (migration 20261128010000_test_mode_tagging.sql).
  */
 import { supabaseAdmin } from "./client.ts";
 
@@ -26,10 +33,17 @@ const TEST_DOMAIN = "seat.bidkita.test";
 
 /* ------------------------------ test seats ------------------------------ */
 
+/** Tags a test account's profile (only the service role can set is_test). */
+async function markTestProfile(profile: Row) {
+  if (!profile?.["id"] || profile["is_test"]) return profile;
+  const { data } = await admin.from("profiles").update({ is_test: true }).eq("id", profile["id"]).select("*").maybeSingle();
+  return (data as Row) || { ...profile, is_test: true };
+}
+
 async function ensureTestUser(index: number) {
   const email = `testseat${index}@${TEST_DOMAIN}`;
   const { data: existing } = await admin.from("profiles").select("*").eq("email", email).maybeSingle();
-  if (existing) return existing as Row;
+  if (existing) return markTestProfile(existing as Row);
 
   const { data: created, error } = await admin.auth.admin.createUser({
     email,
@@ -42,10 +56,10 @@ async function ensureTestUser(index: number) {
 
   // The signup trigger normally creates the profile; make sure it exists.
   const { data: profile } = await admin.from("profiles").select("*").eq("id", id).maybeSingle();
-  if (profile) return profile as Row;
+  if (profile) return markTestProfile(profile as Row);
   const { data: inserted } = await admin
     .from("profiles")
-    .upsert({ id, email, full_name: `Test Seat ${index}`, verification_status: "verified" })
+    .upsert({ id, email, full_name: `Test Seat ${index}`, verification_status: "verified", is_test: true })
     .select("*")
     .maybeSingle();
   return (inserted as Row) || { id, email };
@@ -125,6 +139,7 @@ export async function createTestAuction(actor: Row, body: Payload): Promise<Resu
       min_participants: seats,
       duration_minutes: durationMinutes,
       subscriber_ids: [],
+      is_test: true,
       created_by: actor?.["id"] || null,
     })
     .select("*")
@@ -347,4 +362,81 @@ export async function reconcileAuctionPayments(_actor: Row, body: Payload): Prom
       }))
       .sort((a: Row, b: Row) => String(b.created_date).localeCompare(String(a.created_date))),
   });
+}
+
+/* ---------------------------- stop & clean up ---------------------------- */
+
+async function logTestAction(actor: Row, action: string, details: Record<string, unknown>) {
+  try {
+    await admin.from("activity_logs").insert({
+      action,
+      source: "admin",
+      actor_id: actor?.["id"] || null,
+      actor_name: actor?.["full_name"] || actor?.["email"] || null,
+      target_type: "testmode",
+      target_id: null,
+      details: JSON.stringify(details),
+    });
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** How much test data exists right now (for the Test mode screen). */
+export async function testModeStatus(_actor: Row, _body: Payload): Promise<Result> {
+  const count = async (table: string, build: (q: Row) => Row) => {
+    const { count: n } = await build(admin.from(table).select("id", { count: "exact", head: true }));
+    return n || 0;
+  };
+  const [running, auctions, accounts, transactions] = await Promise.all([
+    count("auctions", (q) => q.eq("is_test", true).in("status", ["open", "live", "scheduled"])),
+    count("auctions", (q) => q.eq("is_test", true)),
+    count("profiles", (q) => q.eq("is_test", true)),
+    count("wallet_transactions", (q) => q.eq("is_test", true)),
+  ]);
+  return ok({ running, auctions, accounts, transactions });
+}
+
+/**
+ * Stop test: ends every test auction that is still open or live, right away
+ * and without a winner, then frees any bid holds left on them.
+ */
+export async function stopTestAuctions(actor: Row, _body: Payload): Promise<Result> {
+  const { data, error } = await admin.rpc("stop_test_auctions");
+  if (error) return fail(error.message || "stop_failed", 500);
+  const stopped = (data || []) as Row[];
+  try {
+    await admin.rpc("release_expired_holds");
+  } catch {
+    /* the scheduled tick releases them too */
+  }
+  await logTestAction(actor, "testmode.stopped", { stopped: stopped.length, ids: stopped.map((s) => s["id"]) });
+  return ok({ ok: true, stopped });
+}
+
+/**
+ * Delete test data: stops anything still running, then removes every test
+ * auction and everything recorded against it, and every test wallet row.
+ * keep_accounts (default true) keeps the test sign-ins for the next run;
+ * false also deletes the test accounts.
+ */
+export async function deleteTestData(actor: Row, body: Payload): Promise<Result> {
+  const keepAccounts = body["keep_accounts"] !== false;
+  const { error: stopError } = await admin.rpc("stop_test_auctions");
+  if (stopError) return fail(stopError.message || "stop_failed", 500);
+
+  const { data, error } = await admin.rpc("delete_test_data", { _keep_accounts: keepAccounts });
+  if (error) return fail(error.message || "delete_failed", 500);
+  const result = (data || {}) as Row;
+
+  let signInsDeleted = 0;
+  if (!keepAccounts) {
+    for (const id of (result["user_ids"] || []) as string[]) {
+      const { error: authError } = await admin.auth.admin.deleteUser(id);
+      if (!authError) signInsDeleted++;
+    }
+  }
+  delete result["user_ids"];
+  await logTestAction(actor, "testmode.deleted", { ...result, sign_ins_deleted: signInsDeleted });
+  return ok({ ok: true, ...result, sign_ins_deleted: signInsDeleted });
 }

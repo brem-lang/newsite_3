@@ -9,6 +9,7 @@ import {
   Info,
   MessageCircleQuestion,
   KeyRound,
+  LifeBuoy,
   LogOut,
   Pencil,
   ShieldCheck,
@@ -98,6 +99,7 @@ export default function MobileAccount({ user, stats, onRefresh, onLogout }) {
             <ProfileMenuRow icon={UserRound} label={"Account information"} onClick={() => setEditOpen(true)} arrow={arrow} />
             <ProfileMenuRow icon={WalletCards} label={"Wallet"} to="/wallet" arrow={arrow} accent />
             <ProfileMenuRow icon={Gavel} label={t.account.myBids} to="/auctions" search={{ tab: "mine" }} arrow={arrow} />
+            <ProfileMenuRow icon={LifeBuoy} label={t.supportCenter.myTickets} to="/support" hash="tickets" arrow={arrow} />
             <ProfileMenuRow icon={ShieldCheck} label={t.account.profile.securitySettings} onClick={() => setSecurityOpen(true)} arrow={arrow} />
             <ProfileMenuRow icon={KeyRound} label={t.account.profile.changePassword} onClick={() => setPwOpen(true)} arrow={arrow} />
           </section>
@@ -153,7 +155,7 @@ function ProfileStat({ icon: Icon, value, label }) {
   );
 }
 
-function ProfileMenuRow({ icon: Icon, label, to, search, onClick, arrow, accent = false, destructive = false }) {
+function ProfileMenuRow({ icon: Icon, label, to, search, hash, onClick, arrow, accent = false, destructive = false }) {
   const content = (
     <>
       <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg", destructive ? "bg-destructive/12 text-destructive" : accent ? "bg-accent/12 text-accent" : "bg-secondary text-muted-foreground")}>
@@ -165,6 +167,6 @@ function ProfileMenuRow({ icon: Icon, label, to, search, onClick, arrow, accent 
   );
   const className = "flex min-h-12 w-full items-center gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0 transition active:bg-secondary/70";
 
-  if (to) return <Link to={to} search={search} className={className}>{content}</Link>;
+  if (to) return <Link to={to} search={search} hash={hash} className={className}>{content}</Link>;
   return <Button type="button" variant="ghost" onClick={onClick} className={cn(className, "h-auto rounded-none justify-start hover:bg-secondary/70")}>{content}</Button>;
 }

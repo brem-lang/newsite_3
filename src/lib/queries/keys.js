@@ -57,6 +57,10 @@ export const notificationKeys = {
   unread: (userId) => ["notifications", userId, "unread"],
 };
 
+export const supportKeys = {
+  mine: (userId) => ["support", userId, "tickets"],
+};
+
 export const accountKeys = {
   me: () => ["account", "me"],
 };

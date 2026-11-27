@@ -6,6 +6,7 @@ import {
   LogOut,
   CircleUserRound,
   Home as HomeIcon,
+  LifeBuoy,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
@@ -94,6 +95,11 @@ export default function Layout() {
                 {balance.toFixed(2)}
               </span>
             </div>
+            <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex" title={t.supportCenter.helpLink}>
+              <Link to="/support" aria-label={t.supportCenter.helpLink}>
+                <LifeBuoy className="w-4 h-4" />
+              </Link>
+            </Button>
             <NotificationBell />
             <Button
               variant="ghost"

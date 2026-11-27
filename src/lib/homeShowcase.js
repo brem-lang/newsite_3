@@ -4,15 +4,22 @@ import { effectiveStatus } from "@/lib/auction";
 export const MAX_HOME_SLOTS = 6;
 
 /**
+ * Still worth showing to visitors: not ended (or archived, which counts as
+ * ended), not cancelled. Every home-page pick goes through this.
+ */
+export const isRunningAuction = (a) => {
+  if (!a) return false;
+  const s = effectiveStatus(a);
+  return s !== "ended" && a.status !== "voided" && a.status !== "voiding";
+};
+
+/**
  * Auctions shown on the home page, in the order the admin picked.
  * Ended/voided rounds never appear. When nothing is starred we fall back to
  * the newest still-running auctions so the home page is never empty.
  */
 export function selectHomeAuctions(auctions, limit = MAX_HOME_SLOTS) {
-  const running = (auctions || []).filter((a) => {
-    const s = effectiveStatus(a);
-    return s !== "ended" && a.status !== "voided" && a.status !== "voiding";
-  });
+  const running = (auctions || []).filter(isRunningAuction);
   const featured = running
     .filter((a) => a.featured)
     .sort((a, b) => (a.featured_order || 0) - (b.featured_order || 0));

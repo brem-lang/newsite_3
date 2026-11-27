@@ -4,7 +4,7 @@
  * Every handler runs with the service-role client after verifying the caller.
  */
 import { supabaseAdmin } from "./client.ts";
-import { createTestAuction, reconcileAuctionPayments } from "./testmode.ts";
+import { createTestAuction, reconcileAuctionPayments, testModeStatus, stopTestAuctions, deleteTestData } from "./testmode.ts";
 import { getParticipantFile } from "./participantfile.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2212,6 +2212,9 @@ const ADMIN_HANDLERS: Record<string, (actor: Row, body: Payload) => Promise<Resu
   sendEmail,
   createTestAuction,
   reconcileAuctionPayments,
+  testModeStatus,
+  stopTestAuctions,
+  deleteTestData,
   getParticipantFile,
   listWinnerPayments,
   markWinnerPaid,
@@ -2254,6 +2257,9 @@ const ACTION_CAPABILITY: Record<string, string> = {
   archiveAuction: "auctions.manage",
   createTestAuction: "auctions.testmode",
   reconcileAuctionPayments: "auctions.testmode",
+  testModeStatus: "auctions.testmode",
+  stopTestAuctions: "auctions.testmode",
+  deleteTestData: "auctions.testmode",
   finalizeAuctions: "auctions.manage",
   listRoleAccess: "roles.manage",
   saveRoleAccess: "roles.manage",

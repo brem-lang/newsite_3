@@ -7,6 +7,7 @@ import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import PaymentReminderButton from "@/components/admin/PaymentReminderButton";
 import { adminKeys } from "@/lib/queries/keys";
 import AdminPagination from "@/components/admin/AdminPagination";
+import TestBadge from "@/components/admin/TestBadge";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -193,7 +194,7 @@ export default function AdminFulfilment() {
                 const payLoading = isLookupLoading(payments) || isLabelLoading(auctions, o.auction_id);
                 return (
                   <tr key={o.id} className="hover:bg-secondary/30">
-                    <td className="px-4 py-3 font-medium">{a?.title || (isLabelLoading(auctions, o.auction_id) ? <LabelPlaceholder /> : "—")}</td>
+                    <td className="px-4 py-3 font-medium">{a?.title || (isLabelLoading(auctions, o.auction_id) ? <LabelPlaceholder /> : "—")} <TestBadge show={a?.is_test} /></td>
                     <td className="px-4 py-3">{u ? (u.full_name || u.email) : isLabelLoading(users, o.winner_id) ? <LabelPlaceholder /> : `…${o.winner_id?.slice(-4)}`}</td>
                     <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">{o.method === "shipping" ? t.fulfilment.methodShip : t.fulfilment.methodPickup}</td>
                     <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">

@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/AuthContext";
 import { useAuctionList, useMyBids } from "@/lib/queries/auctions";
 import { useMe } from "@/lib/queries/account";
 import { accountKeys } from "@/lib/queries/keys";
-import { Trophy, Clock, XCircle, MinusCircle, Gavel, ArrowLeft, Heart, Search, Compass, Pencil, KeyRound, ShieldCheck, LogOut } from "lucide-react";
+import { Trophy, Clock, XCircle, MinusCircle, Gavel, ArrowLeft, Heart, Search, Compass, Pencil, KeyRound, ShieldCheck, LogOut, LifeBuoy } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
@@ -36,6 +36,7 @@ export default function Account() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const isMobile = useIsMobileView();
+  const navigate = useNavigate();
 
   const handleLogout = useCallback(async () => {
     await base44.auth.logout("/");
@@ -206,10 +207,11 @@ export default function Account() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <QuickAction icon={Pencil} title={t.account.profile.editProfile} subtitle={t.account.profile.editProfileSubtitle} onClick={() => setEditOpen(true)} />
         <QuickAction icon={KeyRound} title={t.account.profile.changePassword} subtitle={t.account.profile.changePasswordSubtitle} onClick={() => setPwOpen(true)} />
         <QuickAction icon={ShieldCheck} title={t.account.profile.securitySettings} subtitle={t.account.profile.securityOverviewSubtitle} onClick={() => setSecurityOpen(true)} />
+        <QuickAction icon={LifeBuoy} title={t.supportCenter.helpLink} subtitle={t.supportCenter.helpLinkSubtitle} onClick={() => navigate({ to: "/support" })} />
       </div>
 
       <ProfileSection user={user} />

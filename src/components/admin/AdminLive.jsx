@@ -7,6 +7,7 @@ import { adminKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
+import TestBadge from "@/components/admin/TestBadge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatCountdownCompact, closeQuota } from "@/lib/auction";
@@ -201,7 +202,7 @@ function LiveCard({ auction: a, users, data, now, currency, t, ending, onOpen, o
               <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
               {s.isSealed ? "Closest price" : "Ascending"} · Round {s.round}
             </span>
-            <h3 className="font-heading text-base font-semibold mt-1 truncate">{a.title}</h3>
+            <h3 className="font-heading text-base font-semibold mt-1 truncate">{a.title} <TestBadge show={a.is_test} /></h3>
           </div>
           <div className="text-end shrink-0">
             <p className={cn("font-mono text-lg font-bold tabular-nums", remaining < 30000 ? "text-destructive" : "text-foreground")}>
