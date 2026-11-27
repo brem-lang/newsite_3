@@ -3,7 +3,7 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
 import {
-  BarChart3, DollarSign, Percent, TrendingDown, Wallet, Gavel, Users as UsersIcon,
+  BarChart3, PhilippinePeso, Percent, TrendingDown, Wallet, Gavel, Users as UsersIcon,
   Radio, Trophy, ShieldCheck, LifeBuoy, RefreshCw, ArrowRight, Plus, RadioTower
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -69,7 +69,7 @@ export default function AdminAnalytics() {
   const net = Number(data?.net || 0);
 
   const kpis = [
-    { icon: DollarSign, label: "Gross income", value: format(Number(data?.income || 0)), hint: "Entry + bid fees, extra bids, winner payments" },
+    { icon: PhilippinePeso, label: "Gross income", value: format(Number(data?.income || 0)), hint: "Entry + bid fees, extra bids, winner payments" },
     { icon: TrendingDown, label: "Total cost", value: format(Number(data?.costs || 0)), hint: "Products, extras and refunds" },
     { icon: BarChart3, label: "Net profit", value: format(net), tone: net >= 0 ? "good" : "bad" },
     { icon: Percent, label: "Gross margin", value: `${Number(data?.margin || 0).toFixed(1)}%`, hint: `Income per seat ${format(Number(data?.arpu || 0))}` },

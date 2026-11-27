@@ -18,7 +18,7 @@ export default function SealedBidPanel({
   setBidAmount,
   onBid,
   actionLoading,
-  symbol = "$",
+  symbol = "₱",
   compact = false,
   onBuyCredits,
   buyingCredits = false,

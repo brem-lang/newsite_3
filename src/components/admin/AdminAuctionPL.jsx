@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, Coins, DollarSign, Download, Gavel, Package, Percent,
+  ArrowLeft, ArrowRight, Coins, PhilippinePeso, Download, Gavel, Package, Percent,
   RefreshCw, Search, Ticket, TrendingDown, TrendingUp, Trophy, Wallet
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -296,7 +296,7 @@ export default function AdminAuctionPL() {
               hint={model.depositPending > 0 ? `${L.pending || "Pending"} ${format(model.depositPending)}` : `${code} · ${L.confirmed || "confirmed"}`}
             />
             <Kpi
-              icon={DollarSign}
+              icon={PhilippinePeso}
               label={L.grossIncome || "Gross income"}
               value={format(model.income)}
               hint={`${L.incomePerSeat || "Per participant"} ${format(model.incomePerSeat)}`}

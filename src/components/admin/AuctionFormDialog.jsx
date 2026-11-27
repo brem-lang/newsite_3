@@ -53,7 +53,7 @@ export default function AuctionFormDialog({ auction, open, onOpenChange, onSaved
   const computedBidFee = round2((Number(form.entry_fee) || 0) * (Number(form.bid_increment) || 0));
   const effectiveBidFee = autoBidFee ? computedBidFee : Math.max(0, round2(form.bid_fee));
   // Numbers each participant gets = what they paid to join divided by the bid
-  // step, so a $20 join with a $0.10 step buys 200 numbers.
+  // step, so a ₱20 join with a ₱0.10 step buys 200 numbers.
   const [autoQuota, setAutoQuota] = useState(true);
   // "Unlimited" means the only limit is what the participant can pay for:
   // stored as 0 numbers per participant, which the bid engine reads as no cap.

@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, TrendingDown, Wallet, Ticket, Gavel, Coins, Package,
-  RefreshCw, Download, ChevronDown, ChevronRight, Percent, DollarSign
+  RefreshCw, Download, ChevronDown, ChevronRight, Percent, PhilippinePeso
 } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useAdminData, adminSection, adminRpc, fetchAllRows, warmAdmin } from "@/lib/queries/admin";
@@ -302,7 +302,7 @@ export default function AdminRevenue() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={DollarSign} label={L.grossIncome || "Gross income"} value={format(totals.income)} hint={`${code} · ${filtered.length} ${L.auctions || "auctions"}`} />
+        <Kpi icon={PhilippinePeso} label={L.grossIncome || "Gross income"} value={format(totals.income)} hint={`${code} · ${filtered.length} ${L.auctions || "auctions"}`} />
         <Kpi icon={Package} label={L.totalCost || "Total cost"} value={format(totals.costs)} tone="bad" hint={`${L.productCost || "Product"} ${format(totals.productCost)} · ${L.refunds || "Refunds"} ${format(totals.refunds)}`} />
         <Kpi icon={totals.net >= 0 ? TrendingUp : TrendingDown} label={L.netProfit || "Net profit"} value={format(totals.net)} tone={totals.net >= 0 ? "good" : "bad"} />
         <Kpi icon={Percent} label={L.margin || "Profit margin"} value={`${totals.margin.toFixed(1)}%`} hint={`ROI ${totals.roi.toFixed(1)}% · ${L.arpu || "Income per seat"} ${format(totals.arpu)}`} />

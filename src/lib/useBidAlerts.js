@@ -77,7 +77,7 @@ export function useBidAlerts(user) {
           toast.info(tr.notifications.bidChanged, {
             description: fmt(tr.notifications.bidChangedBody, {
               title: next.title,
-              price: `$${next.price.toFixed(2)}`,
+              price: `₱${next.price.toFixed(2)}`,
             }),
           });
         }

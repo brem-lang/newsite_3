@@ -8,7 +8,7 @@ const translations = {
     nav: { auctions: "Auctions", wallet: "Wallet", balance: "Balance", admin: "Admin", account: "Account", home: "Home", explore: "Explore", bidboard: "My Bids", profile: "Profile" },
     home: {
       heroTitle: "Bid up, win smart.",
-      heroSubtitle: "Every auction has a flat $10 entry and a fixed number of seats. Fill the seats, the clock starts, and the highest bid takes it home.",
+      heroSubtitle: "Every auction has a flat ₱10 entry and a fixed number of seats. Fill the seats, the clock starts, and the highest bid takes it home.",
       browse: "Browse auctions",
       sectionTitle: "Live & upcoming auctions",
       empty: "No auctions available right now. Check back soon."
@@ -518,7 +518,7 @@ const translations = {
       nav: { auctions: "Auctions", howItWorks: "How it works", about: "About", contact: "Contact" },
       hero: {
         browse: "Browse auctions",
-        entryNote: "Flat $10 entry · limited seats · highest bid wins",
+        entryNote: "Flat ₱10 entry · limited seats · highest bid wins",
         featured: "Featured auction",
         bidNow: "View & bid",
         notLive: "Open for entry",

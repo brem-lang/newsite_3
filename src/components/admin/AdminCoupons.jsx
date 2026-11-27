@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Pencil, Trash2, Ticket, Percent, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2, Ticket, Percent, PhilippinePeso } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
 import { adminKeys } from "@/lib/queries/keys";
@@ -101,7 +101,7 @@ export default function AdminCoupons() {
               <div key={it.id} className="flex items-center justify-between gap-3 p-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={cn("w-10 h-10 rounded-xl grid place-items-center shrink-0", dead ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary")}>
-                    {it.type === "percent" ? <Percent className="w-5 h-5" /> : <DollarSign className="w-5 h-5" />}
+                    {it.type === "percent" ? <Percent className="w-5 h-5" /> : <PhilippinePeso className="w-5 h-5" />}
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold font-mono tracking-wide flex items-center gap-2">
