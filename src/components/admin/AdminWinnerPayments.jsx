@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Receipt, Copy, CheckCircle2, XCircle, Clock, RefreshCw, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAdminUsersByIds, useAdminAuctionsByIds, adminSection, adminRpc, warmAdmin } from "@/lib/queries/admin";
+import { useAdminUsersByIds, useAdminAuctionsByIds, adminSection, adminRpc, warmAdmin, warmLabels, isLabelLoading } from "@/lib/queries/admin";
+import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import AdminPagination from "@/components/admin/AdminPagination";
 import PaymentReminderButton from "@/components/admin/PaymentReminderButton";
@@ -40,8 +41,11 @@ const totalsQuery = () =>
 
 const FIRST = { status: "pending", search: "", page: 1, pageSize: 25 };
 
-/** Route loader: the totals and the first page. */
-export const prefetch = (qc) => warmAdmin(qc, totalsQuery(), pageQuery(FIRST));
+/** Route loader: the totals, the first page and its names. */
+export const prefetch = async (qc) => {
+  const [, first] = await warmAdmin(qc, totalsQuery(), pageQuery(FIRST));
+  await warmLabels(qc, first?.payments, { users: ["user_id"], auctions: ["auction_id"] });
+};
 
 export default function AdminWinnerPayments() {
   const { t } = useI18n();
@@ -173,9 +177,9 @@ export default function AdminWinnerPayments() {
               <div key={r.id} className="rounded-2xl border border-border bg-card p-4 space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold truncate">{a?.title || r.auction_id}</p>
+                    <p className="font-semibold truncate">{a?.title || (isLabelLoading(auctions, r.auction_id) ? <LabelPlaceholder className="w-40" /> : r.auction_id)}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {u?.full_name || u?.email || r.user_id} · {t.admin.winnerPayments?.round || "Round"} {r.round}
+                      {u?.full_name || u?.email || (isLabelLoading(users, r.user_id) ? <LabelPlaceholder /> : r.user_id)} · {t.admin.winnerPayments?.round || "Round"} {r.round}
                     </p>
                   </div>
                   <div className="text-end">

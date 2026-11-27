@@ -29,7 +29,7 @@ export const Route = createFileRoute("/admin_/$section")({
     // The header bell's system events load with the panel (staff only).
     await Promise.all([
       loadPanel(params.section, queryClient, !!caps),
-      caps ? queryClient.ensureQueryData(systemEventsQuery()).catch(() => null) : null,
+      caps ? queryClient.fetchQuery(systemEventsQuery()).catch(() => null) : null,
     ]);
   },
   // Until the staff check returns we don't know whether the login form or the

@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ActivitySquare, AlertTriangle, CheckCircle2, Gauge, RefreshCw, ShieldAlert } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAdminPage, useAdminUsersByIds, useAdminAuctionsByIds, adminPageQuery, adminSection, adminRpc, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUsersByIds, useAdminAuctionsByIds, adminPageQuery, adminSection, adminRpc, firstPage, warmAdmin, warmLabels, isLabelLoading } from "@/lib/queries/admin";
 import { adminKeys } from "@/lib/queries/keys";
 import { useInvalidateOn } from "@/lib/queries/live";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import AdminPagination from "@/components/admin/AdminPagination";
+import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 
 const FILTERS = ["all", "error", "warning", "info"];
 
@@ -27,10 +28,11 @@ const statsQuery = (live) =>
     { refetchInterval: live ? 30_000 : false, refetchIntervalInBackground: false },
   );
 
-/** Route loader: the health numbers and the first page of events. */
-export const prefetch = (qc) => {
+/** Route loader: the health numbers, the first page of events and its names. */
+export const prefetch = async (qc) => {
   const params = firstPage(filtersFor("all"));
-  return warmAdmin(qc, statsQuery(true), adminPageQuery("BidEvent", adminKeys.bidMonitorPage(params), params));
+  const [, first] = await warmAdmin(qc, statsQuery(true), adminPageQuery("BidEvent", adminKeys.bidMonitorPage(params), params));
+  await warmLabels(qc, first?.rows, { users: ["user_id"], auctions: ["auction_id"] });
 };
 
 export default function AdminBidMonitor() {
@@ -74,6 +76,7 @@ export default function AdminBidMonitor() {
   const who = (id) => {
     const u = users[id];
     if (!id) return "—";
+    if (isLabelLoading(users, id)) return <LabelPlaceholder />;
     return u ? u.full_name || u.email || `…${String(id).slice(-6)}` : `…${String(id).slice(-6)}`;
   };
 
@@ -183,7 +186,7 @@ export default function AdminBidMonitor() {
                     </Td>
                     <Td className="font-semibold capitalize">{e.event}</Td>
                     <Td className="max-w-[200px] truncate">
-                      {auctions[e.auction_id]?.title || (e.auction_id ? `…${String(e.auction_id).slice(-6)}` : "—")}
+                      {auctions[e.auction_id]?.title || (isLabelLoading(auctions, e.auction_id) ? <LabelPlaceholder /> : e.auction_id ? `…${String(e.auction_id).slice(-6)}` : "—")}
                     </Td>
                     <Td className="max-w-[160px] truncate">{who(e.user_id)}</Td>
                     <Td className="font-mono">{e.amount != null ? Number(e.amount).toFixed(2) : "—"}</Td>

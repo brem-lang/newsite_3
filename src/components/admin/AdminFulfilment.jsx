@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PackageCheck, Truck, MapPin, Loader2, CreditCard, Lock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminPage, useAdminUsersByIds, useAdminAuctionsByIds, useAdminWinnerPaymentsByAuctions, winnerPaymentFor, adminPageQuery, adminSection, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUsersByIds, useAdminAuctionsByIds, useAdminWinnerPaymentsByAuctions, winnerPaymentFor, winnerPaymentsByAuctionsQuery, adminPageQuery, adminSection, firstPage, warmAdmin, warmLabels, isLabelLoading, isLookupLoading } from "@/lib/queries/admin";
+import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import PaymentReminderButton from "@/components/admin/PaymentReminderButton";
 import { adminKeys } from "@/lib/queries/keys";
 import AdminPagination from "@/components/admin/AdminPagination";
@@ -41,10 +42,16 @@ const loadCounts = async () => {
 };
 const countsQuery = () => adminSection(adminKeys.fulfilmentCounts(), loadCounts);
 
-/** Route loader: the stage counts and the first page of orders. */
-export const prefetch = (qc) => {
+/** Route loader: the stage counts, the first page of orders and its names / payment records. */
+export const prefetch = async (qc) => {
   const params = firstPage(ORDERS);
-  return warmAdmin(qc, countsQuery(), adminPageQuery("Fulfilment", adminKeys.fulfilmentPage(params), params));
+  const [, first] = await warmAdmin(qc, countsQuery(), adminPageQuery("Fulfilment", adminKeys.fulfilmentPage(params), params));
+  const orders = first?.rows || [];
+  await warmLabels(qc, orders, {
+    users: ["winner_id"],
+    auctions: ["auction_id"],
+    extra: [winnerPaymentsByAuctionsQuery(orders.map((o) => o.auction_id))],
+  });
 };
 
 export default function AdminFulfilment() {
@@ -182,10 +189,12 @@ export default function AdminFulfilment() {
                 const payment = paymentFor(payments, o);
                 // Paid on the payment record, or (older wins) on the auction.
                 const paid = payment?.status === "paid" || (!!a?.paid && !payment);
+                // Until this page's payment records (and auction "paid" flag) arrive, don't guess.
+                const payLoading = isLookupLoading(payments) || isLabelLoading(auctions, o.auction_id);
                 return (
                   <tr key={o.id} className="hover:bg-secondary/30">
-                    <td className="px-4 py-3 font-medium">{a?.title || "—"}</td>
-                    <td className="px-4 py-3">{u ? (u.full_name || u.email) : `…${o.winner_id?.slice(-4)}`}</td>
+                    <td className="px-4 py-3 font-medium">{a?.title || (isLabelLoading(auctions, o.auction_id) ? <LabelPlaceholder /> : "—")}</td>
+                    <td className="px-4 py-3">{u ? (u.full_name || u.email) : isLabelLoading(users, o.winner_id) ? <LabelPlaceholder /> : `…${o.winner_id?.slice(-4)}`}</td>
                     <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">{o.method === "shipping" ? t.fulfilment.methodShip : t.fulfilment.methodPickup}</td>
                     <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
                       {o.method === "shipping" ? (
@@ -197,20 +206,25 @@ export default function AdminFulfilment() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className={cn("inline-block text-xs font-semibold rounded-full px-2.5 py-1", STATUS_CLS[o.status])}>{t.fulfilment.status[o.status]}</span>
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5",
-                            paid ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"
-                          )}
-                        >
-                          <CreditCard className="w-3 h-3" aria-hidden="true" />
-                          {paid ? t.admin.fulfilment.paid : t.admin.fulfilment.awaitingPayment}
-                        </span>
+                        {payLoading ? (
+                          <LabelPlaceholder className="w-16" />
+                        ) : (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5",
+                              paid ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"
+                            )}
+                          >
+                            <CreditCard className="w-3 h-3" aria-hidden="true" />
+                            {paid ? t.admin.fulfilment.paid : t.admin.fulfilment.awaitingPayment}
+                          </span>
+                        )}
                       </div>
                       {o.carrier && <span className="block text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><Truck className="w-3 h-3" />{o.carrier} {o.tracking_number}</span>}
                     </td>
                     <td className="px-4 py-3 text-end">
                       <div className="flex items-center justify-end gap-2">
+                        {payLoading ? <LabelPlaceholder className="w-24 h-7" /> : <>
                         {!paid && payment?.status === "pending" && (
                           <>
                             <PaymentReminderButton payment={payment} auction={a} />
@@ -227,6 +241,7 @@ export default function AdminFulfilment() {
                             <Lock className="w-3.5 h-3.5" aria-hidden="true" /> {t.admin.fulfilment.waitingForPayment}
                           </Button>
                         ))}
+                        </>}
                       </div>
                     </td>
                   </tr>

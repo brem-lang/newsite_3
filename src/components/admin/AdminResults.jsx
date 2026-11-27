@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Trophy, Mail, MessageCircle, CheckCircle2, Users, Bell, Phone, Copy } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminPage, useAdminUserMap, useAdminUsersByIds, useAdminWinnerPaymentsByAuctions, winnerPaymentFor, adminPageQuery, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUserMap, useAdminUsersByIds, useAdminWinnerPaymentsByAuctions, winnerPaymentFor, winnerPaymentsByAuctionsQuery, adminPageQuery, firstPage, warmAdmin, warmLabels, isLabelLoading, isLookupLoading } from "@/lib/queries/admin";
+import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import PaymentReminderButton from "@/components/admin/PaymentReminderButton";
@@ -24,10 +25,16 @@ import {
 const RESULTS = { where: { status: ["ended", "archived"] }, sort: "-created_date" };
 const PAGE_SIZE = 10;
 
-/** Route loader: the first page of results (paged in Postgres). */
-export const prefetch = (qc) => {
+/** Route loader: the first page of results (paged in Postgres), its winners and payment records. */
+export const prefetch = async (qc) => {
   const params = firstPage(RESULTS, PAGE_SIZE);
-  return warmAdmin(qc, adminPageQuery("Auction", adminKeys.resultsPage(params), params));
+  const [first] = await warmAdmin(qc, adminPageQuery("Auction", adminKeys.resultsPage(params), params));
+  const ended = first?.rows || [];
+  await warmLabels(qc, ended, {
+    users: ["winner_id"],
+    userFields: "*",
+    extra: [winnerPaymentsByAuctionsQuery(ended.filter((a) => a.winner_id).map((a) => a.id))],
+  });
 };
 
 export default function AdminResults() {
@@ -113,6 +120,9 @@ export default function AdminResults() {
             const payment = a.winner_id ? winnerPaymentFor(payments, a.id, a.winner_id) : null;
             // Paid on the payment record, or (older wins) on the auction.
             const paid = payment ? payment.status === "paid" : !!a.paid;
+            // Until this page's payment records arrive, don't guess paid/unpaid.
+            const payLoading = !!a.winner_id && isLookupLoading(payments);
+            const winnerLoading = isLabelLoading(users, a.winner_id);
             return (
               <div key={a.id} className="rounded-2xl border border-border bg-card overflow-hidden">
                 <div className="p-5 space-y-4">
@@ -122,7 +132,9 @@ export default function AdminResults() {
                     <h3 className="font-heading text-lg font-semibold truncate">{a.title}</h3>
                     <p className="text-xs text-muted-foreground">{t.admin.results.endedAt}: {a.end_time ? new Date(a.end_time).toLocaleDateString("en-GB") : "—"}</p>
                   </div>
-                  {a.winner_id ? (
+                  {payLoading ? (
+                    <LabelPlaceholder className="w-16 h-6 shrink-0" />
+                  ) : a.winner_id ? (
                     <span className={cn("shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full", paid ? "bg-success/15 text-success" : "bg-warning/15 text-warning")}>
                       {paid ? t.admin.results.paid : t.admin.results.unpaid}
                     </span>
@@ -135,7 +147,7 @@ export default function AdminResults() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 text-sm">
-                  <Field label={t.admin.results.winner} value={u ? (u.full_name || u.email) : t.admin.results.noWinner} />
+                  <Field label={t.admin.results.winner} value={u ? (u.full_name || u.email) : winnerLoading ? <LabelPlaceholder /> : t.admin.results.noWinner} />
                   <Field label={t.admin.results.winningBid} value={`${t.common.currency}${(a.current_price || 0).toFixed(2)}`} />
                   <Field label={t.admin.results.participants} value={filled} />
                 </div>
@@ -151,7 +163,7 @@ export default function AdminResults() {
                       <Mail className="w-4 h-4" />{t.admin.results.contactWinner}
                     </Button>
                   )}
-                  {a.winner_id && !paid && payment?.status === "pending" && (
+                  {a.winner_id && !payLoading && !paid && payment?.status === "pending" && (
                     <>
                       <PaymentReminderButton payment={payment} auction={a} />
                       <Button size="sm" className="gap-2" onClick={() => markPaid(a, payment)}><CheckCircle2 className="w-4 h-4" />{t.admin.results.markPaid}</Button>

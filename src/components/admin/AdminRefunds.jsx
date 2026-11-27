@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw, Check, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useAdminPage, useAdminUsersByIds, adminPageQuery, firstPage, toMap, warmAdmin, ADMIN_STALE } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUsersByIds, adminPageQuery, firstPage, toMap, warmAdmin, warmLabels, useLabelMap, isLabelLoading, ADMIN_STALE } from "@/lib/queries/admin";
+import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import { adminKeys } from "@/lib/queries/keys";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { logAdminAction } from "@/lib/adminAudit";
@@ -18,7 +19,6 @@ const STATUS_CLS = {
   pending: "bg-warning/15 text-warning", approved: "bg-success/15 text-success", rejected: "bg-destructive/15 text-destructive"
 };
 
-const NO_MAP = {};
 const PENDING = { sort: "-created_date", where: { status: "pending" } };
 const RESOLVED = { sort: "-created_date", notIn: { status: ["pending"] } };
 const pendingKey = (params) => adminKeys.refundsPage("pending", params);
@@ -36,11 +36,16 @@ const txnsByIdsQuery = (ids) => {
   };
 };
 
-/** Route loader: the first page of each list (paged in Postgres). */
-export const prefetch = (qc) => {
+/** Route loader: the first page of each list (paged in Postgres), with names and amounts. */
+export const prefetch = async (qc) => {
   const p1 = firstPage(PENDING);
   const p2 = firstPage(RESOLVED);
-  return warmAdmin(qc, adminPageQuery("RefundRequest", pendingKey(p1), p1), adminPageQuery("RefundRequest", resolvedKey(p2), p2));
+  const [a, b] = await warmAdmin(qc, adminPageQuery("RefundRequest", pendingKey(p1), p1), adminPageQuery("RefundRequest", resolvedKey(p2), p2));
+  const onScreen = [...(a?.rows || []), ...(b?.rows || [])];
+  await warmLabels(qc, onScreen, {
+    users: ["user_id"],
+    extra: [txnsByIdsQuery(onScreen.map((r) => r.original_transaction_id))],
+  });
 };
 
 export default function AdminRefunds() {
@@ -51,7 +56,7 @@ export default function AdminRefunds() {
   const pending = pendingTable.rows;
   const resolved = resolvedTable.rows;
   const onScreen = [...pending, ...resolved];
-  const { data: txns = NO_MAP } = useQuery(txnsByIdsQuery(onScreen.map((r) => r.original_transaction_id)));
+  const txns = useLabelMap(useQuery(txnsByIdsQuery(onScreen.map((r) => r.original_transaction_id))));
   const users = useAdminUsersByIds(onScreen.map((r) => r.user_id));
   const loading = pendingTable.isPending || resolvedTable.isPending;
   // A decision moves a request from one list to the other: refresh both.
@@ -108,8 +113,8 @@ export default function AdminRefunds() {
                   const u = users[r.user_id];
                   return (
                     <tr key={r.id} className="hover:bg-secondary/30">
-                      <td className="px-4 py-3 font-medium">{u ? (u.full_name || u.email) : `…${r.user_id?.slice(-4)}`}</td>
-                      <td className="px-4 py-3">{t.common.currency}{Math.abs(txn?.amount || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 font-medium">{u ? (u.full_name || u.email) : isLabelLoading(users, r.user_id) ? <LabelPlaceholder /> : `…${r.user_id?.slice(-4)}`}</td>
+                      <td className="px-4 py-3">{isLabelLoading(txns, r.original_transaction_id) ? <LabelPlaceholder className="w-14" /> : `${t.common.currency}${Math.abs(txn?.amount || 0).toFixed(2)}`}</td>
                       <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">{r.reason || "—"}</td>
                       <td className="px-4 py-3 text-end">
                         <div className="flex items-center justify-end gap-2">
@@ -145,8 +150,8 @@ export default function AdminRefunds() {
                   const u = users[r.user_id];
                   return (
                     <tr key={r.id} className="hover:bg-secondary/30">
-                      <td className="px-4 py-3 font-medium">{u ? (u.full_name || u.email) : `…${r.user_id?.slice(-4)}`}</td>
-                      <td className="px-4 py-3">{t.common.currency}{Math.abs(txn?.amount || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 font-medium">{u ? (u.full_name || u.email) : isLabelLoading(users, r.user_id) ? <LabelPlaceholder /> : `…${r.user_id?.slice(-4)}`}</td>
+                      <td className="px-4 py-3">{isLabelLoading(txns, r.original_transaction_id) ? <LabelPlaceholder className="w-14" /> : `${t.common.currency}${Math.abs(txn?.amount || 0).toFixed(2)}`}</td>
                       <td className="px-4 py-3"><span className={cn("inline-block text-xs font-semibold rounded-full px-2.5 py-1", STATUS_CLS[r.status])}>{t.refund.status[r.status]}</span></td>
                       <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">{r.admin_note || "—"}</td>
                     </tr>

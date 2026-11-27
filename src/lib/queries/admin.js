@@ -63,12 +63,21 @@ export const adminSection = (queryKey, queryFn, options = {}) =>
  * Warm the cache before a panel renders. Each admin panel exports
  * `prefetch(queryClient)`, and the /admin route loaders await it, so switching
  * sections keeps the current panel on screen under the top progress bar until
- * the next one has its data. Cached data is used as is (the panel revalidates
- * it in the background when stale). A failed read doesn't block navigation;
- * the panel shows its own error state.
+ * the next one has its data.
+ *
+ * fetchQuery, not ensureQueryData: data still inside its staleTime is used as
+ * is (no request), but stale data is re-fetched and awaited here. Otherwise a
+ * revisit paints the old cached rows and swaps them for fresh ones a moment
+ * later. Falsy options and `enabled: false` ones are skipped. A failed read
+ * doesn't block navigation; the panel shows its own error state.
+ * Resolves to each option's data (undefined when skipped or failed).
  */
 export const warmAdmin = (qc, ...options) =>
-  Promise.all(options.map((o) => qc.ensureQueryData(o).catch(() => undefined)));
+  Promise.all(
+    options.map((o) =>
+      o && o.enabled !== false ? qc.fetchQuery(o).catch(() => undefined) : undefined,
+    ),
+  );
 
 /** Forget all staff data (after a staff sign-out). */
 export function clearAdminCache(qc) {
@@ -289,10 +298,32 @@ export const usersByIdsQuery = (ids, fields = USER_LABEL_FIELDS) => {
   });
 };
 
+/**
+ * Lookup maps returned by the *ByIds hooks carry this (non-enumerable) flag
+ * while ids new to the screen are still loading, so a cell can show a
+ * placeholder instead of a raw id that turns into a name a moment later.
+ */
+const LABELS_LOADING = Symbol("labelsLoading");
+
+/** The query's map, flagged as loading while it fetches a key it has no data for yet. */
+export function useLabelMap(query) {
+  const map = query.data ?? EMPTY_MAP;
+  const loading = query.fetchStatus === "fetching" && (query.isPending || query.isPlaceholderData);
+  return useMemo(
+    () => (loading ? Object.defineProperty({ ...map }, LABELS_LOADING, { value: true }) : map),
+    [map, loading],
+  );
+}
+
+/** True while `id` isn't in `map` yet but its lookup is still loading. */
+export const isLabelLoading = (map, id) => !!id && !map?.[id] && !!map?.[LABELS_LOADING];
+
+/** True while a lookup returned by one of these hooks is loading a key it has no data for. */
+export const isLookupLoading = (lookup) => !!lookup?.[LABELS_LOADING];
+
 /** { [userId]: { id, full_name, email } } for the given ids (or the given fields). */
 export function useAdminUsersByIds(ids, fields) {
-  const { data = EMPTY_MAP } = useQuery(usersByIdsQuery(ids, fields));
-  return data;
+  return useLabelMap(useQuery(usersByIdsQuery(ids, fields)));
 }
 
 const AUCTION_LABEL_FIELDS = "id, title, paid, status";
@@ -310,9 +341,30 @@ export const auctionsByIdsQuery = (ids) => {
 
 /** { [auctionId]: { id, title, paid, status } } for the given ids. */
 export function useAdminAuctionsByIds(ids) {
-  const { data = EMPTY_MAP } = useQuery(auctionsByIdsQuery(ids));
-  return data;
+  return useLabelMap(useQuery(auctionsByIdsQuery(ids)));
 }
+
+/**
+ * For a panel's prefetch: load the name lookups for the rows it paints first,
+ * so names are there on first render instead of popping in after the rows.
+ *   await warmLabels(qc, page?.rows, { users: ["user_id"], auctions: ["auction_id"] });
+ * Pass the same rows, id fields and userFields the component gives the *ByIds
+ * hooks, so both land on one cache entry. `extra`: more query options to warm.
+ */
+export const warmLabels = (
+  qc,
+  rows,
+  { users = [], userFields, auctions = [], extra = [] } = {},
+) => {
+  const list = rows || NONE;
+  const pick = (fields) => list.flatMap((r) => fields.map((f) => r?.[f]));
+  return warmAdmin(
+    qc,
+    users.length ? usersByIdsQuery(pick(users), userFields) : null,
+    auctions.length ? auctionsByIdsQuery(pick(auctions)) : null,
+    ...extra,
+  );
+};
 
 /** Calls a Postgres function on the staff session and throws on error. */
 export const adminRpc = (name, args = {}) => base44.rpc(name, args);
@@ -408,15 +460,25 @@ export async function fetchAllRows(entity, opts = {}) {
  * Winner payment records (winner_payments) for the given auctions, read on
  * the staff session. These, not auctions.paid, decide whether a win is paid.
  */
-export function useAdminWinnerPaymentsByAuctions(auctionIds) {
+export const winnerPaymentsByAuctionsQuery = (auctionIds) => {
   const ids = uniqIds(auctionIds);
-  const { data = EMPTY_LIST } = useQuery({
+  return queryOptions({
     queryKey: adminKeys.winnerPaymentsByAuctions(ids),
     queryFn: async () => (await base44.entities.WinnerPayment.filter({ auction_id: ids }, "-created_date", 500)) || [],
     enabled: ids.length > 0,
     staleTime: 30_000,
   });
-  return data;
+};
+
+/** The records as a list; isLookupLoading(list) is true while a new page's records load. */
+export function useAdminWinnerPaymentsByAuctions(auctionIds) {
+  const query = useQuery(winnerPaymentsByAuctionsQuery(auctionIds));
+  const list = query.data ?? EMPTY_LIST;
+  const loading = query.fetchStatus === "fetching" && query.isPending;
+  return useMemo(
+    () => (loading ? Object.defineProperty([...list], LABELS_LOADING, { value: true }) : list),
+    [list, loading],
+  );
 }
 
 /** The winner's payment record for an auction (a paid one first), or null. */

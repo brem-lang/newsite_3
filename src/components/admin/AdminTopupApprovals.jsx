@@ -3,7 +3,8 @@ import { Copy, Eye, Minus, Plus } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { adminKeys } from "@/lib/queries/keys";
-import { useAdminUsersByIds } from "@/lib/queries/admin";
+import { useAdminUsersByIds, warmAdmin, warmLabels, isLabelLoading } from "@/lib/queries/admin";
+import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import { useConfirm } from "@/components/admin/ConfirmDialog";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,12 @@ const pendingQuery = () => ({
     (await base44.entities.WalletTransaction.filter({ status: "pending", type: "topup" }, "-created_date", 200)) || [],
   staleTime: 15_000,
 });
+
+/** For the Payments route loader: the queue and its members' details, before the panel opens. */
+export const prefetchTopups = async (qc) => {
+  const [pending] = await warmAdmin(qc, pendingQuery());
+  await warmLabels(qc, pending, { users: ["user_id"], userFields: "*" });
+};
 
 function timeAgo(value) {
   const ms = Date.now() - new Date(value).getTime();
@@ -132,7 +139,7 @@ export default function AdminTopupApprovals() {
           return (
             <div key={x.id} className="flex items-center justify-between gap-3 py-2">
               <div className="min-w-0">
-                <p className="font-medium text-sm truncate">{nameOf(x)}</p>
+                <p className="font-medium text-sm truncate">{isLabelLoading(users, x.user_id) ? <LabelPlaceholder /> : nameOf(x)}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   {money(x.amount)} · {x.reference || "—"} · {timeAgo(x.created_date)}
                 </p>

@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Search, ArrowUpDown, Download, RefreshCw, AlertTr
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { adminKeys } from "@/lib/queries/keys";
+import { warmAdmin } from "@/lib/queries/admin";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { logAdminAction } from "@/lib/adminAudit";
@@ -51,7 +52,7 @@ const crudPageQuery = (entity, { page = 1, pageSize = DEFAULT_PAGE_SIZE, term = 
 });
 
 /** A panel's route prefetch: `export const prefetch = prefetchCrud("Brand")` warms the first page. */
-export const prefetchCrud = (entity) => (qc) => qc.ensureQueryData(crudPageQuery(entity)).catch(() => undefined);
+export const prefetchCrud = (entity) => (qc) => warmAdmin(qc, crudPageQuery(entity));
 
 export default function AdminCrudTable({ entity, title, subtitle, addLabel, emptyLabel, fields, readOnly }) {
   

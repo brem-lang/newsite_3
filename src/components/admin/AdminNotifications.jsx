@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Mail, MessageCircle, Bell, ListFilter } from "lucide-react";
-import { useAdminPage, useAdminUsersByIds, adminPageQuery, firstPage, warmAdmin } from "@/lib/queries/admin";
+import { useAdminPage, useAdminUsersByIds, adminPageQuery, firstPage, warmAdmin, warmLabels, isLabelLoading } from "@/lib/queries/admin";
+import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import { adminKeys } from "@/lib/queries/keys";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { useI18n } from "@/lib/i18n";
@@ -9,10 +10,11 @@ import { cn } from "@/lib/utils";
 const SORT = "-created_date";
 const filtersFor = (channel) => ({ sort: SORT, where: channel === "all" ? {} : { channel } });
 
-/** Route loader: the first page (paged and filtered in Postgres). */
-export const prefetch = (qc) => {
+/** Route loader: the first page (paged and filtered in Postgres) and its recipients' names. */
+export const prefetch = async (qc) => {
   const params = firstPage(filtersFor("all"));
-  return warmAdmin(qc, adminPageQuery("Notification", adminKeys.notificationsPage(params), params));
+  const [first] = await warmAdmin(qc, adminPageQuery("Notification", adminKeys.notificationsPage(params), params));
+  await warmLabels(qc, first?.rows, { users: ["user_id"] });
 };
 
 export default function AdminNotifications() {
@@ -84,7 +86,7 @@ export default function AdminNotifications() {
                   const CIcon = cm.icon;
                   return (
                     <tr key={n.id} className="hover:bg-secondary/30">
-                      <td className="px-4 py-3">{u ? (u.full_name || u.email) : n.recipient || `…${n.user_id?.slice(-4)}`}</td>
+                      <td className="px-4 py-3">{u ? (u.full_name || u.email) : isLabelLoading(users, n.user_id) ? <LabelPlaceholder /> : n.recipient || `…${n.user_id?.slice(-4)}`}</td>
                       <td className="px-4 py-3">
                         <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full", cm.tint)}><CIcon className="w-3.5 h-3.5" />{cm.label}</span>
                       </td>

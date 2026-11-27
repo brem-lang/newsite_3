@@ -4,9 +4,10 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianG
 import { base44 } from "@/api/base44Client";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminKeys } from "@/lib/queries/keys";
-import { useAdminData, useAdminUsersByIds, adminSection, adminRpc, warmAdmin } from "@/lib/queries/admin";
+import { useAdminData, useAdminUsersByIds, adminSection, adminRpc, warmAdmin, warmLabels, isLabelLoading } from "@/lib/queries/admin";
+import LabelPlaceholder from "@/components/admin/LabelPlaceholder";
 import AdminPagination from "@/components/admin/AdminPagination";
-import AdminTopupApprovals from "@/components/admin/AdminTopupApprovals";
+import AdminTopupApprovals, { prefetchTopups } from "@/components/admin/AdminTopupApprovals";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -44,13 +45,15 @@ const fetchPage = (page, pageSize, typeFilter) =>
 const FIRST_PAGE = [1, 25, "all"];
 const pageKey = (page, pageSize, typeFilter) => adminKeys.paymentsPage({ page, pageSize, typeFilter });
 
-/** Route loader: the summary and the first table page. */
-export const prefetch = (qc) =>
-  warmAdmin(
-    qc,
-    adminSection(adminKeys.paymentsSummary(), loadSummary),
-    adminSection(pageKey(...FIRST_PAGE), () => fetchPage(...FIRST_PAGE)),
-  );
+/** Route loader: the summary, the approvals queue, and the first table page with its names. */
+export const prefetch = async (qc) => {
+  const [, first] = await Promise.all([
+    warmAdmin(qc, adminSection(adminKeys.paymentsSummary(), loadSummary)),
+    warmAdmin(qc, adminSection(pageKey(...FIRST_PAGE), () => fetchPage(...FIRST_PAGE))).then(([p]) => p),
+    prefetchTopups(qc),
+  ]);
+  await warmLabels(qc, first?.rows, { users: ["user_id"] });
+};
 
 export default function AdminPayments() {
   const { t } = useI18n();
@@ -234,7 +237,7 @@ export default function AdminPayments() {
                   const u = userMap[x.user_id];
                   return (
                     <tr key={x.id} className="hover:bg-secondary/30">
-                      <td className="px-4 py-3 font-medium">{u ? (u.full_name || u.email) : `…${x.user_id?.slice(-4)}`}</td>
+                      <td className="px-4 py-3 font-medium">{u ? (u.full_name || u.email) : isLabelLoading(userMap, x.user_id) ? <LabelPlaceholder /> : `…${x.user_id?.slice(-4)}`}</td>
                       <td className="px-4 py-3"><Badge>{typeLabel(x.type)}</Badge></td>
                       <td className={`px-4 py-3 text-end font-semibold ${(x.amount || 0) >= 0 ? "text-success" : "text-destructive"}`}>{(x.amount || 0) >= 0 ? "+" : ""}{t.common.currency}{Math.abs(x.amount || 0).toFixed(2)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{x.description || x.notes || "—"}</td>
