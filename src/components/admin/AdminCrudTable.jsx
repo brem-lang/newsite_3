@@ -54,8 +54,12 @@ const crudPageQuery = (entity, { page = 1, pageSize = DEFAULT_PAGE_SIZE, term = 
 /** A panel's route prefetch: `export const prefetch = prefetchCrud("Brand")` warms the first page. */
 export const prefetchCrud = (entity) => (qc) => warmAdmin(qc, crudPageQuery(entity));
 
-export default function AdminCrudTable({ entity, title, subtitle, addLabel, emptyLabel, fields, readOnly }) {
-  
+/**
+ * `configKey`: the site-wide cached copy of this table (e.g. configKeys.brands()),
+ * refreshed after every save or delete so forms that read it (the auction
+ * form's brand list) show the change without a page reload.
+ */
+export default function AdminCrudTable({ entity, title, subtitle, addLabel, emptyLabel, fields, readOnly, configKey }) {
   const L = (o) => (o ? (typeof o === "string" ? o : o.en || "") : "");
   const cols = fields.filter((f) => !f.hideInTable);
   const qc = useQueryClient();
@@ -85,7 +89,10 @@ export default function AdminCrudTable({ entity, title, subtitle, addLabel, empt
   const rows = data?.rows || [];
   const total = data?.total || 0;
   const pageCount = data?.pageCount || 1;
-  const invalidate = () => qc.invalidateQueries({ queryKey: adminKeys.entity(entity) });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: adminKeys.entity(entity) });
+    if (configKey) qc.invalidateQueries({ queryKey: configKey });
+  };
 
   // A delete can empty the last page: step back to the new last page.
   useEffect(() => {

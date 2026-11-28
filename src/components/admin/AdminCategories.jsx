@@ -1,8 +1,9 @@
 import React, { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAdminData, adminSection, warmAdmin } from "@/lib/queries/admin";
-import { adminKeys } from "@/lib/queries/keys";
+import { adminKeys, configKeys } from "@/lib/queries/keys";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,7 +28,10 @@ export const prefetch = (qc) => warmAdmin(qc, adminSection(adminKeys.categories(
 export default function AdminCategories() {
   const { t } = useI18n();
   const askConfirm = useConfirm();
-  const { data: items = NONE, isPending: loading, refresh: load } = useAdminData(adminKeys.categories(), loadSection);
+  const qc = useQueryClient();
+  const { data: items = NONE, isPending: loading, refresh } = useAdminData(adminKeys.categories(), loadSection);
+  // Also refresh the site-wide category list (auction form, filters) so edits show without a reload.
+  const load = () => { refresh(); qc.invalidateQueries({ queryKey: configKeys.categories() }); };
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: "", slug: "", color: "#3b82f6", icon: DEFAULT_CATEGORY_ICON, description: "", sort_order: 0, active: true });

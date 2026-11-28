@@ -1,5 +1,6 @@
 import React from "react";
 import AdminCrudTable, { prefetchCrud } from "./AdminCrudTable";
+import { configKeys } from "@/lib/queries/keys";
 import { SITE_PAGES } from "@/lib/legal";
 
 // Read by src/pages/LegalPage.jsx: the published row whose slug matches the
@@ -43,6 +44,7 @@ export default function AdminPages() {
       addLabel={{ en: "New page" }}
       emptyLabel={{ en: "No pages yet. Terms and Privacy are showing the built-in text." }}
       fields={fields}
+      configKey={configKeys.pages()}
     />
   );
 }

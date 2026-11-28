@@ -1,5 +1,6 @@
 import React from "react";
 import AdminCrudTable, { prefetchCrud } from "./AdminCrudTable";
+import { configKeys } from "@/lib/queries/keys";
 
 const fields = [
   { key: "name", label: { en: "Name" }, required: true },
@@ -20,6 +21,7 @@ export default function AdminBrands() {
       addLabel={{ en: "Add brand" }}
       emptyLabel={{ en: "No brands yet." }}
       fields={fields}
+      configKey={configKeys.brands()}
     />
   );
 }
